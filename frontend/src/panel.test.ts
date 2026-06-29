@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createProgramId } from "./ids";
 import type { Program } from "./types";
 
 describe("Smart Yardian program shape", () => {
@@ -37,5 +38,13 @@ describe("Smart Yardian program shape", () => {
       "reference",
       "manual",
     ]);
+  });
+});
+
+describe("Smart Yardian program creation", () => {
+  it("creates an id without requiring crypto.randomUUID", () => {
+    expect(createProgramId(1_750_000_000_000, 0.5)).toMatch(
+      /^program-[a-z0-9]+-[a-z0-9]{7}$/,
+    );
   });
 });

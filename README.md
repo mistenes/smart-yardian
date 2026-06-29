@@ -81,6 +81,14 @@ hőmérséklet-feltételt. A számítás csak előnézet, nem indít Yardian zó
 Távolabbi napnál csak akkor jelenik meg konkrét futási idő, ha az Időkép vagy
 az OpenWeather legalább 12 használható órát ad az adott program időpontjától.
 
+## OpenWeather híváskorlát
+
+Az OpenWeather-válasz 30 percig gyorsítótárazott, ezért normál működésben
+legfeljebb 48 valódi kérés történhet naponta. Ezen felül egy HA-szinten közös,
+tartós számláló minden valódi HTTP-kérés előtt lefoglal egy hívást. A 200.
+hívás után további OpenWeather-kérés az adott UTC-napon nem indul el, HA
+újraindítása után sem. A mai felhasználás a **Beállítások** oldalon látható.
+
 ## Fejlesztés
 
 ```bash

@@ -247,11 +247,11 @@ let y = class extends HTMLElement {
   }
 };
 y.elementStyles = [], y.shadowRootOptions = { mode: "open" }, y[k("elementProperties")] = /* @__PURE__ */ new Map(), y[k("finalized")] = /* @__PURE__ */ new Map(), ve?.({ ReactiveElement: y }), (N.reactiveElementVersions ??= []).push("2.1.2");
-const Z = globalThis, W = (i) => i, C = Z.trustedTypes, Y = C ? C.createPolicy("lit-html", { createHTML: (i) => i }) : void 0, ae = "$lit$", _ = `lit$${Math.random().toFixed(9).slice(2)}$`, oe = "?" + _, ye = `<${oe}>`, v = document, A = () => v.createComment(""), S = (i) => i === null || typeof i != "object" && typeof i != "function", B = Array.isArray, xe = (i) => B(i) || typeof i?.[Symbol.iterator] == "function", T = `[ 	
+const Z = globalThis, W = (i) => i, C = Z.trustedTypes, Y = C ? C.createPolicy("lit-html", { createHTML: (i) => i }) : void 0, ae = "$lit$", _ = `lit$${Math.random().toFixed(9).slice(2)}$`, oe = "?" + _, ye = `<${oe}>`, v = document, A = () => v.createComment(""), S = (i) => i === null || typeof i != "object" && typeof i != "function", I = Array.isArray, xe = (i) => I(i) || typeof i?.[Symbol.iterator] == "function", T = `[ 	
 \f\r]`, w = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g, J = /-->/g, G = />/g, f = RegExp(`>|${T}(?:([^\\s"'>=/]+)(${T}*=${T}*(?:[^ 	
 \f\r"'\`<>=]|("|')|))|$)`, "g"), Q = /'/g, X = /"/g, ne = /^(?:script|style|textarea|title)$/i, $e = (i) => (e, ...t) => ({ _$litType$: i, strings: e, values: t }), n = $e(1), x = /* @__PURE__ */ Symbol.for("lit-noChange"), c = /* @__PURE__ */ Symbol.for("lit-nothing"), ee = /* @__PURE__ */ new WeakMap(), b = v.createTreeWalker(v, 129);
 function le(i, e) {
-  if (!B(i) || !i.hasOwnProperty("raw")) throw Error("invalid template strings array");
+  if (!I(i) || !i.hasOwnProperty("raw")) throw Error("invalid template strings array");
   return Y !== void 0 ? Y.createHTML(e) : e;
 }
 const we = (i, e) => {
@@ -380,7 +380,7 @@ class E {
     return t === void 0 && ee.set(e.strings, t = new P(e)), t;
   }
   k(e) {
-    B(this._$AH) || (this._$AH = [], this._$AR());
+    I(this._$AH) || (this._$AH = [], this._$AR());
     const t = this._$AH;
     let s, r = 0;
     for (const a of e) r === t.length ? t.push(s = new E(this.O(A()), this.O(A()), this, this.options)) : s = t[r], s._$AI(a), r++;
@@ -472,7 +472,7 @@ const Me = (i, e, t) => {
   }
   return r._$AI(i), r;
 };
-const I = globalThis;
+const B = globalThis;
 class z extends y {
   constructor() {
     super(...arguments), this.renderOptions = { host: this }, this._$Do = void 0;
@@ -495,10 +495,10 @@ class z extends y {
     return x;
   }
 }
-z._$litElement$ = !0, z.finalized = !0, I.litElementHydrateSupport?.({ LitElement: z });
-const De = I.litElementPolyfillSupport;
+z._$litElement$ = !0, z.finalized = !0, B.litElementHydrateSupport?.({ LitElement: z });
+const De = B.litElementPolyfillSupport;
 De?.({ LitElement: z });
-(I.litElementVersions ??= []).push("4.2.2");
+(B.litElementVersions ??= []).push("4.2.2");
 const Ce = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary" }), Ne = (i) => i.connection.sendMessagePromise({
   type: "smart_yardian/weather/preview"
 }), He = (i) => i.connection.sendMessagePromise({
@@ -529,7 +529,7 @@ const Ce = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
 }), Ze = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/run/stop" }), se = (i, e) => i.connection.sendMessagePromise({
   type: "smart_yardian/pause_until",
   until: e
-}), Be = ce`
+}), Ie = (i = Date.now(), e = Math.random()) => `program-${i.toString(36)}-${Math.floor(e * 4294967296).toString(36).padStart(7, "0")}`, Be = ce`
   :host {
     --sy-blue: var(--primary-color, #1688e8);
     --sy-blue-soft: color-mix(in srgb, var(--sy-blue) 9%, white);
@@ -1793,14 +1793,14 @@ const Ce = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
       padding-bottom: 12px;
     }
   }
-`, Ie = ["H", "K", "Sze", "Cs", "P", "Szo", "V"], Fe = ["Hé", "Ke", "Sze", "Csü", "Pén", "Szo", "Vas"], j = [
+`, Fe = ["H", "K", "Sze", "Cs", "P", "Szo", "V"], qe = ["Hé", "Ke", "Sze", "Csü", "Pén", "Szo", "Vas"], j = [
   { value: "rotator", label: "Rotátor (MP)", rate: 10 },
   { value: "mp800", label: "Rotátor MP800", rate: 20 },
   { value: "spray", label: "Spray / esőztető", rate: 40 },
   { value: "rotor", label: "Rotoros", rate: 12 },
   { value: "drip", label: "Csepegtető", rate: 12 }
-], qe = () => ({
-  program_id: crypto.randomUUID(),
+], Ke = () => ({
+  program_id: Ie(),
   name: "Új program",
   enabled: !0,
   weekdays: [0, 2, 4],
@@ -1812,7 +1812,7 @@ const Ce = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
   zones: [],
   skip_next: !1
 }), U = (i) => JSON.parse(JSON.stringify(i));
-class Ke extends z {
+class Ve extends z {
   constructor() {
     super(...arguments), this.narrow = !1, this._summary = null, this._tab = "overview", this._loading = !0, this._error = "", this._draft = null, this._saving = !1, this._zoneDurations = {}, this._expandedControllers = [], this._schedulePreview = null, this._scheduleLoading = !1, this._loadSchedule = async () => {
       if (!(!this.hass || this._scheduleLoading)) {
@@ -1826,7 +1826,7 @@ class Ke extends z {
         }
       }
     }, this._newProgram = () => {
-      this._draft = qe(), this._tab = "programs";
+      this._draft = Ke(), this._tab = "programs", this._error = "";
     }, this._addDraftZone = (e) => {
       if (!this._draft) return;
       const t = e.target;
@@ -2054,7 +2054,9 @@ class Ke extends z {
         <aside class="rail">
           <div class="rail-title">
             <span>Programok</span>
-            <button class="text-action" @click=${this._newProgram}>+ Hozzáadás</button>
+            <button class="text-action" type="button" @click=${this._newProgram}>
+              + Hozzáadás
+            </button>
           </div>
           ${e.programs.length ? e.programs.slice(0, 3).map((r) => this._renderRailProgram(r)) : n`<div class="empty">Még nincs program.</div>`}
           ${this._renderCompactHistory(e.history[0])}
@@ -2293,7 +2295,7 @@ class Ke extends z {
     return n`
       <div class="page-head">
         <h2>Programok</h2>
-        <button class="button primary" @click=${this._newProgram}>
+        <button class="button primary" type="button" @click=${this._newProgram}>
           <ha-icon icon="mdi:plus"></ha-icon>
           Új program
         </button>
@@ -2339,7 +2341,7 @@ class Ke extends z {
         <div class="field">
           <span class="field-label">Napok</span>
           <div class="days">
-            ${Ie.map(
+            ${Fe.map(
       (s, r) => n`
                 <button
                   class="day"
@@ -2624,6 +2626,12 @@ class Ke extends z {
             <span>Aktív időjárásforrás</span>
             <strong>${this._summary.weather?.source ?? "Nincs értékelés"}</strong>
           </div>
+          <div class="setting-row">
+            <span>OpenWeather API-hívások ma</span>
+            <strong>
+              ${this._summary.openweather_quota ? `${this._summary.openweather_quota.count} / ${this._summary.openweather_quota.limit}` : "Nincs adat"}
+            </strong>
+          </div>
         </section>
       </div>
       <section class="settings-section zone-profiles">
@@ -2810,7 +2818,7 @@ class Ke extends z {
     });
   }
   _formatDays(e) {
-    return e.map((t) => Fe[t] ?? "").join(", ");
+    return e.map((t) => qe[t] ?? "").join(", ");
   }
   _temperatureConditionText(e) {
     return `${e.temperature_condition_operator === "above" ? "Max. hőmérséklet >" : "Max. hőmérséklet <"} ${e.temperature_condition_value} °C`;
@@ -2883,8 +2891,8 @@ class Ke extends z {
     return e instanceof Error || typeof e == "object" && e !== null && "message" in e && typeof e.message == "string" ? e.message : "A művelet nem sikerült.";
   }
 }
-customElements.get("smart-yardian-panel") || customElements.define("smart-yardian-panel", Ke);
+customElements.get("smart-yardian-panel") || customElements.define("smart-yardian-panel", Ve);
 export {
-  Ke as SmartYardianPanel
+  Ve as SmartYardianPanel
 };
 //# sourceMappingURL=smart-yardian-panel.js.map

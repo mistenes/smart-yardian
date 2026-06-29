@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Iterable
+from collections.abc import Awaitable, Callable, Iterable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -11,6 +11,7 @@ from .const import (
     FORECAST_HORIZON_HOURS,
     MIN_FORECAST_HOURS,
     OPENWEATHER_CACHE_SECONDS,
+    OPENWEATHER_DAILY_LIMIT,
     OPENWEATHER_URL,
 )
 from .models import ForecastHour, WeatherDecision
@@ -40,6 +41,20 @@ class OpenWeatherAuthenticationError(WeatherUnavailableError):
 
 class OpenWeatherRateLimitError(WeatherUnavailableError):
     """Raised when the OpenWeather quota is exhausted."""
+
+
+def reserve_daily_request(
+    state: dict[str, Any],
+    today: str,
+    limit: int = OPENWEATHER_DAILY_LIMIT,
+) -> dict[str, Any]:
+    """Return the state after reserving one request or raise at the limit."""
+    count = int(state.get("count") or 0) if state.get("date") == today else 0
+    if count >= limit:
+        raise OpenWeatherRateLimitError(
+            f"A Smart Yardian elérte a napi {limit} OpenWeather-hívás korlátot."
+        )
+    return {"date": today, "count": count + 1}
 
 
 def _as_float(value: Any, default: float = 0.0) -> float:
@@ -234,11 +249,13 @@ class OpenWeatherClient:
         api_key: str,
         latitude: float,
         longitude: float,
+        before_request: Callable[[], Awaitable[None]] | None = None,
     ) -> None:
         self._session = session
         self._api_key = api_key
         self._latitude = latitude
         self._longitude = longitude
+        self._before_request = before_request
         self._cache: list[ForecastHour] | None = None
         self._cache_at: datetime | None = None
         self._lock = asyncio.Lock()
@@ -246,6 +263,12 @@ class OpenWeatherClient:
     async def async_validate(self) -> None:
         """Validate credentials with a real forecast request."""
         await self.async_fetch(force=True)
+
+    def set_before_request(
+        self, callback: Callable[[], Awaitable[None]]
+    ) -> None:
+        """Set a guard called only before a real HTTP request."""
+        self._before_request = callback
 
     async def async_fetch(self, force: bool = False) -> list[ForecastHour]:
         """Fetch and cache the hourly timeline."""
@@ -266,6 +289,8 @@ class OpenWeatherClient:
                 "units": "metric",
                 "lang": "hu",
             }
+            if self._before_request is not None:
+                await self._before_request()
             try:
                 async with self._session.get(
                     OPENWEATHER_URL,

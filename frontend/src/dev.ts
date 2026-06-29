@@ -261,6 +261,12 @@ const summary = (): Summary => ({
     cadence: "kétnaponta",
     label: "Nyár",
   },
+  openweather_quota: {
+    date: new Date().toISOString().slice(0, 10),
+    count: 4,
+    limit: 200,
+    remaining: 196,
+  },
 });
 
 const schedulePreview = (): SchedulePreview => {

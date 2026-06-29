@@ -34,6 +34,7 @@ OPENWEATHER_URL: Final = (
     "https://api.openweathermap.org/data/4.0/onecall/timeline/1h"
 )
 OPENWEATHER_CACHE_SECONDS: Final = 30 * 60
+OPENWEATHER_DAILY_LIMIT: Final = 200
 WEATHER_MAX_AGE_SECONDS: Final = 90 * 60
 MIN_FORECAST_HOURS: Final = 12
 FORECAST_HORIZON_HOURS: Final = 24

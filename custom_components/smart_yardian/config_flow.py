@@ -18,6 +18,7 @@ from .const import (
     CONF_ZONE_ENTITIES,
     DOMAIN,
 )
+from .quota import async_get_openweather_quota
 from .weather import OpenWeatherClient, WeatherUnavailableError
 
 
@@ -86,11 +87,13 @@ class SmartYardianConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         if user_input is not None:
             try:
+                quota = await async_get_openweather_quota(self.hass)
                 client = OpenWeatherClient(
                     async_get_clientsession(self.hass),
                     user_input[CONF_OPENWEATHER_API_KEY],
                     user_input[CONF_LATITUDE],
                     user_input[CONF_LONGITUDE],
+                    before_request=quota.async_reserve,
                 )
                 await client.async_validate()
             except WeatherUnavailableError:
@@ -111,11 +114,13 @@ class SmartYardianConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         if user_input is not None:
             try:
+                quota = await async_get_openweather_quota(self.hass)
                 client = OpenWeatherClient(
                     async_get_clientsession(self.hass),
                     user_input[CONF_OPENWEATHER_API_KEY],
                     user_input[CONF_LATITUDE],
                     user_input[CONF_LONGITUDE],
+                    before_request=quota.async_reserve,
                 )
                 await client.async_validate()
             except WeatherUnavailableError:

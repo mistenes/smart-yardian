@@ -153,4 +153,10 @@ export type Summary = {
     cadence: string;
     label: string;
   } | null;
+  openweather_quota: {
+    date: string;
+    count: number;
+    limit: number;
+    remaining: number;
+  } | null;
 };

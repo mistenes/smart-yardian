@@ -13,6 +13,7 @@ import {
   updateSettings,
   updateZoneProfiles,
 } from "./api";
+import { createProgramId } from "./ids";
 import { panelStyles } from "./styles";
 import type {
   Hass,
@@ -45,7 +46,7 @@ const HEAD_TYPES: Array<{
 ];
 
 const emptyProgram = (): Program => ({
-  program_id: crypto.randomUUID(),
+  program_id: createProgramId(),
   name: "Új program",
   enabled: true,
   weekdays: [0, 2, 4],
@@ -217,7 +218,9 @@ export class SmartYardianPanel extends LitElement {
         <aside class="rail">
           <div class="rail-title">
             <span>Programok</span>
-            <button class="text-action" @click=${this._newProgram}>+ Hozzáadás</button>
+            <button class="text-action" type="button" @click=${this._newProgram}>
+              + Hozzáadás
+            </button>
           </div>
           ${summary.programs.length
             ? summary.programs
@@ -506,7 +509,7 @@ export class SmartYardianPanel extends LitElement {
     return html`
       <div class="page-head">
         <h2>Programok</h2>
-        <button class="button primary" @click=${this._newProgram}>
+        <button class="button primary" type="button" @click=${this._newProgram}>
           <ha-icon icon="mdi:plus"></ha-icon>
           Új program
         </button>
@@ -865,6 +868,14 @@ export class SmartYardianPanel extends LitElement {
             <span>Aktív időjárásforrás</span>
             <strong>${this._summary!.weather?.source ?? "Nincs értékelés"}</strong>
           </div>
+          <div class="setting-row">
+            <span>OpenWeather API-hívások ma</span>
+            <strong>
+              ${this._summary!.openweather_quota
+                ? `${this._summary!.openweather_quota.count} / ${this._summary!.openweather_quota.limit}`
+                : "Nincs adat"}
+            </strong>
+          </div>
         </section>
       </div>
       <section class="settings-section zone-profiles">
@@ -1075,6 +1086,7 @@ export class SmartYardianPanel extends LitElement {
   private _newProgram = (): void => {
     this._draft = emptyProgram();
     this._tab = "programs";
+    this._error = "";
   };
 
   private _patchDraft(patch: Partial<Program>): void {

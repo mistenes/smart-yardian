@@ -38,6 +38,7 @@ from .irrigation import (
 )
 from .models import ForecastHour, IrrigationProgram, ProgramZone, RunRecord, WeatherDecision
 from .planning import upcoming_occurrences
+from .quota import OpenWeatherDailyQuota, async_get_openweather_quota
 from .storage import SmartYardianStore
 from .weather import (
     OpenWeatherClient,
@@ -72,6 +73,7 @@ class SmartYardianManager:
         self.active_run: dict[str, Any] | None = None
         self.last_decision: WeatherDecision | None = None
         self.last_error: str | None = None
+        self.openweather_quota: OpenWeatherDailyQuota | None = None
         self._run_lock = asyncio.Lock()
         self._stop_event = asyncio.Event()
         self._listeners: set[Callable[[], None]] = set()
@@ -86,6 +88,8 @@ class SmartYardianManager:
     async def async_setup(self) -> None:
         """Load storage, recover interrupted work and start scheduler."""
         await self.store.async_load()
+        self.openweather_quota = await async_get_openweather_quota(self.hass)
+        self.weather.set_before_request(self.openweather_quota.async_reserve)
         added_profiles = False
         for entity_id in self.zone_entities:
             if entity_id not in self.store.zone_profiles:
@@ -982,4 +986,9 @@ class SmartYardianManager:
             "last_error": self.last_error,
             "next_run": next_run.isoformat() if next_run else None,
             "seasonal_target": target,
+            "openweather_quota": (
+                self.openweather_quota.as_dict()
+                if self.openweather_quota
+                else None
+            ),
         }

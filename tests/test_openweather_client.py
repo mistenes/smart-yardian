@@ -12,6 +12,7 @@ from custom_components.smart_yardian.weather import (
     OpenWeatherAuthenticationError,
     OpenWeatherClient,
     OpenWeatherRateLimitError,
+    reserve_daily_request,
 )
 
 
@@ -68,6 +69,62 @@ def test_openweather_cache_avoids_duplicate_request() -> None:
     assert session.calls == 1
     assert first is second
     assert len(first) == 24
+
+
+def test_openweather_quota_guard_runs_only_for_real_http_requests() -> None:
+    session = FakeSession(FakeResponse(200, payload()))
+    reservations = 0
+
+    async def reserve() -> None:
+        nonlocal reservations
+        reservations += 1
+
+    client = OpenWeatherClient(
+        session,
+        "secret",
+        47.5,
+        19.0,
+        before_request=reserve,
+    )
+
+    asyncio.run(client.async_fetch())
+    asyncio.run(client.async_fetch())
+    asyncio.run(client.async_fetch(force=True))
+
+    assert reservations == 2
+    assert session.calls == 2
+
+
+def test_openweather_quota_guard_blocks_before_http() -> None:
+    session = FakeSession(FakeResponse(200, payload()))
+
+    async def reject() -> None:
+        raise OpenWeatherRateLimitError("daily limit")
+
+    client = OpenWeatherClient(
+        session,
+        "secret",
+        47.5,
+        19.0,
+        before_request=reject,
+    )
+
+    with pytest.raises(OpenWeatherRateLimitError, match="daily limit"):
+        asyncio.run(client.async_fetch())
+    assert session.calls == 0
+
+
+def test_daily_quota_never_reserves_more_than_200() -> None:
+    state: dict[str, Any] = {}
+    for _ in range(200):
+        state = reserve_daily_request(state, "2026-06-29")
+
+    assert state["count"] == 200
+    with pytest.raises(OpenWeatherRateLimitError, match="napi 200"):
+        reserve_daily_request(state, "2026-06-29")
+
+    reset = reserve_daily_request(state, "2026-06-30")
+    assert reset == {"date": "2026-06-30", "count": 1}
 
 
 @pytest.mark.parametrize(
