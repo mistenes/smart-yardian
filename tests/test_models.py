@@ -30,6 +30,7 @@ def test_program_roundtrip_preserves_zone_order() -> None:
         "switch.soveny",
     ]
     assert program.temperature_condition_enabled is False
+    assert program.soil_moisture_enabled is False
     assert IrrigationProgram.from_dict(program.as_dict()).as_dict() == program.as_dict()
     assert all(zone.duration_mode == "manual" for zone in program.zones)
 

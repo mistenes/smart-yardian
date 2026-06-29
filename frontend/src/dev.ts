@@ -111,6 +111,12 @@ const profileFor = (entityId: string, index: number): ZoneProfile => {
     reference_rate_mm_h,
     flow_l_min: null,
     area_m2: null,
+    exposure: index % 4 === 0 ? "shady" : "sunny",
+    exposure_factor: index % 4 === 0 ? 0.8 : 1,
+    moisture_sensor_entity_id:
+      index < 2 ? "sensor.elso_kert_talajnedvesseg" : null,
+    moisture_sensor_state: index < 2 ? "43" : undefined,
+    moisture_sensor_unit: index < 2 ? "%" : undefined,
     effective_rate_mm_h: reference_rate_mm_h,
     rate_source: "fejtípus referencia",
   };
@@ -131,6 +137,7 @@ let programs: Program[] = [
     temperature_condition_enabled: true,
     temperature_condition_operator: "above",
     temperature_condition_value: 26,
+    soil_moisture_enabled: true,
     zones: zones.slice(0, 5).map(([entity_id], index) => ({
       entity_id,
       duration_minutes: [15, 15, 20, 20, 10][index] ?? 15,
@@ -148,6 +155,7 @@ let programs: Program[] = [
     temperature_condition_enabled: false,
     temperature_condition_operator: "above",
     temperature_condition_value: 30,
+    soil_moisture_enabled: false,
     zones: zones.slice(5).map(([entity_id], index) => ({
       entity_id,
       duration_minutes: [18, 30, 12, 8][index] ?? 15,
@@ -387,7 +395,24 @@ const schedulePreview = (): SchedulePreview => {
 };
 
 const hass: Hass = {
-  states: {},
+  states: {
+    "sensor.elso_kert_talajnedvesseg": {
+      state: "43",
+      attributes: {
+        friendly_name: "Első kert talajnedvesség",
+        device_class: "moisture",
+        unit_of_measurement: "%",
+      },
+    },
+    "sensor.hatso_kert_talajnedvesseg": {
+      state: "57",
+      attributes: {
+        friendly_name: "Hátsó kert talajnedvesség",
+        device_class: "moisture",
+        unit_of_measurement: "%",
+      },
+    },
+  },
   connection: {
     async sendMessagePromise<T>(message: Record<string, unknown>): Promise<T> {
       const type = message.type;

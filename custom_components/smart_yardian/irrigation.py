@@ -13,6 +13,11 @@ HEAD_REFERENCE_RATES: dict[str, float] = {
     "drip": 12.0,
 }
 
+EXPOSURE_FACTORS: dict[str, float] = {
+    "sunny": 1.0,
+    "shady": 0.8,
+}
+
 
 @dataclass(slots=True)
 class ZoneProfile:
@@ -23,6 +28,8 @@ class ZoneProfile:
     reference_rate_mm_h: float
     flow_l_min: float | None = None
     area_m2: float | None = None
+    exposure: str = "sunny"
+    moisture_sensor_entity_id: str | None = None
 
     @classmethod
     def default(cls, entity_id: str) -> ZoneProfile:
@@ -52,7 +59,23 @@ class ZoneProfile:
         area = _optional_bounded_float(
             data.get("area_m2"), "Az öntözött terület", 0.1, 10000
         )
-        return cls(entity_id, head_type, reference_rate, flow, area)
+        exposure = str(data.get("exposure") or "sunny")
+        if exposure not in EXPOSURE_FACTORS:
+            raise ValueError(f"Ismeretlen területjelleg: {exposure}")
+        moisture_sensor = str(data.get("moisture_sensor_entity_id") or "").strip()
+        if moisture_sensor and not moisture_sensor.startswith("sensor."):
+            raise ValueError(
+                "Talajnedvességmérőként csak sensor entitás használható."
+            )
+        return cls(
+            entity_id,
+            head_type,
+            reference_rate,
+            flow,
+            area,
+            exposure,
+            moisture_sensor or None,
+        )
 
     @property
     def effective_rate_mm_h(self) -> float:
@@ -68,11 +91,17 @@ class ZoneProfile:
             return "vízhozam és terület"
         return "fejtípus referencia"
 
+    @property
+    def exposure_factor(self) -> float:
+        """Return the runtime multiplier for sunny or shaded areas."""
+        return EXPOSURE_FACTORS[self.exposure]
+
     def as_dict(self) -> dict[str, Any]:
         """Return a JSON-safe representation with derived values."""
         data = asdict(self)
         data["effective_rate_mm_h"] = round(self.effective_rate_mm_h, 2)
         data["rate_source"] = self.rate_source
+        data["exposure_factor"] = self.exposure_factor
         return data
 
 
@@ -105,7 +134,11 @@ def reference_duration_minutes(
     rain_factor: float = 1.0,
 ) -> int:
     """Convert target millimetres into a safe whole-minute runtime."""
-    target_mm = seasonal_target(max_temperature).depth_mm * max(0.0, rain_factor)
+    target_mm = (
+        seasonal_target(max_temperature).depth_mm
+        * max(0.0, rain_factor)
+        * profile.exposure_factor
+    )
     minutes = round(target_mm / profile.effective_rate_mm_h * 60)
     return max(1, min(180, minutes))
 

@@ -24,6 +24,11 @@ export type ZoneProfile = {
   reference_rate_mm_h: number;
   flow_l_min: number | null;
   area_m2: number | null;
+  exposure: "sunny" | "shady";
+  exposure_factor: number;
+  moisture_sensor_entity_id: string | null;
+  moisture_sensor_state?: string;
+  moisture_sensor_unit?: string | null;
   effective_rate_mm_h: number;
   rate_source: string;
 };
@@ -54,6 +59,7 @@ export type Program = {
   temperature_condition_enabled: boolean;
   temperature_condition_operator: "above" | "below";
   temperature_condition_value: number;
+  soil_moisture_enabled: boolean;
   zones: ProgramZone[];
   skip_next: boolean;
 };

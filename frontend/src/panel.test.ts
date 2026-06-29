@@ -14,6 +14,7 @@ describe("Smart Yardian program shape", () => {
       temperature_condition_enabled: true,
       temperature_condition_operator: "above",
       temperature_condition_value: 28,
+      soil_moisture_enabled: true,
       zones: [
         {
           entity_id: "switch.gyep",

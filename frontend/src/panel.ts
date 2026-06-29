@@ -55,6 +55,7 @@ const emptyProgram = (): Program => ({
   temperature_condition_enabled: false,
   temperature_condition_operator: "above",
   temperature_condition_value: 30,
+  soil_moisture_enabled: false,
   zones: [],
   skip_next: false,
 });
@@ -77,6 +78,7 @@ export class SmartYardianPanel extends LitElement {
     _expandedControllers: { state: true },
     _schedulePreview: { state: true },
     _scheduleLoading: { state: true },
+    _bulkMoistureSensor: { state: true },
   };
 
   static styles = panelStyles;
@@ -94,6 +96,7 @@ export class SmartYardianPanel extends LitElement {
   private _expandedControllers: string[] = [];
   private _schedulePreview: SchedulePreview | null = null;
   private _scheduleLoading = false;
+  private _bulkMoistureSensor = "";
   private _timer?: number;
 
   connectedCallback(): void {
@@ -655,7 +658,7 @@ export class SmartYardianPanel extends LitElement {
         ${draft.temperature_condition_enabled
           ? html`
               <div class="temperature-condition">
-                <span>A következő 24 óra maximuma</span>
+                <span>A program napjának maximuma</span>
                 <select
                   aria-label="Hőmérséklet összehasonlítása"
                   .value=${draft.temperature_condition_operator}
@@ -689,6 +692,31 @@ export class SmartYardianPanel extends LitElement {
                   />
                   <span>°C</span>
                 </label>
+              </div>
+            `
+          : nothing}
+        <div class="checkline">
+          <input
+            id="program-soil-moisture"
+            type="checkbox"
+            .checked=${draft.soil_moisture_enabled}
+            @change=${(event: Event) =>
+              this._patchDraft({
+                soil_moisture_enabled: (event.target as HTMLInputElement).checked,
+              })}
+          />
+          <label for="program-soil-moisture">
+            A zónák talajnedvességmérőinek használata
+          </label>
+        </div>
+        ${draft.soil_moisture_enabled
+          ? html`
+              <div class="subtle">
+                ${draft.zones.filter(
+                  (zone) => this._zoneProfile(zone.entity_id)?.moisture_sensor_entity_id,
+                ).length}
+                programzónához van érzékelő rendelve. A kihagyási küszöböt a
+                következő fejlesztési lépésben lehet majd megadni.
               </div>
             `
           : nothing}
@@ -910,18 +938,47 @@ export class SmartYardianPanel extends LitElement {
         </section>
       </div>
       <section class="settings-section zone-profiles">
-        <h3>Zónák szórófeje és vízhozama</h3>
+        <h3>Zónák vízigénye, szórófeje és érzékelője</h3>
         <p class="settings-help">
           Referencia módban a program a célzott vízmennyiséget osztja a kijuttatási
           intenzitással. Ha a teljes zónavízhozam és a terület is ki van töltve,
-          azok felülírják a fejtípus referenciaértékét.
+          azok felülírják a fejtípus referenciaértékét. Az árnyékos terület 20%-kal
+          rövidebb referenciaidőt kap. Egy talajnedvességmérő több zónához is
+          hozzárendelhető; az automatikus kihagyási küszöb egy következő lépésben
+          kapcsolható rá biztonságosan.
         </p>
+        <div class="moisture-bulk">
+          <label>
+            <span>Talajnedvességmérő minden zónához</span>
+            <select
+              .value=${this._bulkMoistureSensor}
+              @change=${(event: Event) => {
+                this._bulkMoistureSensor = (event.target as HTMLSelectElement).value;
+              }}
+            >
+              <option value="">Válassz érzékelőt…</option>
+              ${this._moistureSensors().map(
+                (sensor) => html`<option value=${sensor.entity_id}>${sensor.name}</option>`,
+              )}
+            </select>
+          </label>
+          <button
+            class="button quiet"
+            type="button"
+            ?disabled=${!this._bulkMoistureSensor}
+            @click=${() => this._assignMoistureSensorToAll(this._bulkMoistureSensor)}
+          >
+            Hozzárendelés mindhez
+          </button>
+        </div>
         <div class="zone-profile-head" aria-hidden="true">
           <span>Zóna</span>
           <span>Fejtípus</span>
+          <span>Terület jellege</span>
           <span>Referencia</span>
           <span>Vízhozam</span>
           <span>Terület</span>
+          <span>Talajnedvesség</span>
           <span>Aktív érték</span>
         </div>
         ${this._allZones().map((zone) => this._renderZoneProfile(zone))}
@@ -963,12 +1020,65 @@ export class SmartYardianPanel extends LitElement {
             )}
           </select>
         </label>
+        <label>
+          <span class="mobile-label">Terület jellege</span>
+          <select
+            .value=${profile.exposure}
+            @change=${(event: Event) =>
+              this._patchZoneProfile(zone.entity_id, {
+                exposure: (event.target as HTMLSelectElement)
+                  .value as ZoneProfile["exposure"],
+                exposure_factor:
+                  (event.target as HTMLSelectElement).value === "shady" ? 0.8 : 1,
+              })}
+          >
+            <option value="sunny" ?selected=${profile.exposure === "sunny"}>
+              Napos
+            </option>
+            <option value="shady" ?selected=${profile.exposure === "shady"}>
+              Árnyékos
+            </option>
+          </select>
+        </label>
         ${this._profileNumber(zone, "reference_rate_mm_h", "mm/óra", 0.1)}
         ${this._profileNumber(zone, "flow_l_min", "l/perc", 0.1, true)}
         ${this._profileNumber(zone, "area_m2", "m²", 0.1, true)}
+        <label class="moisture-select">
+          <span class="mobile-label">Talajnedvességmérő</span>
+          <select
+            .value=${profile.moisture_sensor_entity_id ?? ""}
+            @change=${(event: Event) =>
+              this._patchZoneProfile(zone.entity_id, {
+                moisture_sensor_entity_id:
+                  (event.target as HTMLSelectElement).value || null,
+              })}
+          >
+            <option value="">Nincs hozzárendelve</option>
+            ${this._moistureSensors().map(
+              (sensor) => html`
+                <option
+                  value=${sensor.entity_id}
+                  ?selected=${sensor.entity_id === profile.moisture_sensor_entity_id}
+                >
+                  ${sensor.name}
+                </option>
+              `,
+            )}
+          </select>
+          ${profile.moisture_sensor_entity_id
+            ? html`
+                <span class="sensor-reading">
+                  ${profile.moisture_sensor_state ?? "–"}${profile.moisture_sensor_unit ?? ""}
+                </span>
+              `
+            : nothing}
+        </label>
         <span class="effective-rate">
           <strong>${this._effectiveRate(profile).toFixed(1)} mm/óra</strong>
-          <span>${measured ? "mért adatokból" : "referencia"}</span>
+          <span>
+            ${measured ? "mért adatokból" : "referencia"} ·
+            ${profile.exposure === "shady" ? "80% árnyék" : "100% napos"}
+          </span>
         </span>
       </div>
     `;
@@ -1098,9 +1208,16 @@ export class SmartYardianPanel extends LitElement {
     const rainFactor = program.weather_adjustment
       ? (weather?.rain_factor ?? weather?.factor ?? 1)
       : 1;
+    const exposureFactor = profile.exposure === "shady" ? 0.8 : 1;
     return Math.max(
       1,
-      Math.min(180, Math.round((targetMm * rainFactor * 60) / this._effectiveRate(profile))),
+      Math.min(
+        180,
+        Math.round(
+          (targetMm * rainFactor * exposureFactor * 60) /
+            this._effectiveRate(profile),
+        ),
+      ),
     );
   }
 
@@ -1292,6 +1409,35 @@ export class SmartYardianPanel extends LitElement {
         ),
       })),
     };
+  }
+
+  private _assignMoistureSensorToAll(entityId: string): void {
+    if (!entityId) return;
+    for (const zone of this._allZones()) {
+      this._patchZoneProfile(zone.entity_id, {
+        moisture_sensor_entity_id: entityId,
+      });
+    }
+  }
+
+  private _moistureSensors(): Array<{ entity_id: string; name: string }> {
+    return Object.entries(this.hass?.states ?? {})
+      .filter(([entityId, state]) => {
+        if (!entityId.startsWith("sensor.")) return false;
+        const attributes = state.attributes;
+        const deviceClass = String(attributes.device_class ?? "").toLowerCase();
+        const name = String(attributes.friendly_name ?? entityId).toLowerCase();
+        return (
+          deviceClass === "moisture" ||
+          name.includes("talajnedv") ||
+          name.includes("soil moisture")
+        );
+      })
+      .map(([entity_id, state]) => ({
+        entity_id,
+        name: String(state.attributes.friendly_name ?? entity_id),
+      }))
+      .sort((left, right) => left.name.localeCompare(right.name, "hu"));
   }
 
   private _saveSettings = async (): Promise<void> => {

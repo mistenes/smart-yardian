@@ -85,6 +85,7 @@ class IrrigationProgram:
     temperature_condition_enabled: bool = False
     temperature_condition_operator: str = "above"
     temperature_condition_value: float = 30.0
+    soil_moisture_enabled: bool = False
     program_id: str = field(default_factory=lambda: str(uuid4()))
     skip_next: bool = False
 
@@ -141,6 +142,9 @@ class IrrigationProgram:
             ),
             temperature_condition_operator=temperature_operator,
             temperature_condition_value=temperature_value,
+            soil_moisture_enabled=bool(
+                data.get("soil_moisture_enabled", False)
+            ),
             zones=zones,
             skip_next=bool(data.get("skip_next", False)),
         )

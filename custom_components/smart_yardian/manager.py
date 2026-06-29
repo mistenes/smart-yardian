@@ -737,6 +737,8 @@ class SmartYardianManager:
                     calculation = {
                         "duration_mode": "reference",
                         "head_type": profile.head_type,
+                        "exposure": profile.exposure,
+                        "exposure_factor": profile.exposure_factor,
                         "application_rate_mm_h": round(
                             profile.effective_rate_mm_h, 2
                         ),
@@ -993,6 +995,20 @@ class SmartYardianManager:
             )
             state_value = state.state if state else "missing"
             available = state is not None and state_value not in UNAVAILABLE_STATES
+            profile = self.zone_profile(entity_id)
+            profile_data = profile.as_dict()
+            if profile.moisture_sensor_entity_id:
+                moisture_state = self.hass.states.get(
+                    profile.moisture_sensor_entity_id
+                )
+                profile_data["moisture_sensor_state"] = (
+                    moisture_state.state if moisture_state else "unavailable"
+                )
+                profile_data["moisture_sensor_unit"] = (
+                    moisture_state.attributes.get("unit_of_measurement")
+                    if moisture_state
+                    else None
+                )
             zone = {
                 "entity_id": entity_id,
                 "name": state.name if state else entity_id,
@@ -1001,7 +1017,7 @@ class SmartYardianManager:
                 "availability_issue": self._zone_availability_issue(
                     entity_id, state_value
                 ),
-                "profile": self.zone_profile(entity_id).as_dict(),
+                "profile": profile_data,
             }
             controller["zones"].append(zone)
             controller["zone_count"] += 1

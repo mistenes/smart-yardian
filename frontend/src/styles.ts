@@ -971,10 +971,40 @@ export const panelStyles = css`
   .zone-profile-row {
     display: grid;
     grid-template-columns:
-      minmax(150px, 1.3fr) minmax(150px, 1fr) minmax(125px, 0.8fr)
-      minmax(125px, 0.8fr) minmax(110px, 0.7fr) minmax(125px, 0.8fr);
+      minmax(145px, 1.2fr) minmax(135px, 0.9fr) minmax(115px, 0.75fr)
+      minmax(110px, 0.7fr) minmax(110px, 0.7fr) minmax(100px, 0.65fr)
+      minmax(180px, 1.2fr) minmax(125px, 0.8fr);
     align-items: center;
     gap: 12px;
+  }
+
+  .moisture-bulk {
+    display: flex;
+    align-items: end;
+    gap: 10px;
+    margin: 0 0 16px;
+    padding: 12px;
+    border: 1px solid var(--sy-border);
+    border-radius: 8px;
+    background: var(--sy-surface);
+  }
+
+  .moisture-bulk label {
+    display: grid;
+    flex: 1;
+    max-width: 460px;
+    gap: 6px;
+    color: var(--sy-muted);
+    font-size: 12px;
+  }
+
+  .moisture-bulk select {
+    height: 36px;
+    padding: 5px 8px;
+    color: var(--sy-text);
+    background: var(--sy-surface);
+    border: 1px solid var(--sy-border);
+    border-radius: 6px;
   }
 
   .zone-profile-head {
@@ -1017,6 +1047,16 @@ export const panelStyles = css`
   .effective-rate {
     display: grid;
     gap: 2px;
+  }
+
+  .moisture-select {
+    display: grid;
+    gap: 3px;
+  }
+
+  .sensor-reading {
+    color: var(--sy-muted);
+    font-size: 11px;
   }
 
   .mobile-label {
@@ -1106,6 +1146,15 @@ export const panelStyles = css`
     .zone-profile-row > strong,
     .effective-rate {
       grid-column: 1 / -1;
+    }
+
+    .moisture-bulk {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .moisture-bulk label {
+      max-width: none;
     }
 
     .mobile-label {
