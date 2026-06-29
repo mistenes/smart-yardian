@@ -3,6 +3,7 @@ import {
   deleteProgram,
   getSummary,
   pauseUntil,
+  previewSchedule,
   previewWeather,
   runProgram,
   runZone,
@@ -18,6 +19,8 @@ import type {
   Program,
   ProgramZone,
   RunRecord,
+  SchedulePreview,
+  ScheduleProgram,
   Settings,
   Summary,
   WeatherDecision,
@@ -25,7 +28,7 @@ import type {
   ZoneProfile,
 } from "./types";
 
-type Tab = "overview" | "programs" | "history" | "settings";
+type Tab = "overview" | "schedule" | "programs" | "history" | "settings";
 
 const DAY_NAMES = ["H", "K", "Sze", "Cs", "P", "Szo", "V"];
 const DAY_LONG = ["Hé", "Ke", "Sze", "Csü", "Pén", "Szo", "Vas"];
@@ -71,6 +74,8 @@ export class SmartYardianPanel extends LitElement {
     _saving: { state: true },
     _zoneDurations: { state: true },
     _expandedControllers: { state: true },
+    _schedulePreview: { state: true },
+    _scheduleLoading: { state: true },
   };
 
   static styles = panelStyles;
@@ -86,13 +91,17 @@ export class SmartYardianPanel extends LitElement {
   private _saving = false;
   private _zoneDurations: Record<string, number> = {};
   private _expandedControllers: string[] = [];
+  private _schedulePreview: SchedulePreview | null = null;
+  private _scheduleLoading = false;
   private _timer?: number;
 
   connectedCallback(): void {
     super.connectedCallback();
     void this._load(true);
     this._timer = window.setInterval(() => {
-      if (this._tab !== "settings") void this._load(false);
+      if (this._tab !== "settings" && this._tab !== "schedule") {
+        void this._load(false);
+      }
     }, 5000);
   }
 
@@ -110,6 +119,7 @@ export class SmartYardianPanel extends LitElement {
         </header>
         <nav class="tabs" aria-label="Öntözés nézetek">
           ${this._tabButton("overview", "Áttekintés")}
+          ${this._tabButton("schedule", "Következő 3 nap")}
           ${this._tabButton("programs", "Programok")}
           ${this._tabButton("history", "Előzmények")}
           ${this._tabButton("settings", "Beállítások")}
@@ -134,6 +144,7 @@ export class SmartYardianPanel extends LitElement {
         @click=${() => {
           this._tab = tab;
           if (tab === "programs" && !this._draft) this._selectFirstProgram();
+          if (tab === "schedule") void this._loadSchedule();
         }}
       >
         ${label}
@@ -146,6 +157,8 @@ export class SmartYardianPanel extends LitElement {
     switch (this._tab) {
       case "programs":
         return this._renderPrograms();
+      case "schedule":
+        return this._renderSchedule();
       case "history":
         return this._renderHistory();
       case "settings":
@@ -387,6 +400,103 @@ export class SmartYardianPanel extends LitElement {
             `
           : html`<div class="subtle">Még nincs futási előzmény.</div>`}
       </div>
+    `;
+  }
+
+  private _renderSchedule(): TemplateResult {
+    const preview = this._schedulePreview;
+    return html`
+      <div class="page-head">
+        <div>
+          <h2>Következő 3 nap</h2>
+          <div class="subtle">
+            A most elérhető előrejelzés és programbeállítások alapján
+          </div>
+        </div>
+        <button
+          class="button quiet"
+          @click=${this._loadSchedule}
+          ?disabled=${this._scheduleLoading}
+        >
+          ${this._scheduleLoading ? "Frissítés…" : "Újraszámítás"}
+        </button>
+      </div>
+      ${this._scheduleLoading && !preview
+        ? html`<div class="loading">Háromnapos programterv számítása…</div>`
+        : preview
+          ? html`
+              <div class="schedule-days">
+                ${preview.days.map((day, index) => html`
+                  <section class="schedule-day">
+                    <div class="schedule-day-head">
+                      <strong>${this._formatScheduleDate(day.date, index)}</strong>
+                      <span>${day.programs.length} program</span>
+                    </div>
+                    ${day.programs.length
+                      ? day.programs.map((program) =>
+                          this._renderScheduleProgram(program),
+                        )
+                      : html`
+                          <div class="schedule-empty">
+                            Nincs hátralévő engedélyezett program.
+                          </div>
+                        `}
+                  </section>
+                `)}
+              </div>
+              <div class="schedule-generated">
+                Utolsó számítás: ${this._formatDateTime(preview.generated_at)}
+              </div>
+            `
+          : html`<div class="empty">A háromnapos előnézet nem érhető el.</div>`}
+      ${this._error ? html`<div class="error">${this._error}</div>` : nothing}
+    `;
+  }
+
+  private _renderScheduleProgram(program: ScheduleProgram): TemplateResult {
+    const runnable = program.status === "will_run";
+    return html`
+      <article class="schedule-program" ?runnable=${runnable}>
+        <div class="schedule-program-head">
+          <time>${this._formatTime(program.scheduled_at)}</time>
+          <strong>${program.program_name}</strong>
+          <span class="schedule-status ${program.status}">
+            ${this._scheduleStatusLabel(program.status)}
+          </span>
+        </div>
+        <div class="schedule-reason">${program.reason}</div>
+        ${program.weather
+          ? html`
+              <div class="schedule-weather">
+                <span>${program.weather.max_temperature ?? "–"} °C max.</span>
+                <span>${program.weather.precipitation_mm ?? 0} mm eső</span>
+                <span>${program.weather.source}</span>
+              </div>
+            `
+          : nothing}
+        <div class="schedule-zones">
+          ${program.zones.map(
+            (zone) => html`
+              <div>
+                <span>${zone.name}</span>
+                <strong>
+                  ${zone.planned_minutes === null
+                    ? "nincs adat"
+                    : `${zone.planned_minutes} perc`}
+                </strong>
+              </div>
+            `,
+          )}
+        </div>
+        <div class="schedule-total">
+          <span>Összesen</span>
+          <strong>
+            ${program.total_minutes === null
+              ? "nem számítható"
+              : `${program.total_minutes} perc`}
+          </strong>
+        </div>
+      </article>
     `;
   }
 
@@ -896,6 +1006,19 @@ export class SmartYardianPanel extends LitElement {
     }
   }
 
+  private _loadSchedule = async (): Promise<void> => {
+    if (!this.hass || this._scheduleLoading) return;
+    this._scheduleLoading = true;
+    try {
+      this._schedulePreview = await previewSchedule(this.hass);
+      this._error = "";
+    } catch (error) {
+      this._error = this._errorMessage(error);
+    } finally {
+      this._scheduleLoading = false;
+    }
+  };
+
   private _selectFirstProgram(): void {
     const first = this._summary?.programs[0];
     this._draft = first ? cloneProgram(first) : null;
@@ -1193,6 +1316,36 @@ export class SmartYardianPanel extends LitElement {
       hour: "2-digit",
       minute: "2-digit",
     }).format(new Date(value));
+  }
+
+  private _formatTime(value: string): string {
+    return new Intl.DateTimeFormat("hu-HU", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(value));
+  }
+
+  private _formatScheduleDate(value: string, index: number): string {
+    const formatted = new Intl.DateTimeFormat("hu-HU", {
+      weekday: "long",
+      month: "short",
+      day: "numeric",
+    }).format(new Date(`${value}T12:00:00`));
+    const prefix = index === 0 ? "Ma" : index === 1 ? "Holnap" : "Holnapután";
+    return `${prefix} · ${formatted}`;
+  }
+
+  private _scheduleStatusLabel(status: ScheduleProgram["status"]): string {
+    const labels: Record<ScheduleProgram["status"], string> = {
+      will_run: "Lefut",
+      automation_off: "Automatika kikapcsolva",
+      paused: "Szünetel",
+      skip_next: "Kihagyva",
+      weather_unavailable: "Nincs forecast",
+      condition_skip: "Feltétel nem teljesül",
+      rain_skip: "Eső miatt kimarad",
+    };
+    return labels[status];
   }
 
   private _formatRelative(value: string): string {

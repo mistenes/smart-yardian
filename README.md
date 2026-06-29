@@ -11,6 +11,8 @@ Időjárás-alapú, magyar nyelvű öntözésvezérlő Home Assistant 2026.6+ re
 - zónánként választható manuális vagy szórófej-referencia alapján számolt idő;
 - programonként opcionális hőmérséklet-feltétel a következő 24 óra
   előrejelzett maximumára;
+- külön háromnapos előnézet a várható futásokkal, kihagyásokkal és
+  zónánként számolt időkkel;
 - rotátor, MP800, spray, rotoros és csepegtető zónaprofil, opcionális
   vízhozam- és területméréssel;
 - megszakítás-, újraindítás- és párhuzamos futás elleni védelem;
@@ -66,6 +68,18 @@ következő 24 óra előrejelzett maximuma 30 °C fölött van. Az ellenkező,
 `alacsonyabb mint` feltétel is választható. Ha a feltétel nem teljesül, a
 futás kihagyásként bekerül az előzményekbe; bizonytalan időjárási adatnál a
 biztonsági szabály szerint szintén nem indul el.
+
+## Következő 3 nap
+
+A felső **Következő 3 nap** fül a következő három naptári nap még hátralévő
+programjait számolja ki. Megjeleníti a várható futást vagy kihagyást, az
+időjárásforrást, a maximum-hőmérsékletet, a csapadékot, a zónánkénti perceket
+és a teljes futási időt. Az előnézet figyelembe veszi az automatika állapotát,
+a szüneteltetést, a `skip next` jelölést, az esőkorrekciót és a
+hőmérséklet-feltételt. A számítás csak előnézet, nem indít Yardian zónát.
+
+Távolabbi napnál csak akkor jelenik meg konkrét futási idő, ha az Időkép vagy
+az OpenWeather legalább 12 használható órát ad az adott program időpontjától.
 
 ## Fejlesztés
 

@@ -1,6 +1,7 @@
 import type {
   Hass,
   Program,
+  SchedulePreview,
   Settings,
   Summary,
   WeatherDecision,
@@ -13,6 +14,11 @@ export const getSummary = (hass: Hass) =>
 export const previewWeather = (hass: Hass) =>
   hass.connection.sendMessagePromise<WeatherDecision>({
     type: "smart_yardian/weather/preview",
+  });
+
+export const previewSchedule = (hass: Hass) =>
+  hass.connection.sendMessagePromise<SchedulePreview>({
+    type: "smart_yardian/schedule/preview",
   });
 
 export const saveProgram = (hass: Hass, program: Program) =>

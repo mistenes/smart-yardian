@@ -36,7 +36,8 @@ from .irrigation import (
     reference_duration_minutes,
     seasonal_target,
 )
-from .models import IrrigationProgram, RunRecord, WeatherDecision
+from .models import ForecastHour, IrrigationProgram, ProgramZone, RunRecord, WeatherDecision
+from .planning import upcoming_occurrences
 from .storage import SmartYardianStore
 from .weather import (
     OpenWeatherClient,
@@ -205,38 +206,22 @@ class SmartYardianManager:
     async def async_weather_decision(self) -> WeatherDecision:
         """Evaluate Időkép first and OpenWeather 4.0 second."""
         now = dt_util.utcnow()
-        weather_entity = self.config[CONF_WEATHER_ENTITY]
-        state = self.hass.states.get(weather_entity)
         idokep_error = "Az Időkép entitás nem érhető el."
 
-        if state is not None:
-            age = (now - state.last_updated).total_seconds()
-            if age <= 90 * 60 and state.state not in ("unknown", "unavailable"):
-                try:
-                    response = await self.hass.services.async_call(
-                        "weather",
-                        "get_forecasts",
-                        {"type": "hourly"},
-                        target={ATTR_ENTITY_ID: weather_entity},
-                        blocking=True,
-                        return_response=True,
-                    )
-                    items = (response or {}).get(weather_entity, {}).get("forecast", [])
-                    forecast = normalize_ha_forecast(items)
-                    decision = evaluate_green_lawn(
-                        forecast,
-                        "Időkép",
-                        now=now,
-                        settings=self.store.settings,
-                    )
-                    self.last_decision = decision
-                    self.last_error = None
-                    self._notify_listeners()
-                    return decision
-                except (KeyError, TypeError, ValueError, WeatherUnavailableError) as err:
-                    idokep_error = str(err)
-            else:
-                idokep_error = "Az Időkép adata régi vagy nem elérhető."
+        try:
+            forecast = await self._async_idokep_forecast()
+            decision = evaluate_green_lawn(
+                forecast,
+                "Időkép",
+                now=now,
+                settings=self.store.settings,
+            )
+            self.last_decision = decision
+            self.last_error = None
+            self._notify_listeners()
+            return decision
+        except (KeyError, TypeError, ValueError, WeatherUnavailableError) as err:
+            idokep_error = str(err)
 
         try:
             forecast = await self.weather.async_fetch()
@@ -255,6 +240,31 @@ class SmartYardianManager:
             self._notify_listeners()
             raise WeatherUnavailableError(self.last_error) from err
 
+    async def _async_idokep_forecast(self) -> list[ForecastHour]:
+        """Fetch normalized hourly data from the configured Időkép entity."""
+        weather_entity = self.config[CONF_WEATHER_ENTITY]
+        state = self.hass.states.get(weather_entity)
+        if state is None:
+            raise WeatherUnavailableError("Az Időkép entitás nem érhető el.")
+        age = (dt_util.utcnow() - state.last_updated).total_seconds()
+        if age > 90 * 60 or state.state in ("unknown", "unavailable"):
+            raise WeatherUnavailableError("Az Időkép adata régi vagy nem elérhető.")
+        response = await self.hass.services.async_call(
+            "weather",
+            "get_forecasts",
+            {"type": "hourly"},
+            target={ATTR_ENTITY_ID: weather_entity},
+            blocking=True,
+            return_response=True,
+        )
+        items = (response or {}).get(weather_entity, {}).get("forecast", [])
+        forecast = normalize_ha_forecast(items)
+        if len(forecast) < 12:
+            raise WeatherUnavailableError(
+                "Az Időkép nem adott legalább 12 órányi előrejelzést."
+            )
+        return forecast
+
     async def async_preview_weather(self) -> dict[str, Any]:
         """Return current decision or a structured unavailable response."""
         try:
@@ -267,6 +277,186 @@ class SmartYardianManager:
                 "reason": str(err),
                 "available": False,
             }
+
+    async def async_three_day_preview(self) -> dict[str, Any]:
+        """Calculate a read-only preview of the next three calendar days."""
+        now = dt_util.as_local(dt_util.now())
+        occurrences = upcoming_occurrences(self.store.programs, now, days=3)
+        days = [
+            {
+                "date": (now + timedelta(days=offset)).date().isoformat(),
+                "programs": [],
+            }
+            for offset in range(3)
+        ]
+        days_by_date = {item["date"]: item for item in days}
+
+        idokep_forecast: list[ForecastHour] | None = None
+        idokep_error = "Az Időkép nem érhető el."
+        try:
+            idokep_forecast = await self._async_idokep_forecast()
+        except (KeyError, TypeError, ValueError, WeatherUnavailableError) as err:
+            idokep_error = str(err)
+
+        openweather_forecast: list[ForecastHour] | None = None
+        openweather_error = "Az OpenWeather nem érhető el."
+        openweather_loaded = False
+        skip_next_consumed: set[str] = set()
+
+        for occurrence in occurrences:
+            program = occurrence.program
+            needs_weather = (
+                program.weather_adjustment
+                or program.temperature_condition_enabled
+                or any(zone.duration_mode == "reference" for zone in program.zones)
+            )
+            decision: WeatherDecision | None = None
+            weather_error: str | None = None
+
+            if needs_weather:
+                if idokep_forecast is not None:
+                    try:
+                        decision = evaluate_green_lawn(
+                            idokep_forecast,
+                            "Időkép",
+                            now=occurrence.scheduled_at.astimezone(UTC),
+                            settings=self.store.settings,
+                        )
+                    except WeatherUnavailableError as err:
+                        idokep_error = str(err)
+
+                if decision is None:
+                    if not openweather_loaded:
+                        openweather_loaded = True
+                        try:
+                            openweather_forecast = await self.weather.async_fetch()
+                        except WeatherUnavailableError as err:
+                            openweather_error = str(err)
+                    if openweather_forecast is not None:
+                        try:
+                            decision = evaluate_green_lawn(
+                                openweather_forecast,
+                                "OpenWeather 4.0",
+                                now=occurrence.scheduled_at.astimezone(UTC),
+                                settings=self.store.settings,
+                            )
+                        except WeatherUnavailableError as err:
+                            openweather_error = str(err)
+
+                if decision is None:
+                    weather_error = (
+                        f"Időkép: {idokep_error} OpenWeather: {openweather_error}"
+                    )
+                elif not program.weather_adjustment:
+                    decision = replace(
+                        decision,
+                        factor=1.0,
+                        rain_factor=1.0,
+                        climate_factor=1.0,
+                    )
+
+            zones = [
+                self._preview_zone(zone, decision, program.weather_adjustment)
+                for zone in program.zones
+            ]
+            planned_minutes = [
+                int(zone["planned_minutes"])
+                for zone in zones
+                if zone["planned_minutes"] is not None
+            ]
+            status = "will_run"
+            reason = "A jelenlegi számítás szerint a program lefut."
+
+            if not self.store.settings.get("automation_enabled", True):
+                status = "automation_off"
+                reason = "Az automatika ki van kapcsolva."
+            elif self._paused_at(occurrence.scheduled_at):
+                status = "paused"
+                reason = "Az automatika ekkor még szünetel."
+            elif program.skip_next and program.program_id not in skip_next_consumed:
+                skip_next_consumed.add(program.program_id)
+                status = "skip_next"
+                reason = "A következő futás kihagyásra van jelölve."
+            elif weather_error:
+                status = "weather_unavailable"
+                reason = f"Nincs elég megbízható előrejelzés. {weather_error}"
+            elif decision and not program.temperature_condition_matches(
+                decision.max_temperature
+            ):
+                status = "condition_skip"
+                reason = program.temperature_condition_reason(
+                    decision.max_temperature
+                )
+            elif decision and program.weather_adjustment and decision.factor == 0:
+                status = "rain_skip"
+                reason = decision.reason
+
+            item = {
+                "program_id": program.program_id,
+                "program_name": program.name,
+                "scheduled_at": occurrence.scheduled_at.isoformat(),
+                "status": status,
+                "reason": reason,
+                "total_minutes": (
+                    sum(planned_minutes)
+                    if len(planned_minutes) == len(zones)
+                    else None
+                ),
+                "zones": zones,
+                "weather": decision.as_dict() if decision else None,
+            }
+            days_by_date[occurrence.scheduled_at.date().isoformat()][
+                "programs"
+            ].append(item)
+
+        return {
+            "generated_at": now.isoformat(),
+            "days": days,
+        }
+
+    def _preview_zone(
+        self,
+        zone: ProgramZone,
+        decision: WeatherDecision | None,
+        apply_weather: bool,
+    ) -> dict[str, Any]:
+        """Calculate one zone without starting hardware."""
+        state = self.hass.states.get(zone.entity_id)
+        duration: int | None
+        if zone.duration_mode == "reference":
+            duration = (
+                reference_duration_minutes(
+                    self.zone_profile(zone.entity_id),
+                    decision.max_temperature,
+                    decision.rain_factor if apply_weather else 1.0,
+                )
+                if decision
+                else None
+            )
+        elif apply_weather and decision is None:
+            duration = None
+        else:
+            factor = decision.factor if decision and apply_weather else 1.0
+            duration = max(1, min(180, round(zone.duration_minutes * factor)))
+        return {
+            "entity_id": zone.entity_id,
+            "name": state.name if state else zone.entity_id,
+            "duration_mode": zone.duration_mode,
+            "planned_minutes": duration,
+        }
+
+    def _paused_at(self, scheduled_at: datetime) -> bool:
+        """Return whether a future occurrence is inside the pause window."""
+        paused_until = self.store.settings.get("paused_until")
+        if not paused_until:
+            return False
+        try:
+            until = datetime.fromisoformat(str(paused_until))
+            if until.tzinfo is None:
+                until = until.replace(tzinfo=UTC)
+            return scheduled_at < until.astimezone(scheduled_at.tzinfo)
+        except ValueError:
+            return False
 
     def get_program(self, program_id: str) -> IrrigationProgram:
         """Find a program or raise."""

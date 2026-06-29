@@ -85,6 +85,41 @@ export type RunRecord = {
   zones: Array<Record<string, unknown>>;
 };
 
+export type ScheduleStatus =
+  | "will_run"
+  | "automation_off"
+  | "paused"
+  | "skip_next"
+  | "weather_unavailable"
+  | "condition_skip"
+  | "rain_skip";
+
+export type ScheduleZone = {
+  entity_id: string;
+  name: string;
+  duration_mode: "manual" | "reference";
+  planned_minutes: number | null;
+};
+
+export type ScheduleProgram = {
+  program_id: string;
+  program_name: string;
+  scheduled_at: string;
+  status: ScheduleStatus;
+  reason: string;
+  total_minutes: number | null;
+  zones: ScheduleZone[];
+  weather: WeatherDecision | null;
+};
+
+export type SchedulePreview = {
+  generated_at: string;
+  days: Array<{
+    date: string;
+    programs: ScheduleProgram[];
+  }>;
+};
+
 export type Settings = {
   automation_enabled: boolean;
   paused_until: string | null;

@@ -518,6 +518,140 @@ export const panelStyles = css`
     font-weight: 600;
   }
 
+  .schedule-days {
+    padding-top: 18px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    align-items: start;
+  }
+
+  .schedule-day {
+    min-width: 0;
+    border: 1px solid var(--sy-border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .schedule-day-head {
+    min-height: 48px;
+    padding: 9px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border-bottom: 1px solid var(--sy-border);
+    background: color-mix(in srgb, var(--sy-surface) 94%, var(--sy-text));
+  }
+
+  .schedule-day-head strong {
+    text-transform: capitalize;
+  }
+
+  .schedule-day-head span {
+    color: var(--sy-muted);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .schedule-program {
+    padding: 12px;
+    border-bottom: 1px solid var(--sy-border);
+    box-shadow: inset 3px 0 0 var(--sy-amber);
+  }
+
+  .schedule-program[runnable] {
+    box-shadow: inset 3px 0 0 var(--sy-green);
+  }
+
+  .schedule-program:last-child {
+    border-bottom: 0;
+  }
+
+  .schedule-program-head {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .schedule-program-head time {
+    color: var(--sy-muted);
+    font-size: 12px;
+  }
+
+  .schedule-status {
+    color: var(--sy-amber);
+    font-size: 11px;
+    font-weight: 600;
+    text-align: right;
+  }
+
+  .schedule-status.will_run {
+    color: var(--sy-green);
+  }
+
+  .schedule-status.weather_unavailable {
+    color: var(--sy-red);
+  }
+
+  .schedule-reason {
+    margin: 7px 0 8px 52px;
+    color: var(--sy-muted);
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .schedule-weather {
+    margin: 0 0 9px 52px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px 12px;
+    color: var(--sy-muted);
+    font-size: 11px;
+  }
+
+  .schedule-zones {
+    border-top: 1px solid var(--sy-border);
+  }
+
+  .schedule-zones > div,
+  .schedule-total {
+    min-height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid var(--sy-border);
+    font-size: 12px;
+  }
+
+  .schedule-zones > div strong {
+    white-space: nowrap;
+  }
+
+  .schedule-total {
+    border-bottom: 0;
+    font-size: 13px;
+  }
+
+  .schedule-empty {
+    min-height: 100px;
+    padding: 28px 14px;
+    display: grid;
+    place-items: center;
+    color: var(--sy-muted);
+    text-align: center;
+    font-size: 12px;
+  }
+
+  .schedule-generated {
+    margin-top: 12px;
+    color: var(--sy-muted);
+    font-size: 11px;
+    text-align: right;
+  }
+
   .program-workspace {
     display: grid;
     grid-template-columns: 340px minmax(0, 1fr);
@@ -921,6 +1055,10 @@ export const panelStyles = css`
       grid-template-columns: 1fr;
     }
 
+    .schedule-days {
+      grid-template-columns: 1fr;
+    }
+
     .program-list {
       max-height: 240px;
       overflow-y: auto;
@@ -1061,6 +1199,20 @@ export const panelStyles = css`
     .editor-zone {
       grid-template-columns: minmax(0, 1fr) 34px;
       padding: 10px;
+    }
+
+    .schedule-program-head {
+      grid-template-columns: 42px minmax(0, 1fr);
+    }
+
+    .schedule-status {
+      grid-column: 2;
+      text-align: left;
+    }
+
+    .schedule-reason,
+    .schedule-weather {
+      margin-left: 50px;
     }
 
     .temperature-condition {

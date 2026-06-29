@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  previewSchedule,
   runProgram,
   runZone,
   setAutomation,
@@ -33,6 +34,14 @@ describe("Smart Yardian WebSocket client", () => {
         duration_minutes: 18,
       },
     ]);
+  });
+
+  it("requests the calculated three-day schedule", async () => {
+    const { hass, messages } = recordingHass();
+    await previewSchedule(hass);
+    expect(messages[0]).toEqual({
+      type: "smart_yardian/schedule/preview",
+    });
   });
 
   it("updates hydraulic zone profiles", async () => {

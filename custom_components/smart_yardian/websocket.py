@@ -43,6 +43,21 @@ async def websocket_weather_preview(
 
 
 @websocket_api.websocket_command(
+    {vol.Required("type"): f"{WS_PREFIX}/schedule/preview"}
+)
+@websocket_api.async_response
+async def websocket_schedule_preview(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Return a read-only three-day schedule calculation."""
+    connection.send_result(
+        msg["id"], await _manager(hass).async_three_day_preview()
+    )
+
+
+@websocket_api.websocket_command(
     {
         vol.Required("type"): f"{WS_PREFIX}/program/save",
         vol.Required("program"): dict,
@@ -244,6 +259,7 @@ async def websocket_pause_until(
 COMMANDS = (
     websocket_summary,
     websocket_weather_preview,
+    websocket_schedule_preview,
     websocket_program_save,
     websocket_program_delete,
     websocket_settings_update,

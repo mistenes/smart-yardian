@@ -23,6 +23,7 @@ import type {
   Hass,
   Program,
   RunRecord,
+  SchedulePreview,
   Summary,
   ZoneProfile,
 } from "./types";
@@ -262,6 +263,105 @@ const summary = (): Summary => ({
   },
 });
 
+const schedulePreview = (): SchedulePreview => {
+  const morning = programs[0]!;
+  const evening = programs[1]!;
+  const dateAt = (offset: number): Date => {
+    const date = new Date();
+    date.setDate(date.getDate() + offset);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  };
+  const dateKey = (offset: number): string => {
+    const date = dateAt(offset);
+    return [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, "0"),
+      String(date.getDate()).padStart(2, "0"),
+    ].join("-");
+  };
+  const occurrence = (offset: number, hour: number, minute: number): string => {
+    const date = dateAt(offset);
+    date.setHours(hour, minute);
+    return date.toISOString();
+  };
+  const plannedZones = (program: Program) =>
+    program.zones.map((zone, index) => {
+      const details = zones.find(([entityId]) => entityId === zone.entity_id);
+      return {
+        entity_id: zone.entity_id,
+        name: details?.[1] ?? zone.entity_id,
+        duration_mode: zone.duration_mode,
+        planned_minutes: [23, 28, 16, 16, 8, 24, 46, 18, 12][index] ?? 15,
+      };
+    });
+  const weather = summary().weather!;
+  return {
+    generated_at: new Date().toISOString(),
+    days: [
+      {
+        date: dateKey(0),
+        programs: [
+          {
+            program_id: morning.program_id,
+            program_name: morning.name,
+            scheduled_at: occurrence(0, 5, 30),
+            status: "will_run",
+            reason: "A jelenlegi számítás szerint a program lefut.",
+            total_minutes: 91,
+            zones: plannedZones(morning),
+            weather,
+          },
+          {
+            program_id: evening.program_id,
+            program_name: evening.name,
+            scheduled_at: occurrence(0, 20, 0),
+            status: "will_run",
+            reason: "A jelenlegi számítás szerint a program lefut.",
+            total_minutes: 100,
+            zones: plannedZones(evening),
+            weather,
+          },
+        ],
+      },
+      {
+        date: dateKey(1),
+        programs: [
+          {
+            program_id: morning.program_id,
+            program_name: morning.name,
+            scheduled_at: occurrence(1, 5, 30),
+            status: "condition_skip",
+            reason:
+              "A következő 24 óra maximuma 24 °C, ami nem magasabb 26 °C-nál.",
+            total_minutes: 70,
+            zones: plannedZones(morning),
+            weather: { ...weather, max_temperature: 24, factor: 0.9, percent: 90 },
+          },
+        ],
+      },
+      {
+        date: dateKey(2),
+        programs: [
+          {
+            program_id: evening.program_id,
+            program_name: evening.name,
+            scheduled_at: occurrence(2, 20, 0),
+            status: "weather_unavailable",
+            reason: "Nincs legalább 12 órányi használható előrejelzés.",
+            total_minutes: null,
+            zones: plannedZones(evening).map((zone) => ({
+              ...zone,
+              planned_minutes: null,
+            })),
+            weather: null,
+          },
+        ],
+      },
+    ],
+  };
+};
+
 const hass: Hass = {
   states: {},
   connection: {
@@ -269,6 +369,7 @@ const hass: Hass = {
       const type = message.type;
       if (type === "smart_yardian/summary") return summary() as T;
       if (type === "smart_yardian/weather/preview") return summary().weather as T;
+      if (type === "smart_yardian/schedule/preview") return schedulePreview() as T;
       if (type === "smart_yardian/automation/set") {
         automationEnabled = Boolean(message.enabled);
       }
