@@ -1059,6 +1059,21 @@ export const panelStyles = css`
     font-size: 11px;
   }
 
+  .zone-profile-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 14px;
+    padding-top: 16px;
+    color: var(--sy-muted);
+    font-size: 12px;
+  }
+
+  .save-success {
+    color: var(--sy-green);
+    font-weight: 600;
+  }
+
   .mobile-label {
     display: none;
   }
@@ -1155,6 +1170,11 @@ export const panelStyles = css`
 
     .moisture-bulk label {
       max-width: none;
+    }
+
+    .zone-profile-actions {
+      align-items: stretch;
+      flex-direction: column;
     }
 
     .mobile-label {

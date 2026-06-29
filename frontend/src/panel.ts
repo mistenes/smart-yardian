@@ -79,6 +79,8 @@ export class SmartYardianPanel extends LitElement {
     _schedulePreview: { state: true },
     _scheduleLoading: { state: true },
     _bulkMoistureSensor: { state: true },
+    _settingsSaving: { state: true },
+    _settingsSaved: { state: true },
   };
 
   static styles = panelStyles;
@@ -97,6 +99,8 @@ export class SmartYardianPanel extends LitElement {
   private _schedulePreview: SchedulePreview | null = null;
   private _scheduleLoading = false;
   private _bulkMoistureSensor = "";
+  private _settingsSaving = false;
+  private _settingsSaved = false;
   private _timer?: number;
 
   connectedCallback(): void {
@@ -866,7 +870,13 @@ export class SmartYardianPanel extends LitElement {
           <h2>Beállítások</h2>
           <div class="subtle">Zöld gyep elsődleges időjárási profil</div>
         </div>
-        <button class="button primary" @click=${this._saveSettings}>Mentés</button>
+        <button
+          class="button primary"
+          @click=${this._saveSettings}
+          ?disabled=${this._settingsSaving}
+        >
+          ${this._settingsSaving ? "Mentés…" : "Beállítások mentése"}
+        </button>
       </div>
       <div class="settings-grid">
         <section class="settings-section">
@@ -982,6 +992,19 @@ export class SmartYardianPanel extends LitElement {
           <span>Aktív érték</span>
         </div>
         ${this._allZones().map((zone) => this._renderZoneProfile(zone))}
+        <div class="zone-profile-actions">
+          ${this._settingsSaved
+            ? html`<span class="save-success">A zónabeállítások elmentve.</span>`
+            : html`<span>A módosítások mentés után lépnek életbe.</span>`}
+          <button
+            class="button primary"
+            type="button"
+            @click=${this._saveSettings}
+            ?disabled=${this._settingsSaving}
+          >
+            ${this._settingsSaving ? "Mentés…" : "Zónabeállítások mentése"}
+          </button>
+        </div>
       </section>
       ${this._error ? html`<div class="error">${this._error}</div>` : nothing}
     `;
@@ -1387,6 +1410,7 @@ export class SmartYardianPanel extends LitElement {
 
   private _patchSettings(patch: Partial<Settings>): void {
     if (!this._summary) return;
+    this._settingsSaved = false;
     this._summary = {
       ...this._summary,
       settings: { ...this._summary.settings, ...patch },
@@ -1398,6 +1422,7 @@ export class SmartYardianPanel extends LitElement {
     patch: Partial<ZoneProfile>,
   ): void {
     if (!this._summary) return;
+    this._settingsSaved = false;
     this._summary = {
       ...this._summary,
       controllers: this._summary.controllers.map((controller) => ({
@@ -1441,7 +1466,9 @@ export class SmartYardianPanel extends LitElement {
   }
 
   private _saveSettings = async (): Promise<void> => {
-    if (!this.hass || !this._summary) return;
+    if (!this.hass || !this._summary || this._settingsSaving) return;
+    this._settingsSaving = true;
+    this._settingsSaved = false;
     try {
       await updateSettings(this.hass, this._summary.settings);
       await updateZoneProfiles(
@@ -1449,8 +1476,12 @@ export class SmartYardianPanel extends LitElement {
         this._allZones().map((zone) => zone.profile),
       );
       await this._load(false);
+      this._settingsSaved = true;
+      this._error = "";
     } catch (error) {
       this._error = this._errorMessage(error);
+    } finally {
+      this._settingsSaving = false;
     }
   };
 

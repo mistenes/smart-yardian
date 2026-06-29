@@ -1588,6 +1588,21 @@ const Ce = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
     font-size: 11px;
   }
 
+  .zone-profile-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 14px;
+    padding-top: 16px;
+    color: var(--sy-muted);
+    font-size: 12px;
+  }
+
+  .save-success {
+    color: var(--sy-green);
+    font-weight: 600;
+  }
+
   .mobile-label {
     display: none;
   }
@@ -1684,6 +1699,11 @@ const Ce = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
 
     .moisture-bulk label {
       max-width: none;
+    }
+
+    .zone-profile-actions {
+      align-items: stretch;
+      flex-direction: column;
     }
 
     .mobile-label {
@@ -1887,7 +1907,7 @@ const Ce = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
 }), U = (r) => JSON.parse(JSON.stringify(r));
 class Ke extends z {
   constructor() {
-    super(...arguments), this.narrow = !1, this._summary = null, this._tab = "overview", this._loading = !0, this._error = "", this._draft = null, this._saving = !1, this._zoneDurations = {}, this._expandedControllers = [], this._schedulePreview = null, this._scheduleLoading = !1, this._bulkMoistureSensor = "", this._loadSchedule = async () => {
+    super(...arguments), this.narrow = !1, this._summary = null, this._tab = "overview", this._loading = !0, this._error = "", this._draft = null, this._saving = !1, this._zoneDurations = {}, this._expandedControllers = [], this._schedulePreview = null, this._scheduleLoading = !1, this._bulkMoistureSensor = "", this._settingsSaving = !1, this._settingsSaved = !1, this._loadSchedule = async () => {
       if (!(!this.hass || this._scheduleLoading)) {
         this._scheduleLoading = !0;
         try {
@@ -1992,15 +2012,19 @@ class Ke extends z {
           this._error = this._errorMessage(e);
         }
     }, this._saveSettings = async () => {
-      if (!(!this.hass || !this._summary))
+      if (!(!this.hass || !this._summary || this._settingsSaving)) {
+        this._settingsSaving = !0, this._settingsSaved = !1;
         try {
           await Te(this.hass, this._summary.settings), await Ue(
             this.hass,
             this._allZones().map((e) => e.profile)
-          ), await this._load(!1);
+          ), await this._load(!1), this._settingsSaved = !0, this._error = "";
         } catch (e) {
           this._error = this._errorMessage(e);
+        } finally {
+          this._settingsSaving = !1;
         }
+      }
     }, this._pauseDay = async () => {
       if (!this.hass) return;
       const e = new Date(Date.now() + 1440 * 60 * 1e3).toISOString();
@@ -2024,7 +2048,9 @@ class Ke extends z {
       _expandedControllers: { state: !0 },
       _schedulePreview: { state: !0 },
       _scheduleLoading: { state: !0 },
-      _bulkMoistureSensor: { state: !0 }
+      _bulkMoistureSensor: { state: !0 },
+      _settingsSaving: { state: !0 },
+      _settingsSaved: { state: !0 }
     };
   }
   static {
@@ -2676,7 +2702,13 @@ class Ke extends z {
           <h2>Beállítások</h2>
           <div class="subtle">Zöld gyep elsődleges időjárási profil</div>
         </div>
-        <button class="button primary" @click=${this._saveSettings}>Mentés</button>
+        <button
+          class="button primary"
+          @click=${this._saveSettings}
+          ?disabled=${this._settingsSaving}
+        >
+          ${this._settingsSaving ? "Mentés…" : "Beállítások mentése"}
+        </button>
       </div>
       <div class="settings-grid">
         <section class="settings-section">
@@ -2789,6 +2821,17 @@ class Ke extends z {
           <span>Aktív érték</span>
         </div>
         ${this._allZones().map((t) => this._renderZoneProfile(t))}
+        <div class="zone-profile-actions">
+          ${this._settingsSaved ? o`<span class="save-success">A zónabeállítások elmentve.</span>` : o`<span>A módosítások mentés után lépnek életbe.</span>`}
+          <button
+            class="button primary"
+            type="button"
+            @click=${this._saveSettings}
+            ?disabled=${this._settingsSaving}
+          >
+            ${this._settingsSaving ? "Mentés…" : "Zónabeállítások mentése"}
+          </button>
+        </div>
       </section>
       ${this._error ? o`<div class="error">${this._error}</div>` : d}
     `;
@@ -2991,13 +3034,13 @@ class Ke extends z {
     });
   }
   _patchSettings(e) {
-    this._summary && (this._summary = {
+    this._summary && (this._settingsSaved = !1, this._summary = {
       ...this._summary,
       settings: { ...this._summary.settings, ...e }
     });
   }
   _patchZoneProfile(e, t) {
-    this._summary && (this._summary = {
+    this._summary && (this._settingsSaved = !1, this._summary = {
       ...this._summary,
       controllers: this._summary.controllers.map((s) => ({
         ...s,
