@@ -48,6 +48,7 @@ from .weather import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+UNAVAILABLE_STATES = {"unavailable"}
 
 
 class SmartYardianManager:
@@ -953,19 +954,31 @@ class SmartYardianManager:
                         else "Yardian vezérlő"
                     ),
                     "model": device.model if device else "Yardian",
-                    "available": True,
+                    "available": False,
+                    "available_zone_count": 0,
+                    "zone_count": 0,
                     "zones": [],
                 },
             )
+            state_value = state.state if state else "missing"
+            available = state is not None and state_value not in UNAVAILABLE_STATES
             zone = {
                 "entity_id": entity_id,
                 "name": state.name if state else entity_id,
-                "state": state.state if state else "unavailable",
-                "available": state is not None and state.state != "unavailable",
+                "state": state_value,
+                "available": available,
+                "availability_issue": self._zone_availability_issue(
+                    entity_id, state_value
+                ),
                 "profile": self.zone_profile(entity_id).as_dict(),
             }
             controller["zones"].append(zone)
-            controller["available"] = controller["available"] and zone["available"]
+            controller["zone_count"] += 1
+            if available:
+                controller["available_zone_count"] += 1
+
+        for controller in controllers.values():
+            controller["available"] = controller["available_zone_count"] > 0
 
         next_run = self.next_run()
         target = (
@@ -992,3 +1005,12 @@ class SmartYardianManager:
                 else None
             ),
         }
+
+    @staticmethod
+    def _zone_availability_issue(entity_id: str, state: str) -> str | None:
+        """Return a user-facing diagnostic for unavailable zone entities."""
+        if state == "missing":
+            return f"Nincs aktív HA state ehhez az entityhez: {entity_id}"
+        if state == "unavailable":
+            return f"A natív Yardian switch unavailable állapotban van: {entity_id}"
+        return None

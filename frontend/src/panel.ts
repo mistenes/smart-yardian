@@ -291,6 +291,7 @@ export class SmartYardianPanel extends LitElement {
   private _renderController(controller: Summary["controllers"][number]): TemplateResult {
     const mobile = window.matchMedia("(max-width: 600px)").matches;
     const expanded = !mobile || this._expandedControllers.includes(controller.id);
+    const status = this._controllerStatus(controller);
     return html`
       <section class="controller" ?collapsed=${!expanded}>
         <button
@@ -303,8 +304,8 @@ export class SmartYardianPanel extends LitElement {
             <div class="controller-name">${controller.name}</div>
             <div class="controller-meta">
               ${controller.model} ·
-              <span class=${controller.available ? "online" : ""}>
-                ${controller.available ? "Online" : "Nem elérhető"}
+              <span class=${status.className}>
+                ${status.label}
               </span>
             </div>
           </div>
@@ -324,18 +325,24 @@ export class SmartYardianPanel extends LitElement {
     const activeZone = this._summary?.active_run?.current_zone === zone.entity_id;
     const planned = Number(this._summary?.active_run?.current_duration ?? duration);
     const headLabel = this._headLabel(zone.profile.head_type);
+    const issue = this._zoneIssueLabel(zone);
     return html`
       <div class="zone-row">
         <ha-icon icon="mdi:water"></ha-icon>
         <span class="zone-name">${zone.name}</span>
-        <span class="zone-state" ?running=${running}>
+        <span
+          class="zone-state"
+          ?running=${running}
+          ?unavailable=${!zone.available}
+          title=${zone.availability_issue ?? zone.entity_id}
+        >
           ${running
             ? activeZone
               ? `Fut · ${planned} perc`
               : "Fut"
             : zone.available
               ? `Tétlen · ${headLabel}`
-              : "Nem elérhető"}
+              : html`Nem elérhető <small>${issue}</small>`}
         </span>
         <label class="duration">
           <input
@@ -364,6 +371,28 @@ export class SmartYardianPanel extends LitElement {
         </button>
       </div>
     `;
+  }
+
+  private _controllerStatus(controller: Summary["controllers"][number]): {
+    label: string;
+    className: string;
+  } {
+    const total = controller.zone_count ?? controller.zones.length;
+    const available =
+      controller.available_zone_count ??
+      controller.zones.filter((zone) => zone.available).length;
+    if (total === 0) return { label: "Nincs zóna", className: "offline" };
+    if (available === total) return { label: "Online", className: "online" };
+    if (available === 0) {
+      return { label: "Nincs elérhető zóna", className: "offline" };
+    }
+    return { label: `${available}/${total} zóna elérhető`, className: "partial" };
+  }
+
+  private _zoneIssueLabel(zone: Zone): string {
+    if (zone.state === "missing") return "HA state hiányzik";
+    if (zone.state === "unavailable") return "HA: unavailable";
+    return zone.availability_issue ?? `HA: ${zone.state}`;
   }
 
   private _renderRailProgram(program: Program): TemplateResult {

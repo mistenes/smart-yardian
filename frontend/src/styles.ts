@@ -330,11 +330,21 @@ export const panelStyles = css`
     color: var(--sy-green);
   }
 
+  .partial {
+    color: var(--sy-amber);
+    font-weight: 600;
+  }
+
+  .offline {
+    color: var(--sy-red);
+    font-weight: 600;
+  }
+
   .zone-row {
-    min-height: 50px;
+    min-height: 56px;
     padding: 0 12px 0 18px;
     display: grid;
-    grid-template-columns: 30px minmax(120px, 1fr) 108px 80px 88px;
+    grid-template-columns: 30px minmax(120px, 1fr) minmax(128px, 180px) 80px 88px;
     align-items: center;
     gap: 10px;
     border-bottom: 1px solid var(--sy-border);
@@ -359,11 +369,24 @@ export const panelStyles = css`
   .zone-state {
     color: var(--sy-muted);
     font-size: 12px;
+    line-height: 1.25;
   }
 
   .zone-state[running] {
     color: var(--sy-green);
     font-weight: 600;
+  }
+
+  .zone-state[unavailable] {
+    color: var(--sy-red);
+    font-weight: 600;
+  }
+
+  .zone-state small {
+    display: block;
+    color: var(--sy-muted);
+    font-weight: 500;
+    margin-top: 2px;
   }
 
   .duration {

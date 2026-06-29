@@ -89,6 +89,23 @@ tartós számláló minden valódi HTTP-kérés előtt lefoglal egy hívást. A 
 hívás után további OpenWeather-kérés az adott UTC-napon nem indul el, HA
 újraindítása után sem. A mai felhasználás a **Beállítások** oldalon látható.
 
+## Ha a Yardian zóna „Nem elérhető”
+
+A panel a natív Home Assistant Yardian switch entity-k állapotát mutatja. Ha
+egy zóna mellett `Nem elérhető · HA: unavailable` látszik, akkor a Smart
+Yardian nem kap indítható zónaállapotot a beépített Yardian integrációtól, ezért
+biztonsági okból tiltja a kézi és automatikus indítást.
+
+Ellenőrzési sorrend:
+
+1. A Home Assistant **Yardian** integrációjában a vezérlő online-e.
+2. A kiválasztott zóna entity-k állapota nem `unavailable`-e a Fejlesztői
+   eszközök → Állapotok nézetben.
+3. A Smart Yardian újrakonfigurálásánál valóban a Yardian zóna `switch.*`
+   entitások vannak-e kiválasztva.
+4. A Yardian saját felhős/lokális kapcsolatának javítása után indítsd újra vagy
+   töltsd újra a Yardian integrációt, majd frissítsd a Smart Yardian panelt.
+
 ## Fejlesztés
 
 ```bash

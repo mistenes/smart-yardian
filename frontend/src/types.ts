@@ -12,6 +12,7 @@ export type Zone = {
   name: string;
   state: string;
   available: boolean;
+  availability_issue: string | null;
   profile: ZoneProfile;
 };
 
@@ -32,6 +33,8 @@ export type Controller = {
   name: string;
   model: string;
   available: boolean;
+  available_zone_count: number;
+  zone_count: number;
   zones: Zone[];
 };
 

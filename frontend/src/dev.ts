@@ -174,7 +174,9 @@ const history: RunRecord[] = [
 ];
 
 let automationEnabled = true;
-let runningEntity: string = zones[3]?.[0] ?? "";
+const forceUnavailable =
+  new URLSearchParams(window.location.search).get("yardian_state") === "unavailable";
+let runningEntity: string = forceUnavailable ? "" : (zones[3]?.[0] ?? "");
 
 const nextRun = (): string => {
   const next = new Date();
@@ -192,27 +194,43 @@ const summary = (): Summary => ({
       id: "front",
       name: "Első kert",
       model: "Yardian Pro 2.0",
-      available: true,
-      zones: zones.slice(0, 5).map(([entity_id, name]) => ({
-        entity_id,
-        name,
-        state: entity_id === runningEntity ? "on" : "off",
-        available: true,
-        profile: zoneProfiles.get(entity_id)!,
-      })),
+      available: !forceUnavailable,
+      available_zone_count: forceUnavailable ? 0 : 5,
+      zone_count: 5,
+      zones: zones.slice(0, 5).map(([entity_id, name]) => {
+        const available = !forceUnavailable;
+        return {
+          entity_id,
+          name,
+          state: available ? (entity_id === runningEntity ? "on" : "off") : "unavailable",
+          available,
+          availability_issue: available
+            ? null
+            : `A natív Yardian switch unavailable állapotban van: ${entity_id}`,
+          profile: zoneProfiles.get(entity_id)!,
+        };
+      }),
     },
     {
       id: "back",
       name: "Hátsó kert",
       model: "Yardian Pro 2.0",
-      available: true,
-      zones: zones.slice(5).map(([entity_id, name]) => ({
-        entity_id,
-        name,
-        state: entity_id === runningEntity ? "on" : "off",
-        available: true,
-        profile: zoneProfiles.get(entity_id)!,
-      })),
+      available: !forceUnavailable,
+      available_zone_count: forceUnavailable ? 0 : 4,
+      zone_count: 4,
+      zones: zones.slice(5).map(([entity_id, name]) => {
+        const available = !forceUnavailable;
+        return {
+          entity_id,
+          name,
+          state: available ? (entity_id === runningEntity ? "on" : "off") : "unavailable",
+          available,
+          availability_issue: available
+            ? null
+            : `A natív Yardian switch unavailable állapotban van: ${entity_id}`,
+          profile: zoneProfiles.get(entity_id)!,
+        };
+      }),
     },
   ],
   programs,
