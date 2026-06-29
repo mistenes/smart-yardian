@@ -44,6 +44,7 @@ from .weather import (
     OpenWeatherClient,
     WeatherUnavailableError,
     evaluate_green_lawn,
+    forecast_day_max_temperature,
     normalize_ha_forecast,
 )
 
@@ -208,7 +209,10 @@ class SmartYardianManager:
         await self.store.async_save()
         self._notify_listeners()
 
-    async def async_weather_decision(self) -> WeatherDecision:
+    async def async_weather_decision(
+        self,
+        scheduled_at: datetime | None = None,
+    ) -> WeatherDecision:
         """Evaluate Időkép first and OpenWeather 4.0 second."""
         now = dt_util.utcnow()
         idokep_error = "Az Időkép entitás nem érhető el."
@@ -221,6 +225,13 @@ class SmartYardianManager:
                 now=now,
                 settings=self.store.settings,
             )
+            if scheduled_at is not None:
+                decision = replace(
+                    decision,
+                    max_temperature=forecast_day_max_temperature(
+                        forecast, scheduled_at
+                    ),
+                )
             self.last_decision = decision
             self.last_error = None
             self._notify_listeners()
@@ -236,6 +247,13 @@ class SmartYardianManager:
                 now=now,
                 settings=self.store.settings,
             )
+            if scheduled_at is not None:
+                decision = replace(
+                    decision,
+                    max_temperature=forecast_day_max_temperature(
+                        forecast, scheduled_at
+                    ),
+                )
             self.last_decision = decision
             self.last_error = None
             self._notify_listeners()
@@ -327,6 +345,12 @@ class SmartYardianManager:
                             now=occurrence.scheduled_at.astimezone(UTC),
                             settings=self.store.settings,
                         )
+                        decision = replace(
+                            decision,
+                            max_temperature=forecast_day_max_temperature(
+                                idokep_forecast, occurrence.scheduled_at
+                            ),
+                        )
                     except WeatherUnavailableError as err:
                         idokep_error = str(err)
 
@@ -344,6 +368,13 @@ class SmartYardianManager:
                                 "OpenWeather 4.0",
                                 now=occurrence.scheduled_at.astimezone(UTC),
                                 settings=self.store.settings,
+                            )
+                            decision = replace(
+                                decision,
+                                max_temperature=forecast_day_max_temperature(
+                                    openweather_forecast,
+                                    occurrence.scheduled_at,
+                                ),
                             )
                         except WeatherUnavailableError as err:
                             openweather_error = str(err)
@@ -589,7 +620,7 @@ class SmartYardianManager:
                 async with self._run_lock:
                     await self._async_wait_for_external_irrigation()
                     decision = (
-                        await self.async_weather_decision()
+                        await self.async_weather_decision(scheduled_at)
                         if apply_weather
                         or uses_reference
                         or uses_temperature_condition

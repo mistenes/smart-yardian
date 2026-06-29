@@ -151,6 +151,27 @@ def _sun_weight(hour: ForecastHour) -> float:
     return SUN_WEIGHTS.get(hour.condition.lower(), 0.25)
 
 
+def forecast_day_max_temperature(
+    forecast: Iterable[ForecastHour],
+    scheduled_at: datetime,
+) -> float:
+    """Return the maximum temperature for the scheduled local calendar day."""
+    if scheduled_at.tzinfo is None:
+        scheduled_at = scheduled_at.replace(tzinfo=UTC)
+    timezone = scheduled_at.tzinfo
+    target_date = scheduled_at.date()
+    temperatures = [
+        hour.temperature
+        for hour in forecast
+        if hour.timestamp.astimezone(timezone).date() == target_date
+    ]
+    if not temperatures:
+        raise WeatherUnavailableError(
+            "Nincs hőmérsékleti előrejelzés a program naptári napjára."
+        )
+    return round(max(temperatures), 1)
+
+
 def evaluate_green_lawn(
     forecast: Iterable[ForecastHour],
     source: str,

@@ -10,6 +10,7 @@ from custom_components.smart_yardian.models import ForecastHour
 from custom_components.smart_yardian.weather import (
     WeatherUnavailableError,
     evaluate_green_lawn,
+    forecast_day_max_temperature,
     normalize_openweather,
 )
 
@@ -75,6 +76,14 @@ def test_green_lawn_reduces_for_light_rain() -> None:
 def test_green_lawn_requires_twelve_hours() -> None:
     with pytest.raises(WeatherUnavailableError, match="12 órányi"):
         evaluate_green_lawn(forecast()[:11], "Időkép", NOW)
+
+
+def test_day_max_includes_hours_before_program_start() -> None:
+    hours = forecast(temperature=28)
+    hours[2].temperature = 36.1
+    scheduled_at = NOW + timedelta(hours=10)
+
+    assert forecast_day_max_temperature(hours, scheduled_at) == 36.1
 
 
 def test_openweather_normalization() -> None:

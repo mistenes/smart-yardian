@@ -161,7 +161,7 @@ class IrrigationProgram:
             else "nem alacsonyabb"
         )
         return (
-            f"A következő 24 óra maximuma {max_temperature:g} °C, ami {relation} "
+            f"A program napjának maximuma {max_temperature:g} °C, ami {relation} "
             f"{self.temperature_condition_value:g} °C-nál."
         )
 

@@ -442,7 +442,9 @@ export class SmartYardianPanel extends LitElement {
         <div>
           <h2>Következő 3 nap</h2>
           <div class="subtle">
-            A most elérhető előrejelzés és programbeállítások alapján
+            A forrás programonként eltérhet: elsőként mindig az Időképet
+            használjuk, és csak akkor váltunk OpenWeatherre, ha az adott
+            futástól nincs legalább 12 órányi Időkép-előrejelzés.
           </div>
         </div>
         <button
@@ -502,7 +504,7 @@ export class SmartYardianPanel extends LitElement {
               <div class="schedule-weather">
                 <span>${program.weather.max_temperature ?? "–"} °C max.</span>
                 <span>${program.weather.precipitation_mm ?? 0} mm eső</span>
-                <span>${program.weather.source}</span>
+                <span>Forrás: ${program.weather.source}</span>
               </div>
             `
           : nothing}
@@ -894,7 +896,7 @@ export class SmartYardianPanel extends LitElement {
             <button class="button quiet" @click=${this._resume}>Folytatás</button>
           </div>
           <div class="setting-row">
-            <span>Aktív időjárásforrás</span>
+            <span>Legutóbbi aktuális számítás forrása</span>
             <strong>${this._summary!.weather?.source ?? "Nincs értékelés"}</strong>
           </div>
           <div class="setting-row">
