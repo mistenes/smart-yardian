@@ -12,6 +12,19 @@ export type Zone = {
   name: string;
   state: string;
   available: boolean;
+  profile: ZoneProfile;
+};
+
+export type HeadType = "rotator" | "mp800" | "spray" | "rotor" | "drip";
+
+export type ZoneProfile = {
+  entity_id: string;
+  head_type: HeadType;
+  reference_rate_mm_h: number;
+  flow_l_min: number | null;
+  area_m2: number | null;
+  effective_rate_mm_h: number;
+  rate_source: string;
 };
 
 export type Controller = {
@@ -25,6 +38,7 @@ export type Controller = {
 export type ProgramZone = {
   entity_id: string;
   duration_minutes: number;
+  duration_mode: "manual" | "reference";
 };
 
 export type Program = {
@@ -47,6 +61,8 @@ export type WeatherDecision = {
   max_temperature?: number;
   sunny_hours?: number;
   rainy_hours?: number;
+  rain_factor?: number;
+  climate_factor?: number;
   reason: string;
   evaluated_at?: string;
   available?: boolean;
@@ -94,4 +110,9 @@ export type Summary = {
   weather: WeatherDecision | null;
   last_error: string | null;
   next_run: string | null;
+  seasonal_target: {
+    depth_mm: number;
+    cadence: string;
+    label: string;
+  } | null;
 };

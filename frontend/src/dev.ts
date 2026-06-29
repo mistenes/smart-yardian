@@ -19,7 +19,13 @@ import {
   mdiWeatherSunsetUp,
   mdiWhiteBalanceSunny,
 } from "@mdi/js";
-import type { Hass, Program, RunRecord, Summary } from "./types";
+import type {
+  Hass,
+  Program,
+  RunRecord,
+  Summary,
+  ZoneProfile,
+} from "./types";
 
 const iconPaths: Record<string, string> = {
   "mdi:check": mdiCheck,
@@ -95,6 +101,24 @@ const zones = [
   ["switch.yardian_2_kapubejaro", "Kapubejáró"],
 ] as const;
 
+const profileFor = (entityId: string, index: number): ZoneProfile => {
+  const head_type = index === 2 || index === 4 ? "drip" : index % 3 === 0 ? "rotor" : "rotator";
+  const reference_rate_mm_h = head_type === "rotator" ? 10 : 12;
+  return {
+    entity_id: entityId,
+    head_type,
+    reference_rate_mm_h,
+    flow_l_min: null,
+    area_m2: null,
+    effective_rate_mm_h: reference_rate_mm_h,
+    rate_source: "fejtípus referencia",
+  };
+};
+
+const zoneProfiles = new Map<string, ZoneProfile>(
+  zones.map(([entityId], index) => [entityId, profileFor(entityId, index)]),
+);
+
 let programs: Program[] = [
   {
     program_id: "morning",
@@ -106,6 +130,7 @@ let programs: Program[] = [
     zones: zones.slice(0, 5).map(([entity_id], index) => ({
       entity_id,
       duration_minutes: [15, 15, 20, 20, 10][index] ?? 15,
+      duration_mode: index < 2 ? "reference" : "manual",
     })),
     skip_next: false,
   },
@@ -119,6 +144,7 @@ let programs: Program[] = [
     zones: zones.slice(5).map(([entity_id], index) => ({
       entity_id,
       duration_minutes: [18, 30, 12, 8][index] ?? 15,
+      duration_mode: "reference",
     })),
     skip_next: false,
   },
@@ -165,6 +191,7 @@ const summary = (): Summary => ({
         name,
         state: entity_id === runningEntity ? "on" : "off",
         available: true,
+        profile: zoneProfiles.get(entity_id)!,
       })),
     },
     {
@@ -177,6 +204,7 @@ const summary = (): Summary => ({
         name,
         state: entity_id === runningEntity ? "on" : "off",
         available: true,
+        profile: zoneProfiles.get(entity_id)!,
       })),
     },
   ],
@@ -214,11 +242,18 @@ const summary = (): Summary => ({
     max_temperature: 29,
     sunny_hours: 7,
     rainy_hours: 1,
+    rain_factor: 0.85,
+    climate_factor: 1.1,
     reason: "Kevés csapadék, meleg és többnyire napos.",
     evaluated_at: new Date().toISOString(),
   },
   last_error: null,
   next_run: nextRun(),
+  seasonal_target: {
+    depth_mm: 5.5,
+    cadence: "kétnaponta",
+    label: "Nyár",
+  },
 });
 
 const hass: Hass = {
@@ -240,6 +275,12 @@ const hass: Hass = {
       }
       if (type === "smart_yardian/program/delete") {
         programs = programs.filter((item) => item.program_id !== message.program_id);
+      }
+      if (type === "smart_yardian/zone_profiles/update") {
+        const profiles = message.profiles as ZoneProfile[];
+        for (const profile of profiles) {
+          zoneProfiles.set(profile.entity_id, profile);
+        }
       }
       if (type === "smart_yardian/run/zone") runningEntity = String(message.entity_id);
       if (type === "smart_yardian/run/stop") runningEntity = "";

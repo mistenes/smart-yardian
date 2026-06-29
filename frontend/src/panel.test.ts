@@ -11,8 +11,16 @@ describe("Smart Yardian program shape", () => {
       start_time: "05:30",
       weather_adjustment: true,
       zones: [
-        { entity_id: "switch.gyep", duration_minutes: 15 },
-        { entity_id: "switch.soveny", duration_minutes: 20 },
+        {
+          entity_id: "switch.gyep",
+          duration_minutes: 15,
+          duration_mode: "reference",
+        },
+        {
+          entity_id: "switch.soveny",
+          duration_minutes: 20,
+          duration_mode: "manual",
+        },
       ],
       skip_next: false,
     };
@@ -21,5 +29,9 @@ describe("Smart Yardian program shape", () => {
       "switch.soveny",
     ]);
     expect(program.weekdays).toEqual([0, 2, 4]);
+    expect(program.zones.map((zone) => zone.duration_mode)).toEqual([
+      "reference",
+      "manual",
+    ]);
   });
 });

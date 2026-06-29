@@ -10,6 +10,7 @@ import {
   setAutomation,
   stopAll,
   updateSettings,
+  updateZoneProfiles,
 } from "./api";
 import { panelStyles } from "./styles";
 import type {
@@ -21,12 +22,24 @@ import type {
   Summary,
   WeatherDecision,
   Zone,
+  ZoneProfile,
 } from "./types";
 
 type Tab = "overview" | "programs" | "history" | "settings";
 
 const DAY_NAMES = ["H", "K", "Sze", "Cs", "P", "Szo", "V"];
 const DAY_LONG = ["Hé", "Ke", "Sze", "Csü", "Pén", "Szo", "Vas"];
+const HEAD_TYPES: Array<{
+  value: ZoneProfile["head_type"];
+  label: string;
+  rate: number;
+}> = [
+  { value: "rotator", label: "Rotátor (MP)", rate: 10 },
+  { value: "mp800", label: "Rotátor MP800", rate: 20 },
+  { value: "spray", label: "Spray / esőztető", rate: 40 },
+  { value: "rotor", label: "Rotoros", rate: 12 },
+  { value: "drip", label: "Csepegtető", rate: 12 },
+];
 
 const emptyProgram = (): Program => ({
   program_id: crypto.randomUUID(),
@@ -75,7 +88,9 @@ export class SmartYardianPanel extends LitElement {
   connectedCallback(): void {
     super.connectedCallback();
     void this._load(true);
-    this._timer = window.setInterval(() => void this._load(false), 5000);
+    this._timer = window.setInterval(() => {
+      if (this._tab !== "settings") void this._load(false);
+    }, 5000);
   }
 
   disconnectedCallback(): void {
@@ -289,6 +304,7 @@ export class SmartYardianPanel extends LitElement {
     const running = zone.state === "on";
     const activeZone = this._summary?.active_run?.current_zone === zone.entity_id;
     const planned = Number(this._summary?.active_run?.current_duration ?? duration);
+    const headLabel = this._headLabel(zone.profile.head_type);
     return html`
       <div class="zone-row">
         <ha-icon icon="mdi:water"></ha-icon>
@@ -299,7 +315,7 @@ export class SmartYardianPanel extends LitElement {
               ? `Fut · ${planned} perc`
               : "Fut"
             : zone.available
-              ? "Tétlen"
+              ? `Tétlen · ${headLabel}`
               : "Nem elérhető"}
         </span>
         <label class="duration">
@@ -479,20 +495,45 @@ export class SmartYardianPanel extends LitElement {
               return html`
                 <div class="editor-zone">
                   <span>${details?.name ?? zone.entity_id}</span>
-                  <input
-                    type="number"
-                    min="1"
-                    max="180"
-                    aria-label="${details?.name ?? zone.entity_id} időtartama"
-                    .value=${String(zone.duration_minutes)}
+                  <select
+                    aria-label="${details?.name ?? zone.entity_id} időtartam módja"
+                    .value=${zone.duration_mode}
                     @change=${(event: Event) =>
                       this._updateDraftZone(index, {
                         ...zone,
-                        duration_minutes: this._clampDuration(
-                          (event.target as HTMLInputElement).valueAsNumber,
-                        ),
+                        duration_mode: (event.target as HTMLSelectElement).value as
+                          | "manual"
+                          | "reference",
                       })}
-                  />
+                  >
+                    <option value="manual">Manuális perc</option>
+                    <option value="reference">Referencia alapján</option>
+                  </select>
+                  ${zone.duration_mode === "reference"
+                    ? html`
+                        <span class="calculated-duration">
+                          ≈ ${this._programZoneMinutes(draft, zone)} perc
+                        </span>
+                      `
+                    : html`
+                        <label class="editor-duration">
+                          <input
+                            type="number"
+                            min="1"
+                            max="180"
+                            aria-label="${details?.name ?? zone.entity_id} időtartama"
+                            .value=${String(zone.duration_minutes)}
+                            @change=${(event: Event) =>
+                              this._updateDraftZone(index, {
+                                ...zone,
+                                duration_minutes: this._clampDuration(
+                                  (event.target as HTMLInputElement).valueAsNumber,
+                                ),
+                              })}
+                          />
+                          <span>perc</span>
+                        </label>
+                      `}
                   <button
                     class="icon-button"
                     type="button"
@@ -655,7 +696,97 @@ export class SmartYardianPanel extends LitElement {
           </div>
         </section>
       </div>
+      <section class="settings-section zone-profiles">
+        <h3>Zónák szórófeje és vízhozama</h3>
+        <p class="settings-help">
+          Referencia módban a program a célzott vízmennyiséget osztja a kijuttatási
+          intenzitással. Ha a teljes zónavízhozam és a terület is ki van töltve,
+          azok felülírják a fejtípus referenciaértékét.
+        </p>
+        <div class="zone-profile-head" aria-hidden="true">
+          <span>Zóna</span>
+          <span>Fejtípus</span>
+          <span>Referencia</span>
+          <span>Vízhozam</span>
+          <span>Terület</span>
+          <span>Aktív érték</span>
+        </div>
+        ${this._allZones().map((zone) => this._renderZoneProfile(zone))}
+      </section>
       ${this._error ? html`<div class="error">${this._error}</div>` : nothing}
+    `;
+  }
+
+  private _renderZoneProfile(zone: Zone): TemplateResult {
+    const profile = zone.profile;
+    const measured = profile.flow_l_min !== null && profile.area_m2 !== null;
+    return html`
+      <div class="zone-profile-row">
+        <strong>${zone.name}</strong>
+        <label>
+          <span class="mobile-label">Fejtípus</span>
+          <select
+            .value=${profile.head_type}
+            @change=${(event: Event) => {
+              const headType = (event.target as HTMLSelectElement)
+                .value as ZoneProfile["head_type"];
+              const reference = HEAD_TYPES.find((item) => item.value === headType);
+              this._patchZoneProfile(zone.entity_id, {
+                head_type: headType,
+                reference_rate_mm_h: reference?.rate ?? profile.reference_rate_mm_h,
+              });
+            }}
+          >
+            ${HEAD_TYPES.map(
+              (item) =>
+                html`
+                  <option
+                    value=${item.value}
+                    ?selected=${item.value === profile.head_type}
+                  >
+                    ${item.label}
+                  </option>
+                `,
+            )}
+          </select>
+        </label>
+        ${this._profileNumber(zone, "reference_rate_mm_h", "mm/óra", 0.1)}
+        ${this._profileNumber(zone, "flow_l_min", "l/perc", 0.1, true)}
+        ${this._profileNumber(zone, "area_m2", "m²", 0.1, true)}
+        <span class="effective-rate">
+          <strong>${this._effectiveRate(profile).toFixed(1)} mm/óra</strong>
+          <span>${measured ? "mért adatokból" : "referencia"}</span>
+        </span>
+      </div>
+    `;
+  }
+
+  private _profileNumber(
+    zone: Zone,
+    key: "reference_rate_mm_h" | "flow_l_min" | "area_m2",
+    unit: string,
+    step: number,
+    optional = false,
+  ): TemplateResult {
+    const value = zone.profile[key];
+    return html`
+      <label class="profile-number">
+        <span class="mobile-label">${unit}</span>
+        <input
+          type="number"
+          min="0.1"
+          step=${step}
+          placeholder=${optional ? "opcionális" : ""}
+          .value=${value === null ? "" : String(value)}
+          @change=${(event: Event) => {
+            const input = event.target as HTMLInputElement;
+            this._patchZoneProfile(zone.entity_id, {
+              [key]: input.value === "" ? null : input.valueAsNumber,
+            });
+          }}
+        />
+        <span>${unit}</span>
+      </label>
     `;
   }
 
@@ -721,10 +852,29 @@ export class SmartYardianPanel extends LitElement {
   }
 
   private _programMinutes(program: Program): number {
-    const factor = this._summary?.weather?.factor ?? 1;
     return program.zones.reduce(
-      (total, zone) => total + Math.max(1, Math.round(zone.duration_minutes * factor)),
+      (total, zone) => total + this._programZoneMinutes(program, zone),
       0,
+    );
+  }
+
+  private _programZoneMinutes(program: Program, zone: ProgramZone): number {
+    const weather = this._summary?.weather;
+    if (zone.duration_mode !== "reference") {
+      const factor = program.weather_adjustment ? (weather?.factor ?? 1) : 1;
+      return Math.max(1, Math.round(zone.duration_minutes * factor));
+    }
+    const profile = this._zoneProfile(zone.entity_id);
+    if (!profile) return zone.duration_minutes;
+    const temperature = weather?.max_temperature ?? 20;
+    const targetMm =
+      temperature >= 35 ? 9 : temperature >= 25 ? 5.5 : temperature >= 20 ? 4.5 : 2.5;
+    const rainFactor = program.weather_adjustment
+      ? (weather?.rain_factor ?? weather?.factor ?? 1)
+      : 1;
+    return Math.max(
+      1,
+      Math.min(180, Math.round((targetMm * rainFactor * 60) / this._effectiveRate(profile))),
     );
   }
 
@@ -763,7 +913,11 @@ export class SmartYardianPanel extends LitElement {
     this._patchDraft({
       zones: [
         ...this._draft.zones,
-        { entity_id: select.value, duration_minutes: 15 },
+        {
+          entity_id: select.value,
+          duration_minutes: 15,
+          duration_mode: "reference",
+        },
       ],
     });
     select.value = "";
@@ -895,10 +1049,32 @@ export class SmartYardianPanel extends LitElement {
     };
   }
 
+  private _patchZoneProfile(
+    entityId: string,
+    patch: Partial<ZoneProfile>,
+  ): void {
+    if (!this._summary) return;
+    this._summary = {
+      ...this._summary,
+      controllers: this._summary.controllers.map((controller) => ({
+        ...controller,
+        zones: controller.zones.map((zone) =>
+          zone.entity_id === entityId
+            ? { ...zone, profile: { ...zone.profile, ...patch } }
+            : zone,
+        ),
+      })),
+    };
+  }
+
   private _saveSettings = async (): Promise<void> => {
     if (!this.hass || !this._summary) return;
     try {
       await updateSettings(this.hass, this._summary.settings);
+      await updateZoneProfiles(
+        this.hass,
+        this._allZones().map((zone) => zone.profile),
+      );
       await this._load(false);
     } catch (error) {
       this._error = this._errorMessage(error);
@@ -920,6 +1096,25 @@ export class SmartYardianPanel extends LitElement {
 
   private _formatDays(days: number[]): string {
     return days.map((day) => DAY_LONG[day] ?? "").join(", ");
+  }
+
+  private _zoneProfile(entityId: string): ZoneProfile | undefined {
+    return this._allZones().find((zone) => zone.entity_id === entityId)?.profile;
+  }
+
+  private _effectiveRate(profile: ZoneProfile): number {
+    if (
+      profile.flow_l_min !== null &&
+      profile.area_m2 !== null &&
+      profile.area_m2 > 0
+    ) {
+      return (profile.flow_l_min * 60) / profile.area_m2;
+    }
+    return profile.reference_rate_mm_h;
+  }
+
+  private _headLabel(headType: ZoneProfile["head_type"]): string {
+    return HEAD_TYPES.find((item) => item.value === headType)?.label ?? headType;
   }
 
   private _formatDateTime(value: string): string {

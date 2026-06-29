@@ -173,6 +173,8 @@ def evaluate_green_lawn(
     )
     if skip:
         factor = 0.0
+        rain_factor = 0.0
+        climate_factor = 1.0
         reason = "A várható csapadék elegendő, ezért a program kimarad."
     else:
         if precipitation >= float(settings.get("rain_reduce_high_mm", 4.0)):
@@ -218,6 +220,8 @@ def evaluate_green_lawn(
         rainy_hours=rainy_hours,
         reason=reason,
         evaluated_at=now,
+        rain_factor=round(rain_factor, 3),
+        climate_factor=round(climate_factor, 3),
     )
 
 

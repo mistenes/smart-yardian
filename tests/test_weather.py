@@ -45,6 +45,7 @@ def test_green_lawn_skips_heavy_rain() -> None:
         NOW,
     )
     assert decision.factor == 0
+    assert decision.rain_factor == 0
     assert "kimarad" in decision.reason
 
 
@@ -55,6 +56,8 @@ def test_green_lawn_increases_hot_sunny_day() -> None:
         NOW,
     )
     assert decision.factor == 1.35
+    assert decision.rain_factor == 1
+    assert decision.climate_factor == 1.35
     assert decision.sunny_hours >= 8
     assert "forró" in decision.reason
 
@@ -66,6 +69,7 @@ def test_green_lawn_reduces_for_light_rain() -> None:
         NOW,
     )
     assert decision.factor == 0.85
+    assert decision.rain_factor == 0.85
 
 
 def test_green_lawn_requires_twelve_hours() -> None:

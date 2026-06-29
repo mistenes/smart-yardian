@@ -618,7 +618,7 @@ export const panelStyles = css`
     min-height: 49px;
     padding: 6px 9px;
     display: grid;
-    grid-template-columns: minmax(140px, 1fr) 90px 34px;
+    grid-template-columns: minmax(140px, 1fr) 170px 110px 34px;
     align-items: center;
     gap: 8px;
     border-bottom: 1px solid var(--sy-border);
@@ -626,6 +626,31 @@ export const panelStyles = css`
 
   .editor-zone:last-child {
     border-bottom: 0;
+  }
+
+  .editor-zone select {
+    min-height: 34px;
+    padding: 5px 8px;
+    color: var(--sy-text);
+    background: var(--sy-surface);
+    border: 1px solid var(--sy-border);
+    border-radius: 6px;
+  }
+
+  .editor-duration {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .editor-duration input {
+    width: 65px;
+  }
+
+  .editor-duration span,
+  .calculated-duration {
+    color: var(--sy-muted);
+    font-size: 12px;
   }
 
   .icon-button {
@@ -746,6 +771,73 @@ export const panelStyles = css`
     border-radius: 6px;
   }
 
+  .zone-profiles {
+    margin-top: 6px;
+  }
+
+  .settings-help {
+    max-width: 850px;
+    margin: -4px 0 16px;
+    color: var(--sy-muted);
+    line-height: 1.45;
+  }
+
+  .zone-profile-head,
+  .zone-profile-row {
+    display: grid;
+    grid-template-columns:
+      minmax(150px, 1.3fr) minmax(150px, 1fr) minmax(125px, 0.8fr)
+      minmax(125px, 0.8fr) minmax(110px, 0.7fr) minmax(125px, 0.8fr);
+    align-items: center;
+    gap: 12px;
+  }
+
+  .zone-profile-head {
+    min-height: 36px;
+    color: var(--sy-muted);
+    border-bottom: 1px solid var(--sy-border);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .zone-profile-row {
+    min-height: 58px;
+    border-bottom: 1px solid var(--sy-border);
+  }
+
+  .zone-profile-row select,
+  .zone-profile-row input {
+    width: 100%;
+    height: 34px;
+    padding: 5px 8px;
+    color: var(--sy-text);
+    background: var(--sy-surface);
+    border: 1px solid var(--sy-border);
+    border-radius: 6px;
+  }
+
+  .profile-number {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .profile-number > span:last-child,
+  .effective-rate > span {
+    color: var(--sy-muted);
+    font-size: 11px;
+  }
+
+  .effective-rate {
+    display: grid;
+    gap: 2px;
+  }
+
+  .mobile-label {
+    display: none;
+  }
+
   .empty,
   .loading,
   .error {
@@ -810,6 +902,37 @@ export const panelStyles = css`
 
     .settings-grid {
       grid-template-columns: 1fr;
+    }
+
+    .zone-profile-head {
+      display: none;
+    }
+
+    .zone-profile-row {
+      padding: 14px 0;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 14px;
+    }
+
+    .zone-profile-row > strong,
+    .effective-rate {
+      grid-column: 1 / -1;
+    }
+
+    .mobile-label {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--sy-muted);
+      font-size: 11px;
+    }
+
+    .profile-number {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .profile-number .mobile-label {
+      grid-column: 1 / -1;
     }
 
     .stop-all {
@@ -905,6 +1028,31 @@ export const panelStyles = css`
 
     .zone-row .button ha-icon {
       --mdc-icon-size: 18px;
+    }
+
+    .editor-zone {
+      grid-template-columns: minmax(0, 1fr) 34px;
+      padding: 10px;
+    }
+
+    .editor-zone > select,
+    .editor-zone > .editor-duration,
+    .editor-zone > .calculated-duration {
+      grid-column: 1 / -1;
+    }
+
+    .editor-zone > .icon-button {
+      grid-column: 2;
+      grid-row: 1;
+    }
+
+    .zone-profile-row {
+      grid-template-columns: 1fr;
+    }
+
+    .zone-profile-row > strong,
+    .effective-rate {
+      grid-column: 1;
     }
 
     .editor {

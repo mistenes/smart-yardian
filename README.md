@@ -8,6 +8,9 @@ Időjárás-alapú, magyar nyelvű öntözésvezérlő Home Assistant 2026.6+ re
 - Yardian-szerű heti programok, soros végrehajtással;
 - elsődleges Időkép előrejelzés, OpenWeather One Call API 4.0 fallback;
 - átlátható, 0–150%-os időjárási korrekció;
+- zónánként választható manuális vagy szórófej-referencia alapján számolt idő;
+- rotátor, MP800, spray, rotoros és csepegtető zónaprofil, opcionális
+  vízhozam- és területméréssel;
 - megszakítás-, újraindítás- és párhuzamos futás elleni védelem;
 - automatikusan regisztrált, reszponzív Home Assistant oldalsó panel;
 - Home Assistant műveletek és állapotentitások külső automatizálásokhoz.
@@ -27,6 +30,31 @@ Időjárás-alapú, magyar nyelvű öntözésvezérlő Home Assistant 2026.6+ re
    OpenWeather API-kulcsot.
 
 Az integráció ezután **Öntözés** néven megjelenik az oldalsávban.
+
+## Manuális és referencia idő
+
+A program minden zónájánál két időtartammód választható:
+
+- **Manuális perc:** a beállított percet használja, majd – ha engedélyezett – az
+  általános időjárási szorzót alkalmazza.
+- **Referencia alapján:** az előrejelzett maximum-hőmérséklethez tartozó
+  célzott vízmennyiségből és a zóna kijuttatási intenzitásából számol:
+  `perc = cél mm / mm/óra × 60`.
+
+A beépített kiinduló érték rotátornál 10 mm/óra, MP800-nál 20 mm/óra,
+spray fejnél 40 mm/óra. A rotoros és csepegtető rendszerek értéke telepítéstől
+erősen függ, ezért a panelen minden referencia felülírható. Ha ismert a zóna
+teljes vízhozama és az öntözött terület, az alkalmazás ezt használja:
+`mm/óra = l/perc × 60 / m²`.
+
+A hőmérsékleti célértékek a megadott táblázat középértékei: 20 °C alatt
+2,5 mm, 20–24,9 °C között 4,5 mm, 25–34,9 °C között 5,5 mm, 35 °C-tól
+9 mm. Referencia módban az esőkorrekció érvényesül, a meleg miatti szorzó
+nem számítódik rá még egyszer.
+
+Gyártói támpont:
+[Hunter MP Rotator zónázás](https://www.hunterirrigation.com/support/mp-rotator-zoning),
+[Hunter csepegtető kijuttatási intenzitás](https://www.hunterirrigation.com/support/drip-calculating-application-rates).
 
 ## Fejlesztés
 

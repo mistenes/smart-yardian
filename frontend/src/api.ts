@@ -1,4 +1,11 @@
-import type { Hass, Program, Settings, Summary, WeatherDecision } from "./types";
+import type {
+  Hass,
+  Program,
+  Settings,
+  Summary,
+  WeatherDecision,
+  ZoneProfile,
+} from "./types";
 
 export const getSummary = (hass: Hass) =>
   hass.connection.sendMessagePromise<Summary>({ type: "smart_yardian/summary" });
@@ -24,6 +31,12 @@ export const updateSettings = (hass: Hass, settings: Partial<Settings>) =>
   hass.connection.sendMessagePromise<void>({
     type: "smart_yardian/settings/update",
     settings,
+  });
+
+export const updateZoneProfiles = (hass: Hass, profiles: ZoneProfile[]) =>
+  hass.connection.sendMessagePromise<void>({
+    type: "smart_yardian/zone_profiles/update",
+    profiles,
   });
 
 export const setAutomation = (hass: Hass, enabled: boolean) =>

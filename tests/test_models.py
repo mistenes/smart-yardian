@@ -30,6 +30,26 @@ def test_program_roundtrip_preserves_zone_order() -> None:
         "switch.soveny",
     ]
     assert IrrigationProgram.from_dict(program.as_dict()).as_dict() == program.as_dict()
+    assert all(zone.duration_mode == "manual" for zone in program.zones)
+
+
+def test_reference_duration_mode_roundtrip() -> None:
+    program = IrrigationProgram.from_dict(
+        {
+            "name": "Referencia",
+            "weekdays": [1],
+            "start_time": "06:00",
+            "zones": [
+                {
+                    "entity_id": "switch.gyep",
+                    "duration_minutes": 15,
+                    "duration_mode": "reference",
+                }
+            ],
+        }
+    )
+    assert program.zones[0].duration_mode == "reference"
+    assert IrrigationProgram.from_dict(program.as_dict()).as_dict() == program.as_dict()
 
 
 @pytest.mark.parametrize("duration", [0, 181])

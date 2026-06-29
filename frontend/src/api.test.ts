@@ -4,6 +4,7 @@ import {
   runZone,
   setAutomation,
   updateSettings,
+  updateZoneProfiles,
 } from "./api";
 import type { Hass } from "./types";
 
@@ -32,6 +33,25 @@ describe("Smart Yardian WebSocket client", () => {
         duration_minutes: 18,
       },
     ]);
+  });
+
+  it("updates hydraulic zone profiles", async () => {
+    const { hass, messages } = recordingHass();
+    await updateZoneProfiles(hass, [
+      {
+        entity_id: "switch.gyep",
+        head_type: "rotator",
+        reference_rate_mm_h: 10,
+        flow_l_min: 20,
+        area_m2: 100,
+        effective_rate_mm_h: 12,
+        rate_source: "vízhozam és terület",
+      },
+    ]);
+    expect(messages[0]).toMatchObject({
+      type: "smart_yardian/zone_profiles/update",
+      profiles: [{ entity_id: "switch.gyep", head_type: "rotator" }],
+    });
   });
 
   it("runs a program with weather adjustment", async () => {

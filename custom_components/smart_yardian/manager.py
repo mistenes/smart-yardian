@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
@@ -29,6 +30,11 @@ from .const import (
     MAX_QUEUE_DELAY_SECONDS,
     START_CONFIRM_SECONDS,
     STOP_CONFIRM_SECONDS,
+)
+from .irrigation import (
+    ZoneProfile,
+    reference_duration_minutes,
+    seasonal_target,
 )
 from .models import IrrigationProgram, RunRecord, WeatherDecision
 from .storage import SmartYardianStore
@@ -79,6 +85,13 @@ class SmartYardianManager:
     async def async_setup(self) -> None:
         """Load storage, recover interrupted work and start scheduler."""
         await self.store.async_load()
+        added_profiles = False
+        for entity_id in self.zone_entities:
+            if entity_id not in self.store.zone_profiles:
+                self.store.zone_profiles[entity_id] = ZoneProfile.default(entity_id)
+                added_profiles = True
+        if added_profiles:
+            await self.store.async_save()
         self._remove_time_listener = async_track_time_change(
             self.hass,
             self._async_minute_tick,
@@ -341,6 +354,24 @@ class SmartYardianManager:
         await self.store.async_save()
         self._notify_listeners()
 
+    def zone_profile(self, entity_id: str) -> ZoneProfile:
+        """Return a configured profile or a safe in-memory default."""
+        return self.store.zone_profiles.get(entity_id) or ZoneProfile.default(entity_id)
+
+    async def async_update_zone_profiles(
+        self, profiles: list[dict[str, Any]]
+    ) -> None:
+        """Validate and persist hydraulic profiles for configured zones."""
+        updated = dict(self.store.zone_profiles)
+        for raw in profiles:
+            profile = ZoneProfile.from_dict(raw)
+            if profile.entity_id not in self.zone_entities:
+                raise ValueError(f"Ismeretlen Yardian zóna: {profile.entity_id}")
+            updated[profile.entity_id] = profile
+        self.store.zone_profiles = updated
+        await self.store.async_save()
+        self._notify_listeners()
+
     async def async_run_program(
         self,
         program: IrrigationProgram,
@@ -353,6 +384,9 @@ class SmartYardianManager:
             program.weather_adjustment if apply_weather is None else apply_weather
         )
         run_id = str(uuid4())
+        uses_reference = any(
+            zone.duration_mode == "reference" for zone in program.zones
+        )
 
         try:
             async with asyncio.timeout(MAX_QUEUE_DELAY_SECONDS):
@@ -360,7 +394,7 @@ class SmartYardianManager:
                     await self._async_wait_for_external_irrigation()
                     decision = (
                         await self.async_weather_decision()
-                        if apply_weather
+                        if apply_weather or uses_reference
                         else WeatherDecision(
                             factor=1.0,
                             source="Kézi, korrekció nélkül",
@@ -373,6 +407,17 @@ class SmartYardianManager:
                             evaluated_at=dt_util.utcnow(),
                         )
                     )
+                    if not apply_weather and uses_reference:
+                        decision = replace(
+                            decision,
+                            factor=1.0,
+                            rain_factor=1.0,
+                            climate_factor=1.0,
+                            reason=(
+                                "Referenciaidő az előrejelzett hőmérsékletből, "
+                                "esőkorrekció nélkül."
+                            ),
+                        )
                     if decision.factor == 0:
                         await self._async_record_skip(
                             program, scheduled_at, decision.reason, decision
@@ -429,12 +474,40 @@ class SmartYardianManager:
                     outcome = "stopped"
                     reason = "A futást a felhasználó leállította."
                     break
-                duration = max(1, min(180, round(zone.duration_minutes * decision.factor)))
+                if zone.duration_mode == "reference":
+                    profile = self.zone_profile(zone.entity_id)
+                    target = seasonal_target(decision.max_temperature)
+                    duration = reference_duration_minutes(
+                        profile,
+                        decision.max_temperature,
+                        decision.rain_factor,
+                    )
+                    base_minutes = reference_duration_minutes(
+                        profile,
+                        decision.max_temperature,
+                    )
+                    calculation = {
+                        "duration_mode": "reference",
+                        "head_type": profile.head_type,
+                        "application_rate_mm_h": round(
+                            profile.effective_rate_mm_h, 2
+                        ),
+                        "rate_source": profile.rate_source,
+                        "target_mm": target.depth_mm,
+                        "rain_factor": decision.rain_factor,
+                    }
+                else:
+                    duration = max(
+                        1, min(180, round(zone.duration_minutes * decision.factor))
+                    )
+                    base_minutes = zone.duration_minutes
+                    calculation = {"duration_mode": "manual"}
                 result = {
                     "entity_id": zone.entity_id,
-                    "base_minutes": zone.duration_minutes,
+                    "base_minutes": base_minutes,
                     "planned_minutes": duration,
                     "outcome": "running",
+                    **calculation,
                 }
                 zone_results.append(result)
                 self.active_run["current_zone"] = zone.entity_id
@@ -496,7 +569,7 @@ class SmartYardianManager:
         # ProgramZone validation is intentionally bypassed only after direct validation.
         from .models import ProgramZone  # local import avoids a circular type-only dependency
 
-        program.zones = [ProgramZone(entity_id, duration)]
+        program.zones = [ProgramZone(entity_id, duration, "manual")]
         await self.async_run_program(program, apply_weather=False)
 
     async def _async_start_zone(self, entity_id: str, duration: int) -> None:
@@ -673,11 +746,17 @@ class SmartYardianManager:
                 "name": state.name if state else entity_id,
                 "state": state.state if state else "unavailable",
                 "available": state is not None and state.state != "unavailable",
+                "profile": self.zone_profile(entity_id).as_dict(),
             }
             controller["zones"].append(zone)
             controller["available"] = controller["available"] and zone["available"]
 
         next_run = self.next_run()
+        target = (
+            seasonal_target(self.last_decision.max_temperature).as_dict()
+            if self.last_decision
+            else None
+        )
         return {
             "status": self.status,
             "automation_enabled": self.store.settings.get("automation_enabled", True),
@@ -690,4 +769,5 @@ class SmartYardianManager:
             "weather": self.last_decision.as_dict() if self.last_decision else None,
             "last_error": self.last_error,
             "next_run": next_run.isoformat() if next_run else None,
+            "seasonal_target": target,
         }

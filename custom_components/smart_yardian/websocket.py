@@ -104,6 +104,27 @@ async def websocket_settings_update(
 
 @websocket_api.websocket_command(
     {
+        vol.Required("type"): f"{WS_PREFIX}/zone_profiles/update",
+        vol.Required("profiles"): [dict],
+    }
+)
+@websocket_api.async_response
+async def websocket_zone_profiles_update(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Update sprinkler type and hydraulic data for zones."""
+    try:
+        await _manager(hass).async_update_zone_profiles(msg["profiles"])
+    except ValueError as err:
+        connection.send_error(msg["id"], "invalid_zone_profile", str(err))
+        return
+    connection.send_result(msg["id"])
+
+
+@websocket_api.websocket_command(
+    {
         vol.Required("type"): f"{WS_PREFIX}/automation/set",
         vol.Required("enabled"): bool,
     }
@@ -226,6 +247,7 @@ COMMANDS = (
     websocket_program_save,
     websocket_program_delete,
     websocket_settings_update,
+    websocket_zone_profiles_update,
     websocket_automation_set,
     websocket_run_program,
     websocket_run_zone,

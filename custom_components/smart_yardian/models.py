@@ -34,6 +34,8 @@ class WeatherDecision:
     rainy_hours: int
     reason: str
     evaluated_at: datetime
+    rain_factor: float = 1.0
+    climate_factor: float = 1.0
 
     def as_dict(self) -> dict[str, Any]:
         """Return a JSON-safe representation."""
@@ -49,17 +51,25 @@ class ProgramZone:
 
     entity_id: str
     duration_minutes: int
+    duration_mode: str = "manual"
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ProgramZone:
         """Build and validate from stored or API data."""
-        duration = int(data["duration_minutes"])
+        duration = int(data.get("duration_minutes", 15))
         if not 1 <= duration <= 180:
             raise ValueError("A zóna időtartama 1 és 180 perc közötti lehet.")
+        duration_mode = str(data.get("duration_mode") or "manual")
+        if duration_mode not in {"manual", "reference"}:
+            raise ValueError("Az időtartam módja manuális vagy referencia lehet.")
         entity_id = str(data["entity_id"])
         if not entity_id.startswith("switch."):
             raise ValueError("Csak switch entitás használható Yardian zónaként.")
-        return cls(entity_id=entity_id, duration_minutes=duration)
+        return cls(
+            entity_id=entity_id,
+            duration_minutes=duration,
+            duration_mode=duration_mode,
+        )
 
 
 @dataclass(slots=True)

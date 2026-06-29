@@ -8,6 +8,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
 from .const import DEFAULT_SETTINGS, MAX_HISTORY, STORE_KEY_PREFIX, STORE_VERSION
+from .irrigation import ZoneProfile
 from .models import IrrigationProgram
 
 
@@ -22,6 +23,7 @@ class SmartYardianStore:
         self.settings: dict[str, Any] = dict(DEFAULT_SETTINGS)
         self.history: list[dict[str, Any]] = []
         self.runtime: dict[str, Any] = {}
+        self.zone_profiles: dict[str, ZoneProfile] = {}
 
     async def async_load(self) -> None:
         """Load and validate persisted state."""
@@ -29,6 +31,16 @@ class SmartYardianStore:
         self.settings.update(data.get("settings") or {})
         self.history = list(data.get("history") or [])[-MAX_HISTORY:]
         self.runtime = dict(data.get("runtime") or {})
+        profiles: dict[str, ZoneProfile] = {}
+        for entity_id, raw in (data.get("zone_profiles") or {}).items():
+            try:
+                profile = ZoneProfile.from_dict(
+                    {**dict(raw), "entity_id": entity_id}
+                )
+                profiles[entity_id] = profile
+            except (KeyError, TypeError, ValueError):
+                continue
+        self.zone_profiles = profiles
         programs: list[IrrigationProgram] = []
         for raw in data.get("programs") or []:
             try:
@@ -45,6 +57,10 @@ class SmartYardianStore:
                 "settings": self.settings,
                 "history": self.history[-MAX_HISTORY:],
                 "runtime": self.runtime,
+                "zone_profiles": {
+                    entity_id: profile.as_dict()
+                    for entity_id, profile in self.zone_profiles.items()
+                },
             }
         )
 
