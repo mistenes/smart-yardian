@@ -1,0 +1,137 @@
+"""Serializable domain models used by Smart Yardian."""
+
+from __future__ import annotations
+
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
+from typing import Any
+from uuid import uuid4
+
+
+@dataclass(slots=True)
+class ForecastHour:
+    """Normalized hourly weather sample."""
+
+    timestamp: datetime
+    temperature: float
+    precipitation_mm: float
+    precipitation_probability: float
+    condition: str
+    cloud_cover: float | None = None
+    is_daylight: bool | None = None
+
+
+@dataclass(slots=True)
+class WeatherDecision:
+    """Explainable irrigation adjustment."""
+
+    factor: float
+    source: str
+    precipitation_mm: float
+    max_probability: float
+    max_temperature: float
+    sunny_hours: float
+    rainy_hours: int
+    reason: str
+    evaluated_at: datetime
+
+    def as_dict(self) -> dict[str, Any]:
+        """Return a JSON-safe representation."""
+        data = asdict(self)
+        data["evaluated_at"] = self.evaluated_at.isoformat()
+        data["percent"] = round(self.factor * 100)
+        return data
+
+
+@dataclass(slots=True)
+class ProgramZone:
+    """A zone and its base watering duration."""
+
+    entity_id: str
+    duration_minutes: int
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> ProgramZone:
+        """Build and validate from stored or API data."""
+        duration = int(data["duration_minutes"])
+        if not 1 <= duration <= 180:
+            raise ValueError("A zóna időtartama 1 és 180 perc közötti lehet.")
+        entity_id = str(data["entity_id"])
+        if not entity_id.startswith("switch."):
+            raise ValueError("Csak switch entitás használható Yardian zónaként.")
+        return cls(entity_id=entity_id, duration_minutes=duration)
+
+
+@dataclass(slots=True)
+class IrrigationProgram:
+    """Stored weekly irrigation program."""
+
+    name: str
+    weekdays: list[int]
+    start_time: str
+    zones: list[ProgramZone]
+    enabled: bool = True
+    weather_adjustment: bool = True
+    program_id: str = field(default_factory=lambda: str(uuid4()))
+    skip_next: bool = False
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> IrrigationProgram:
+        """Build and validate a program."""
+        name = str(data.get("name", "")).strip()
+        if not 1 <= len(name) <= 64:
+            raise ValueError("A program neve 1 és 64 karakter közötti lehet.")
+
+        weekdays = sorted({int(day) for day in data.get("weekdays", [])})
+        if not weekdays or any(day < 0 or day > 6 for day in weekdays):
+            raise ValueError("Legalább egy érvényes napot ki kell választani.")
+
+        start_time = str(data.get("start_time", ""))
+        try:
+            hour, minute = (int(part) for part in start_time.split(":", 1))
+        except (TypeError, ValueError) as err:
+            raise ValueError("A kezdési idő HH:MM formátumú legyen.") from err
+        if not (0 <= hour <= 23 and 0 <= minute <= 59):
+            raise ValueError("Érvénytelen kezdési idő.")
+
+        zones = [ProgramZone.from_dict(zone) for zone in data.get("zones", [])]
+        if not zones:
+            raise ValueError("A programhoz legalább egy zóna szükséges.")
+        if len({zone.entity_id for zone in zones}) != len(zones):
+            raise ValueError("Egy zóna csak egyszer szerepelhet a programban.")
+
+        return cls(
+            program_id=str(data.get("program_id") or uuid4()),
+            name=name,
+            enabled=bool(data.get("enabled", True)),
+            weekdays=weekdays,
+            start_time=f"{hour:02d}:{minute:02d}",
+            weather_adjustment=bool(data.get("weather_adjustment", True)),
+            zones=zones,
+            skip_next=bool(data.get("skip_next", False)),
+        )
+
+    def as_dict(self) -> dict[str, Any]:
+        """Return a JSON-safe representation."""
+        return asdict(self)
+
+
+@dataclass(slots=True)
+class RunRecord:
+    """Persisted irrigation run audit record."""
+
+    run_id: str
+    program_id: str | None
+    program_name: str
+    scheduled_at: str
+    started_at: str | None
+    completed_at: str | None
+    outcome: str
+    reason: str
+    factor: float
+    weather_source: str
+    zones: list[dict[str, Any]]
+
+    def as_dict(self) -> dict[str, Any]:
+        """Return a JSON-safe representation."""
+        return asdict(self)

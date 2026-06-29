@@ -1,0 +1,12 @@
+{
+  "domain": "smart_yardian",
+  "name": "Smart Yardian",
+  "after_dependencies": ["frontend", "http", "panel_custom", "weather", "yardian"],
+  "codeowners": [],
+  "config_flow": true,
+  "documentation": "https://github.com/mistenes/smart-yardian",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "requirements": [],
+  "version": "0.1.0"
+}

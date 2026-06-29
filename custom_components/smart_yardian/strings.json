@@ -1,0 +1,38 @@
+{
+  "title": "Smart Yardian",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Smart Yardian beállítása",
+        "description": "Válaszd ki az Időkép weather entitást és a Yardian zónákat, majd add meg az OpenWeather One Call API 4.0 kulcsot.",
+        "data": {
+          "weather_entity": "Időkép időjárás",
+          "zone_entities": "Yardian zónák",
+          "openweather_api_key": "OpenWeather 4.0 API-kulcs",
+          "latitude": "Szélesség",
+          "longitude": "Hosszúság",
+          "notify_service": "Mobil értesítési szolgáltatás (opcionális)"
+        }
+      },
+      "reconfigure": {
+        "title": "Smart Yardian újrakonfigurálása",
+        "description": "Módosítsd a zónákat, az időjárásforrást vagy az API-kulcsot.",
+        "data": {
+          "weather_entity": "Időkép időjárás",
+          "zone_entities": "Yardian zónák",
+          "openweather_api_key": "OpenWeather 4.0 API-kulcs",
+          "latitude": "Szélesség",
+          "longitude": "Hosszúság",
+          "notify_service": "Mobil értesítési szolgáltatás (opcionális)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Az OpenWeather API-kulcs nem ellenőrizhető. Ellenőrizd a One Call 4.0 előfizetést és a kulcsot."
+    },
+    "abort": {
+      "already_configured": "A Smart Yardian már be van állítva.",
+      "reconfigure_successful": "A beállítások frissültek."
+    }
+  }
+}

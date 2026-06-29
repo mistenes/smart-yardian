@@ -1,0 +1,54 @@
+run_program:
+  name: Program indítása
+  description: Egy Smart Yardian program azonnali futtatása.
+  fields:
+    program_id:
+      name: Programazonosító
+      required: true
+      selector:
+        text:
+    apply_weather:
+      name: Időjárás-korrekció
+      default: true
+      selector:
+        boolean:
+
+start_zone:
+  name: Zóna indítása
+  description: Egy Yardian zóna kézi, pontos időtartamú indítása.
+  fields:
+    entity_id:
+      name: Yardian zóna
+      required: true
+      selector:
+        entity:
+          domain: switch
+    duration_minutes:
+      name: Időtartam
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 180
+          unit_of_measurement: perc
+
+stop_all:
+  name: Minden leállítása
+  description: Az összes konfigurált aktív Yardian zóna leállítása.
+
+skip_next:
+  name: Következő kihagyása
+  fields:
+    program_id:
+      name: Programazonosító
+      required: true
+      selector:
+        text:
+
+pause_until:
+  name: Automatika szüneteltetése
+  fields:
+    until:
+      name: Szünet vége
+      selector:
+        datetime:
