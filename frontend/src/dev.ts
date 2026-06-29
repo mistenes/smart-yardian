@@ -127,6 +127,9 @@ let programs: Program[] = [
     weekdays: [0, 1, 2, 3, 4],
     start_time: "05:30",
     weather_adjustment: true,
+    temperature_condition_enabled: true,
+    temperature_condition_operator: "above",
+    temperature_condition_value: 26,
     zones: zones.slice(0, 5).map(([entity_id], index) => ({
       entity_id,
       duration_minutes: [15, 15, 20, 20, 10][index] ?? 15,
@@ -141,6 +144,9 @@ let programs: Program[] = [
     weekdays: [0, 1, 2, 3, 4, 5, 6],
     start_time: "20:00",
     weather_adjustment: true,
+    temperature_condition_enabled: false,
+    temperature_condition_operator: "above",
+    temperature_condition_value: 30,
     zones: zones.slice(5).map(([entity_id], index) => ({
       entity_id,
       duration_minutes: [18, 30, 12, 8][index] ?? 15,

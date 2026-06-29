@@ -48,6 +48,9 @@ export type Program = {
   weekdays: number[];
   start_time: string;
   weather_adjustment: boolean;
+  temperature_condition_enabled: boolean;
+  temperature_condition_operator: "above" | "below";
+  temperature_condition_value: number;
   zones: ProgramZone[];
   skip_next: boolean;
 };

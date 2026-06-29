@@ -10,6 +10,9 @@ describe("Smart Yardian program shape", () => {
       weekdays: [0, 2, 4],
       start_time: "05:30",
       weather_adjustment: true,
+      temperature_condition_enabled: true,
+      temperature_condition_operator: "above",
+      temperature_condition_value: 28,
       zones: [
         {
           entity_id: "switch.gyep",
@@ -29,6 +32,7 @@ describe("Smart Yardian program shape", () => {
       "switch.soveny",
     ]);
     expect(program.weekdays).toEqual([0, 2, 4]);
+    expect(program.temperature_condition_value).toBe(28);
     expect(program.zones.map((zone) => zone.duration_mode)).toEqual([
       "reference",
       "manual",

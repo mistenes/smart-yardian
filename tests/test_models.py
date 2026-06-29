@@ -29,6 +29,7 @@ def test_program_roundtrip_preserves_zone_order() -> None:
         "switch.gyep",
         "switch.soveny",
     ]
+    assert program.temperature_condition_enabled is False
     assert IrrigationProgram.from_dict(program.as_dict()).as_dict() == program.as_dict()
     assert all(zone.duration_mode == "manual" for zone in program.zones)
 
@@ -50,6 +51,45 @@ def test_reference_duration_mode_roundtrip() -> None:
     )
     assert program.zones[0].duration_mode == "reference"
     assert IrrigationProgram.from_dict(program.as_dict()).as_dict() == program.as_dict()
+
+
+def test_temperature_condition_above_and_below() -> None:
+    base = {
+        "name": "Meleg napi program",
+        "weekdays": [0],
+        "start_time": "05:30",
+        "zones": [{"entity_id": "switch.gyep", "duration_minutes": 15}],
+        "temperature_condition_enabled": True,
+        "temperature_condition_value": 30,
+    }
+    above = IrrigationProgram.from_dict(
+        {**base, "temperature_condition_operator": "above"}
+    )
+    below = IrrigationProgram.from_dict(
+        {**base, "temperature_condition_operator": "below"}
+    )
+
+    assert above.temperature_condition_matches(31)
+    assert not above.temperature_condition_matches(30)
+    assert below.temperature_condition_matches(29)
+    assert not below.temperature_condition_matches(30)
+    assert "nem magasabb" in above.temperature_condition_reason(28)
+
+
+def test_temperature_condition_rejects_unsafe_threshold() -> None:
+    with pytest.raises(ValueError, match="-30 és 60"):
+        IrrigationProgram.from_dict(
+            {
+                "name": "Hibás hőmérséklet",
+                "weekdays": [0],
+                "start_time": "05:30",
+                "temperature_condition_enabled": True,
+                "temperature_condition_value": 80,
+                "zones": [
+                    {"entity_id": "switch.gyep", "duration_minutes": 15}
+                ],
+            }
+        )
 
 
 @pytest.mark.parametrize("duration", [0, 181])

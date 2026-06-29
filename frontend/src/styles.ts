@@ -673,6 +673,34 @@ export const panelStyles = css`
     margin: 12px 0;
   }
 
+  .temperature-condition {
+    margin: 8px 0 18px 25px;
+    display: grid;
+    grid-template-columns: minmax(190px, 1fr) 150px 105px;
+    align-items: center;
+    gap: 8px;
+    color: var(--sy-muted);
+    font-size: 13px;
+  }
+
+  .temperature-condition select,
+  .temperature-condition input {
+    width: 100%;
+    min-height: 36px;
+    padding: 6px 8px;
+    color: var(--sy-text);
+    background: var(--sy-surface);
+    border: 1px solid var(--sy-border);
+    border-radius: 6px;
+  }
+
+  .temperature-condition label {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px;
+  }
+
   .editor-actions {
     margin-top: 24px;
     display: flex;
@@ -1033,6 +1061,11 @@ export const panelStyles = css`
     .editor-zone {
       grid-template-columns: minmax(0, 1fr) 34px;
       padding: 10px;
+    }
+
+    .temperature-condition {
+      margin-left: 0;
+      grid-template-columns: 1fr;
     }
 
     .editor-zone > select,

@@ -9,6 +9,8 @@ Időjárás-alapú, magyar nyelvű öntözésvezérlő Home Assistant 2026.6+ re
 - elsődleges Időkép előrejelzés, OpenWeather One Call API 4.0 fallback;
 - átlátható, 0–150%-os időjárási korrekció;
 - zónánként választható manuális vagy szórófej-referencia alapján számolt idő;
+- programonként opcionális hőmérséklet-feltétel a következő 24 óra
+  előrejelzett maximumára;
 - rotátor, MP800, spray, rotoros és csepegtető zónaprofil, opcionális
   vízhozam- és területméréssel;
 - megszakítás-, újraindítás- és párhuzamos futás elleni védelem;
@@ -55,6 +57,15 @@ nem számítódik rá még egyszer.
 Gyártói támpont:
 [Hunter MP Rotator zónázás](https://www.hunterirrigation.com/support/mp-rotator-zoning),
 [Hunter csepegtető kijuttatási intenzitás](https://www.hunterirrigation.com/support/drip-calculating-application-rates).
+
+## Feltételes programok
+
+A programszerkesztőben bekapcsolható a **Hőmérséklet-feltétel**. Például a
+`magasabb mint 30 °C` beállításnál a program csak akkor indul el, ha a
+következő 24 óra előrejelzett maximuma 30 °C fölött van. Az ellenkező,
+`alacsonyabb mint` feltétel is választható. Ha a feltétel nem teljesül, a
+futás kihagyásként bekerül az előzményekbe; bizonytalan időjárási adatnál a
+biztonsági szabály szerint szintén nem indul el.
 
 ## Fejlesztés
 

@@ -387,6 +387,7 @@ class SmartYardianManager:
         uses_reference = any(
             zone.duration_mode == "reference" for zone in program.zones
         )
+        uses_temperature_condition = program.temperature_condition_enabled
 
         try:
             async with asyncio.timeout(MAX_QUEUE_DELAY_SECONDS):
@@ -394,7 +395,9 @@ class SmartYardianManager:
                     await self._async_wait_for_external_irrigation()
                     decision = (
                         await self.async_weather_decision()
-                        if apply_weather or uses_reference
+                        if apply_weather
+                        or uses_reference
+                        or uses_temperature_condition
                         else WeatherDecision(
                             factor=1.0,
                             source="Kézi, korrekció nélkül",
@@ -407,17 +410,36 @@ class SmartYardianManager:
                             evaluated_at=dt_util.utcnow(),
                         )
                     )
-                    if not apply_weather and uses_reference:
+                    if not apply_weather and (
+                        uses_reference or uses_temperature_condition
+                    ):
+                        reason_parts = []
+                        if uses_reference:
+                            reason_parts.append(
+                                "referenciaidő az előrejelzett hőmérsékletből"
+                            )
+                        if uses_temperature_condition:
+                            reason_parts.append("hőmérséklet-feltétel ellenőrizve")
                         decision = replace(
                             decision,
                             factor=1.0,
                             rain_factor=1.0,
                             climate_factor=1.0,
-                            reason=(
-                                "Referenciaidő az előrejelzett hőmérsékletből, "
-                                "esőkorrekció nélkül."
-                            ),
+                            reason=f"{', '.join(reason_parts).capitalize()}, "
+                            "esőkorrekció nélkül.",
                         )
+                    if not program.temperature_condition_matches(
+                        decision.max_temperature
+                    ):
+                        await self._async_record_skip(
+                            program,
+                            scheduled_at,
+                            program.temperature_condition_reason(
+                                decision.max_temperature
+                            ),
+                            decision,
+                        )
+                        return
                     if decision.factor == 0:
                         await self._async_record_skip(
                             program, scheduled_at, decision.reason, decision

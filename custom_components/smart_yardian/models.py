@@ -82,6 +82,9 @@ class IrrigationProgram:
     zones: list[ProgramZone]
     enabled: bool = True
     weather_adjustment: bool = True
+    temperature_condition_enabled: bool = False
+    temperature_condition_operator: str = "above"
+    temperature_condition_value: float = 30.0
     program_id: str = field(default_factory=lambda: str(uuid4()))
     skip_next: bool = False
 
@@ -110,6 +113,22 @@ class IrrigationProgram:
         if len({zone.entity_id for zone in zones}) != len(zones):
             raise ValueError("Egy zóna csak egyszer szerepelhet a programban.")
 
+        temperature_operator = str(
+            data.get("temperature_condition_operator") or "above"
+        )
+        if temperature_operator not in {"above", "below"}:
+            raise ValueError("A hőmérséklet-feltétel felette vagy alatta lehet.")
+        try:
+            temperature_value = float(
+                data.get("temperature_condition_value", 30)
+            )
+        except (TypeError, ValueError) as err:
+            raise ValueError("A hőmérsékleti küszöb szám legyen.") from err
+        if not -30 <= temperature_value <= 60:
+            raise ValueError(
+                "A hőmérsékleti küszöb -30 és 60 °C közötti lehet."
+            )
+
         return cls(
             program_id=str(data.get("program_id") or uuid4()),
             name=name,
@@ -117,8 +136,33 @@ class IrrigationProgram:
             weekdays=weekdays,
             start_time=f"{hour:02d}:{minute:02d}",
             weather_adjustment=bool(data.get("weather_adjustment", True)),
+            temperature_condition_enabled=bool(
+                data.get("temperature_condition_enabled", False)
+            ),
+            temperature_condition_operator=temperature_operator,
+            temperature_condition_value=temperature_value,
             zones=zones,
             skip_next=bool(data.get("skip_next", False)),
+        )
+
+    def temperature_condition_matches(self, max_temperature: float) -> bool:
+        """Return whether the forecast temperature permits this program."""
+        if not self.temperature_condition_enabled:
+            return True
+        if self.temperature_condition_operator == "above":
+            return max_temperature > self.temperature_condition_value
+        return max_temperature < self.temperature_condition_value
+
+    def temperature_condition_reason(self, max_temperature: float) -> str:
+        """Explain why a temperature-conditioned program was skipped."""
+        relation = (
+            "nem magasabb"
+            if self.temperature_condition_operator == "above"
+            else "nem alacsonyabb"
+        )
+        return (
+            f"A következő 24 óra maximuma {max_temperature:g} °C, ami {relation} "
+            f"{self.temperature_condition_value:g} °C-nál."
         )
 
     def as_dict(self) -> dict[str, Any]:

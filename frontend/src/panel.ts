@@ -48,6 +48,9 @@ const emptyProgram = (): Program => ({
   weekdays: [0, 2, 4],
   start_time: "05:30",
   weather_adjustment: true,
+  temperature_condition_enabled: false,
+  temperature_condition_operator: "above",
+  temperature_condition_value: 30,
   zones: [],
   skip_next: false,
 });
@@ -364,6 +367,9 @@ export class SmartYardianPanel extends LitElement {
         <div class="program-details">
           <div>Napok: ${this._formatDays(program.weekdays)}</div>
           <div>Kezdés: ${program.start_time}</div>
+          ${program.temperature_condition_enabled
+            ? html`<div>${this._temperatureConditionText(program)}</div>`
+            : nothing}
           <div>Számított öntözési idő: ${total} perc</div>
         </div>
       </div>
@@ -487,6 +493,61 @@ export class SmartYardianPanel extends LitElement {
           />
           <label for="program-weather">Időjárás-korrekció használata</label>
         </div>
+        <div class="checkline">
+          <input
+            id="program-temperature-condition"
+            type="checkbox"
+            .checked=${draft.temperature_condition_enabled}
+            @change=${(event: Event) =>
+              this._patchDraft({
+                temperature_condition_enabled: (event.target as HTMLInputElement)
+                  .checked,
+              })}
+          />
+          <label for="program-temperature-condition">
+            Hőmérséklet-feltétel használata
+          </label>
+        </div>
+        ${draft.temperature_condition_enabled
+          ? html`
+              <div class="temperature-condition">
+                <span>A következő 24 óra maximuma</span>
+                <select
+                  aria-label="Hőmérséklet összehasonlítása"
+                  .value=${draft.temperature_condition_operator}
+                  @change=${(event: Event) =>
+                    this._patchDraft({
+                      temperature_condition_operator: (event.target as HTMLSelectElement)
+                        .value as "above" | "below",
+                    })}
+                >
+                  <option value="above">magasabb mint</option>
+                  <option value="below">alacsonyabb mint</option>
+                </select>
+                <label>
+                  <input
+                    type="number"
+                    min="-30"
+                    max="60"
+                    step="0.5"
+                    aria-label="Hőmérsékleti küszöb"
+                    .value=${String(draft.temperature_condition_value)}
+                    @change=${(event: Event) =>
+                      this._patchDraft({
+                        temperature_condition_value: Math.max(
+                          -30,
+                          Math.min(
+                            60,
+                            (event.target as HTMLInputElement).valueAsNumber,
+                          ),
+                        ),
+                      })}
+                  />
+                  <span>°C</span>
+                </label>
+              </div>
+            `
+          : nothing}
         <div class="field">
           <span class="field-label">Zónák sorrendben</span>
           <div class="editor-zones">
@@ -1096,6 +1157,14 @@ export class SmartYardianPanel extends LitElement {
 
   private _formatDays(days: number[]): string {
     return days.map((day) => DAY_LONG[day] ?? "").join(", ");
+  }
+
+  private _temperatureConditionText(program: Program): string {
+    const relation =
+      program.temperature_condition_operator === "above"
+        ? "Max. hőmérséklet >"
+        : "Max. hőmérséklet <";
+    return `${relation} ${program.temperature_condition_value} °C`;
   }
 
   private _zoneProfile(entityId: string): ZoneProfile | undefined {
