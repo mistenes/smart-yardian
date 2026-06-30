@@ -5,6 +5,7 @@ import {
   pauseUntil,
   previewSchedule,
   previewWeather,
+  runManualProgram,
   runProgram,
   runZone,
   saveProgram,
@@ -30,7 +31,13 @@ import type {
   ZoneProfile,
 } from "./types";
 
-type Tab = "overview" | "schedule" | "programs" | "history" | "settings";
+type Tab =
+  | "overview"
+  | "schedule"
+  | "programs"
+  | "manual"
+  | "history"
+  | "settings";
 
 const DAY_NAMES = ["H", "K", "Sze", "Cs", "P", "Szo", "V"];
 const DAY_LONG = ["Hé", "Ke", "Sze", "Csü", "Pén", "Szo", "Vas"];
@@ -64,6 +71,20 @@ const emptyProgram = (): Program => ({
 const cloneProgram = (program: Program): Program =>
   JSON.parse(JSON.stringify(program)) as Program;
 
+const emptyManualProgram = (): Program => {
+  const now = new Date();
+  return {
+    ...emptyProgram(),
+    name: "Kézi öntözés",
+    weekdays: [now.getDay() === 0 ? 6 : now.getDay() - 1],
+    start_time: `${String(now.getHours()).padStart(2, "0")}:${String(
+      now.getMinutes(),
+    ).padStart(2, "0")}`,
+    enabled: false,
+    weather_adjustment: false,
+  };
+};
+
 export class SmartYardianPanel extends LitElement {
   static properties = {
     hass: { attribute: false },
@@ -84,6 +105,8 @@ export class SmartYardianPanel extends LitElement {
     _settingsSaved: { state: true },
     _runExpanded: { state: true },
     _now: { state: true },
+    _manualDraft: { state: true },
+    _manualRunning: { state: true },
   };
 
   static styles = panelStyles;
@@ -106,6 +129,8 @@ export class SmartYardianPanel extends LitElement {
   private _settingsSaved = false;
   private _runExpanded = false;
   private _now = Date.now();
+  private _manualDraft: Program = emptyManualProgram();
+  private _manualRunning = false;
   private _timer?: number;
   private _clockTimer?: number;
 
@@ -139,6 +164,7 @@ export class SmartYardianPanel extends LitElement {
           ${this._tabButton("overview", "Áttekintés")}
           ${this._tabButton("schedule", "Következő 3 nap")}
           ${this._tabButton("programs", "Programok")}
+          ${this._tabButton("manual", "Kézi program")}
           ${this._tabButton("history", "Előzmények")}
           ${this._tabButton("settings", "Beállítások")}
         </nav>
@@ -178,6 +204,8 @@ export class SmartYardianPanel extends LitElement {
         return this._renderPrograms();
       case "schedule":
         return this._renderSchedule();
+      case "manual":
+        return this._renderManualProgram();
       case "history":
         return this._renderHistory();
       case "settings":
@@ -649,6 +677,171 @@ export class SmartYardianPanel extends LitElement {
           </strong>
         </div>
       </article>
+    `;
+  }
+
+  private _renderManualProgram(): TemplateResult {
+    const draft = this._manualDraft;
+    const allZones = this._allZones();
+    return html`
+      <div class="page-head">
+        <div>
+          <h2>Kézi program</h2>
+          <div class="subtle">
+            Egyszer fut le, nem módosítja a napi ütemezéseket.
+          </div>
+        </div>
+        <button class="button quiet" @click=${this._resetManualProgram}>
+          Alaphelyzet
+        </button>
+      </div>
+      <section class="manual-program">
+        <div class="manual-program-toolbar">
+          <label class="field">
+            <span class="field-label">Napi program betöltése</span>
+            <select @change=${this._importManualProgram}>
+              <option value="">Válassz programot…</option>
+              ${this._summary!.programs.map(
+                (program) =>
+                  html`<option value=${program.program_id}>${program.name}</option>`,
+              )}
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label">Kézi program neve</span>
+            <input
+              type="text"
+              maxlength="64"
+              .value=${draft.name}
+              @input=${(event: Event) =>
+                this._patchManual({
+                  name: (event.target as HTMLInputElement).value,
+                })}
+            />
+          </label>
+          <label class="manual-weather">
+            <input
+              type="checkbox"
+              .checked=${draft.weather_adjustment}
+              @change=${(event: Event) =>
+                this._patchManual({
+                  weather_adjustment: (event.target as HTMLInputElement).checked,
+                })}
+            />
+            Időjárás-korrekció
+          </label>
+        </div>
+        <div class="manual-zone-list">
+          ${draft.zones.map((zone, index) => {
+            const details = allZones.find(
+              (candidate) => candidate.entity_id === zone.entity_id,
+            );
+            return html`
+              <div class="manual-zone">
+                <span class="manual-zone-order">${index + 1}</span>
+                <strong>${details?.name ?? zone.entity_id}</strong>
+                <select
+                  aria-label="${details?.name ?? zone.entity_id} számítási módja"
+                  .value=${zone.duration_mode}
+                  @change=${(event: Event) =>
+                    this._updateManualZone(index, {
+                      ...zone,
+                      duration_mode: (event.target as HTMLSelectElement)
+                        .value as ProgramZone["duration_mode"],
+                    })}
+                >
+                  <option value="manual">Manuális perc</option>
+                  <option value="reference">Referencia alapján</option>
+                </select>
+                <label class="manual-duration">
+                  <input
+                    type="number"
+                    min="1"
+                    max="180"
+                    ?disabled=${zone.duration_mode === "reference"}
+                    .value=${String(zone.duration_minutes)}
+                    @change=${(event: Event) =>
+                      this._updateManualZone(index, {
+                        ...zone,
+                        duration_minutes: this._clampDuration(
+                          (event.target as HTMLInputElement).valueAsNumber,
+                        ),
+                      })}
+                  />
+                  <span>perc</span>
+                </label>
+                <span class="manual-calculated">
+                  ${this._programZoneMinutes(draft, zone)} perc
+                </span>
+                <div class="manual-zone-actions">
+                  <button
+                    class="icon-button"
+                    aria-label="Kör feljebb"
+                    ?disabled=${index === 0}
+                    @click=${() => this._moveManualZone(index, -1)}
+                  >
+                    <ha-icon icon="mdi:chevron-up"></ha-icon>
+                  </button>
+                  <button
+                    class="icon-button"
+                    aria-label="Kör lejjebb"
+                    ?disabled=${index === draft.zones.length - 1}
+                    @click=${() => this._moveManualZone(index, 1)}
+                  >
+                    <ha-icon icon="mdi:chevron-down"></ha-icon>
+                  </button>
+                  <button
+                    class="icon-button"
+                    aria-label="Kör eltávolítása"
+                    @click=${() => this._removeManualZone(index)}
+                  >
+                    <ha-icon icon="mdi:close"></ha-icon>
+                  </button>
+                </div>
+              </div>
+            `;
+          })}
+          ${draft.zones.length
+            ? nothing
+            : html`<div class="empty">Adj hozzá legalább egy öntözési kört.</div>`}
+        </div>
+        <div class="manual-add">
+          <label class="field">
+            <span class="field-label">Kör hozzáadása</span>
+            <select @change=${this._addManualZone}>
+              <option value="">Válassz zónát…</option>
+              ${allZones
+                .filter(
+                  (zone) =>
+                    !draft.zones.some(
+                      (selected) => selected.entity_id === zone.entity_id,
+                    ),
+                )
+                .map(
+                  (zone) =>
+                    html`<option value=${zone.entity_id}>${zone.name}</option>`,
+                )}
+            </select>
+          </label>
+          <div class="manual-total">
+            <span>Várható teljes idő</span>
+            <strong>${this._programMinutes(draft)} perc</strong>
+          </div>
+          <button
+            class="button primary manual-start"
+            ?disabled=${this._manualRunning || !draft.zones.length || !!this._summary!.active_run}
+            @click=${this._runManualDraft}
+          >
+            <ha-icon icon="mdi:play"></ha-icon>
+            ${this._summary!.active_run
+              ? "Már fut egy program"
+              : this._manualRunning
+                ? "Indítás…"
+                : "Kézi program indítása"}
+          </button>
+        </div>
+        ${this._error ? html`<div class="error">${this._error}</div>` : nothing}
+      </section>
     `;
   }
 
@@ -1369,6 +1562,94 @@ export class SmartYardianPanel extends LitElement {
     this._draft = emptyProgram();
     this._tab = "programs";
     this._error = "";
+  };
+
+  private _resetManualProgram = (): void => {
+    this._manualDraft = emptyManualProgram();
+    this._error = "";
+  };
+
+  private _patchManual(patch: Partial<Program>): void {
+    this._manualDraft = { ...this._manualDraft, ...patch };
+  }
+
+  private _importManualProgram = (event: Event): void => {
+    const select = event.target as HTMLSelectElement;
+    const source = this._summary?.programs.find(
+      (program) => program.program_id === select.value,
+    );
+    if (!source) return;
+    const now = emptyManualProgram();
+    this._manualDraft = {
+      ...now,
+      name: `Kézi – ${source.name}`,
+      weather_adjustment: source.weather_adjustment,
+      soil_moisture_enabled: source.soil_moisture_enabled,
+      zones: source.zones.map((zone) => ({ ...zone })),
+    };
+    select.value = "";
+  };
+
+  private _addManualZone = (event: Event): void => {
+    const select = event.target as HTMLSelectElement;
+    if (!select.value) return;
+    this._patchManual({
+      zones: [
+        ...this._manualDraft.zones,
+        {
+          entity_id: select.value,
+          duration_minutes: 15,
+          duration_mode: "manual",
+        },
+      ],
+    });
+    select.value = "";
+  };
+
+  private _updateManualZone(index: number, zone: ProgramZone): void {
+    const zones = [...this._manualDraft.zones];
+    zones[index] = zone;
+    this._patchManual({ zones });
+  }
+
+  private _removeManualZone(index: number): void {
+    this._patchManual({
+      zones: this._manualDraft.zones.filter(
+        (_, zoneIndex) => zoneIndex !== index,
+      ),
+    });
+  }
+
+  private _moveManualZone(index: number, direction: -1 | 1): void {
+    const target = index + direction;
+    if (target < 0 || target >= this._manualDraft.zones.length) return;
+    const zones = [...this._manualDraft.zones];
+    [zones[index], zones[target]] = [zones[target]!, zones[index]!];
+    this._patchManual({ zones });
+  }
+
+  private _runManualDraft = async (): Promise<void> => {
+    if (
+      !this.hass ||
+      !this._manualDraft.zones.length ||
+      this._manualRunning
+    ) {
+      return;
+    }
+    this._manualRunning = true;
+    try {
+      await runManualProgram(
+        this.hass,
+        this._manualDraft,
+        this._manualDraft.weather_adjustment,
+      );
+      this._error = "";
+      await this._load(false);
+    } catch (error) {
+      this._error = this._errorMessage(error);
+    } finally {
+      this._manualRunning = false;
+    }
   };
 
   private _patchDraft(patch: Partial<Program>): void {

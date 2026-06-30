@@ -520,6 +520,24 @@ class SmartYardianManager:
         self._notify_listeners()
         return program
 
+    def manual_program_from_dict(
+        self, raw: dict[str, Any]
+    ) -> IrrigationProgram:
+        """Validate an ephemeral program without storing it."""
+        program = IrrigationProgram.from_dict(raw)
+        unknown = {
+            zone.entity_id
+            for zone in program.zones
+            if zone.entity_id not in self.zone_entities
+        }
+        if unknown:
+            raise ValueError(
+                f"Ismeretlen Yardian zóna: {', '.join(sorted(unknown))}"
+            )
+        program.enabled = False
+        program.skip_next = False
+        return program
+
     async def async_delete_program(self, program_id: str) -> None:
         """Delete a program."""
         original = len(self.store.programs)

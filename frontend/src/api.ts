@@ -58,6 +58,17 @@ export const runProgram = (hass: Hass, programId: string) =>
     apply_weather: true,
   });
 
+export const runManualProgram = (
+  hass: Hass,
+  program: Program,
+  applyWeather: boolean,
+) =>
+  hass.connection.sendMessagePromise<void>({
+    type: "smart_yardian/run/manual_program",
+    program,
+    apply_weather: applyWeather,
+  });
+
 export const runZone = (
   hass: Hass,
   entityId: string,

@@ -21,6 +21,8 @@ Időjárás-alapú, magyar nyelvű öntözésvezérlő Home Assistant 2026.6+ re
 - futás közben minden nézetből elérhető sticky állapotsáv program- és
   kör-visszaszámlálóval, előző/aktuális/következő körrel, körkihagyással és
   azonnali leállítással;
+- egyszer futó, többkörös kézi program összeállítása, napi programból történő
+  importálással, átrendezhető körökkel és manuális vagy referencia időkkel;
 - megszakítás-, újraindítás- és párhuzamos futás elleni védelem;
 - automatikusan regisztrált, reszponzív Home Assistant oldalsó panel;
 - Home Assistant műveletek és állapotentitások külső automatizálásokhoz.

@@ -505,6 +505,102 @@ export const panelStyles = css`
     line-height: 1.65;
   }
 
+  .manual-program {
+    padding-top: 18px;
+  }
+
+  .manual-program-toolbar,
+  .manual-add {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto;
+    align-items: end;
+    gap: 14px;
+    padding: 16px;
+    border: 1px solid var(--sy-border);
+    border-radius: 10px;
+    background: var(--sy-surface);
+  }
+
+  .manual-weather {
+    display: flex;
+    min-height: 38px;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .manual-zone-list {
+    margin: 14px 0;
+    border: 1px solid var(--sy-border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .manual-zone {
+    display: grid;
+    min-height: 62px;
+    padding: 10px 12px;
+    grid-template-columns:
+      28px minmax(150px, 1fr) minmax(155px, 0.8fr)
+      minmax(100px, 0.5fr) 80px auto;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--sy-border);
+  }
+
+  .manual-zone:last-child {
+    border-bottom: 0;
+  }
+
+  .manual-zone-order {
+    display: grid;
+    width: 26px;
+    height: 26px;
+    place-items: center;
+    color: var(--sy-muted);
+    background: var(--sy-blue-soft);
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .manual-duration {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .manual-duration input {
+    width: 76px;
+  }
+
+  .manual-calculated {
+    color: var(--sy-muted);
+    font-size: 12px;
+  }
+
+  .manual-zone-actions {
+    display: flex;
+    gap: 4px;
+  }
+
+  .manual-total {
+    display: grid;
+    gap: 3px;
+  }
+
+  .manual-total span {
+    color: var(--sy-muted);
+    font-size: 12px;
+  }
+
+  .manual-total strong {
+    font-size: 18px;
+  }
+
+  .manual-start {
+    min-height: 40px;
+  }
+
   .history-compact {
     padding: 14px 0 18px;
   }
@@ -1250,6 +1346,27 @@ export const panelStyles = css`
   }
 
   @media (max-width: 900px) {
+    .manual-program-toolbar,
+    .manual-add {
+      grid-template-columns: 1fr;
+      align-items: stretch;
+    }
+
+    .manual-zone {
+      grid-template-columns: 28px minmax(0, 1fr) auto;
+    }
+
+    .manual-zone > select,
+    .manual-duration,
+    .manual-calculated {
+      grid-column: 2 / -1;
+    }
+
+    .manual-zone-actions {
+      grid-column: 3;
+      grid-row: 1;
+    }
+
     .content {
       padding: 18px 14px 90px;
     }

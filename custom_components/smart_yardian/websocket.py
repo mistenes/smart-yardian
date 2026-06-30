@@ -182,6 +182,36 @@ async def websocket_run_program(
 
 @websocket_api.websocket_command(
     {
+        vol.Required("type"): f"{WS_PREFIX}/run/manual_program",
+        vol.Required("program"): dict,
+        vol.Optional("apply_weather", default=False): bool,
+    }
+)
+@websocket_api.async_response
+async def websocket_run_manual_program(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Validate and start an ephemeral multi-zone program."""
+    manager = _manager(hass)
+    try:
+        program = manager.manual_program_from_dict(msg["program"])
+    except ValueError as err:
+        connection.send_error(msg["id"], "invalid_manual_program", str(err))
+        return
+    manager._create_task(  # noqa: SLF001 - manager owns the background task
+        manager.async_run_program(
+            program,
+            apply_weather=msg["apply_weather"],
+        ),
+        f"{DOMAIN}_manual_program_{program.program_id}",
+    )
+    connection.send_result(msg["id"])
+
+
+@websocket_api.websocket_command(
+    {
         vol.Required("type"): f"{WS_PREFIX}/run/zone",
         vol.Required("entity_id"): str,
         vol.Required("duration_minutes"): vol.All(int, vol.Range(min=1, max=180)),
@@ -284,6 +314,7 @@ COMMANDS = (
     websocket_zone_profiles_update,
     websocket_automation_set,
     websocket_run_program,
+    websocket_run_manual_program,
     websocket_run_zone,
     websocket_stop,
     websocket_skip_current_zone,

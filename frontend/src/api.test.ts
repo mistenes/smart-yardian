@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   previewSchedule,
+  runManualProgram,
   runProgram,
   runZone,
   setAutomation,
@@ -82,6 +83,36 @@ describe("Smart Yardian WebSocket client", () => {
       type: "smart_yardian/run/program",
       program_id: "morning",
       apply_weather: true,
+    });
+  });
+
+  it("runs an ephemeral multi-zone manual program", async () => {
+    const { hass, messages } = recordingHass();
+    const program = {
+      program_id: "manual",
+      name: "Kézi program",
+      enabled: false,
+      weekdays: [0],
+      start_time: "12:00",
+      weather_adjustment: false,
+      temperature_condition_enabled: false,
+      temperature_condition_operator: "above" as const,
+      temperature_condition_value: 30,
+      soil_moisture_enabled: false,
+      zones: [
+        {
+          entity_id: "switch.gyep",
+          duration_minutes: 10,
+          duration_mode: "manual" as const,
+        },
+      ],
+      skip_next: false,
+    };
+    await runManualProgram(hass, program, false);
+    expect(messages[0]).toMatchObject({
+      type: "smart_yardian/run/manual_program",
+      program,
+      apply_weather: false,
     });
   });
 

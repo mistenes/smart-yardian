@@ -184,7 +184,9 @@ const history: RunRecord[] = [
 let automationEnabled = true;
 const forceUnavailable =
   new URLSearchParams(window.location.search).get("yardian_state") === "unavailable";
-let runningEntity: string = forceUnavailable ? "" : (zones[3]?.[0] ?? "");
+const forceIdle = new URLSearchParams(window.location.search).get("idle") === "1";
+let runningEntity: string =
+  forceUnavailable || forceIdle ? "" : (zones[3]?.[0] ?? "");
 const runningIndex = (): number =>
   Math.max(0, zones.findIndex(([entityId]) => entityId === runningEntity));
 
@@ -459,6 +461,10 @@ const hass: Hass = {
         }
       }
       if (type === "smart_yardian/run/zone") runningEntity = String(message.entity_id);
+      if (type === "smart_yardian/run/manual_program") {
+        const program = message.program as Program;
+        runningEntity = program.zones[0]?.entity_id ?? "";
+      }
       if (type === "smart_yardian/run/skip_current_zone") {
         runningEntity = zones[4]?.[0] ?? "";
       }
