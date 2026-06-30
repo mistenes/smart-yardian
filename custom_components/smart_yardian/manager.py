@@ -634,70 +634,75 @@ class SmartYardianManager:
         )
         uses_temperature_condition = program.temperature_condition_enabled
 
+        lock_acquired = False
         try:
-            async with asyncio.timeout(MAX_QUEUE_DELAY_SECONDS):
-                async with self._run_lock:
+            try:
+                # The timeout limits queueing only. A valid irrigation program may
+                # itself run for much longer than 30 minutes.
+                async with asyncio.timeout(MAX_QUEUE_DELAY_SECONDS):
+                    await self._run_lock.acquire()
+                    lock_acquired = True
                     await self._async_wait_for_external_irrigation()
-                    decision = (
-                        await self.async_weather_decision(scheduled_at)
-                        if apply_weather
-                        or uses_reference
-                        or uses_temperature_condition
-                        else WeatherDecision(
-                            factor=1.0,
-                            source="Kézi, korrekció nélkül",
-                            precipitation_mm=0,
-                            max_probability=0,
-                            max_temperature=0,
-                            sunny_hours=0,
-                            rainy_hours=0,
-                            reason="A program kézi, időjárás-korrekció nélküli futás.",
-                            evaluated_at=dt_util.utcnow(),
-                        )
+            except TimeoutError:
+                await self._async_record_skip(
+                    program,
+                    scheduled_at,
+                    "A rendszer 30 percnél tovább volt foglalt.",
+                )
+                return
+
+            decision = (
+                await self.async_weather_decision(scheduled_at)
+                if apply_weather or uses_reference or uses_temperature_condition
+                else WeatherDecision(
+                    factor=1.0,
+                    source="Kézi, korrekció nélkül",
+                    precipitation_mm=0,
+                    max_probability=0,
+                    max_temperature=0,
+                    sunny_hours=0,
+                    rainy_hours=0,
+                    reason="A program kézi, időjárás-korrekció nélküli futás.",
+                    evaluated_at=dt_util.utcnow(),
+                )
+            )
+            if not apply_weather and (
+                uses_reference or uses_temperature_condition
+            ):
+                reason_parts = []
+                if uses_reference:
+                    reason_parts.append(
+                        "referenciaidő az előrejelzett hőmérsékletből"
                     )
-                    if not apply_weather and (
-                        uses_reference or uses_temperature_condition
-                    ):
-                        reason_parts = []
-                        if uses_reference:
-                            reason_parts.append(
-                                "referenciaidő az előrejelzett hőmérsékletből"
-                            )
-                        if uses_temperature_condition:
-                            reason_parts.append("hőmérséklet-feltétel ellenőrizve")
-                        decision = replace(
-                            decision,
-                            factor=1.0,
-                            rain_factor=1.0,
-                            climate_factor=1.0,
-                            reason=f"{', '.join(reason_parts).capitalize()}, "
-                            "esőkorrekció nélkül.",
-                        )
-                    if not program.temperature_condition_matches(
+                if uses_temperature_condition:
+                    reason_parts.append("hőmérséklet-feltétel ellenőrizve")
+                decision = replace(
+                    decision,
+                    factor=1.0,
+                    rain_factor=1.0,
+                    climate_factor=1.0,
+                    reason=f"{', '.join(reason_parts).capitalize()}, "
+                    "esőkorrekció nélkül.",
+                )
+            if not program.temperature_condition_matches(
+                decision.max_temperature
+            ):
+                await self._async_record_skip(
+                    program,
+                    scheduled_at,
+                    program.temperature_condition_reason(
                         decision.max_temperature
-                    ):
-                        await self._async_record_skip(
-                            program,
-                            scheduled_at,
-                            program.temperature_condition_reason(
-                                decision.max_temperature
-                            ),
-                            decision,
-                        )
-                        return
-                    if decision.factor == 0:
-                        await self._async_record_skip(
-                            program, scheduled_at, decision.reason, decision
-                        )
-                        return
-                    await self._async_execute_program(
-                        run_id, program, scheduled_at, decision
-                    )
-        except TimeoutError:
-            await self._async_record_skip(
-                program,
-                scheduled_at,
-                "A rendszer 30 percnél tovább volt foglalt.",
+                    ),
+                    decision,
+                )
+                return
+            if decision.factor == 0:
+                await self._async_record_skip(
+                    program, scheduled_at, decision.reason, decision
+                )
+                return
+            await self._async_execute_program(
+                run_id, program, scheduled_at, decision
             )
         except WeatherUnavailableError as err:
             await self._async_record_skip(
@@ -705,6 +710,9 @@ class SmartYardianManager:
                 scheduled_at,
                 f"Bizonytalan időjárási adat: {err}",
             )
+        finally:
+            if lock_acquired:
+                self._run_lock.release()
 
     async def _async_execute_program(
         self,
