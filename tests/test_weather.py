@@ -9,6 +9,7 @@ import pytest
 from custom_components.smart_yardian.models import ForecastHour
 from custom_components.smart_yardian.weather import (
     WeatherUnavailableError,
+    evaluate_calendar_day,
     evaluate_green_lawn,
     forecast_day_max_temperature,
     is_plausible_celsius,
@@ -86,6 +87,18 @@ def test_day_max_includes_hours_before_program_start() -> None:
     scheduled_at = NOW + timedelta(hours=10)
 
     assert forecast_day_max_temperature(hours, scheduled_at) == 36.1
+
+
+def test_calendar_day_decision_is_identical_for_every_program_time() -> None:
+    hours = forecast(temperature=32, precipitation=3, probability=75)
+    early = evaluate_calendar_day(hours, "OpenWeather 4.0", NOW)
+    later = evaluate_calendar_day(
+        hours,
+        "OpenWeather 4.0",
+        NOW + timedelta(hours=12),
+    )
+
+    assert early.as_dict() == later.as_dict()
 
 
 def test_openweather_normalization() -> None:

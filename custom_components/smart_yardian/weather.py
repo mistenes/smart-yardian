@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable, Iterable
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -197,6 +198,41 @@ def forecast_day_max_temperature(
             "Nincs hőmérsékleti előrejelzés a program naptári napjára."
         )
     return round(max(temperatures), 1)
+
+
+def evaluate_calendar_day(
+    forecast: Iterable[ForecastHour],
+    source: str,
+    scheduled_at: datetime,
+    settings: dict[str, Any] | None = None,
+) -> WeatherDecision:
+    """Evaluate one shared weather decision for a local calendar day."""
+    if scheduled_at.tzinfo is None:
+        scheduled_at = scheduled_at.replace(tzinfo=UTC)
+    timezone = scheduled_at.tzinfo
+    target_date = scheduled_at.date()
+    hours = sorted(
+        (
+            hour
+            for hour in forecast
+            if hour.timestamp.astimezone(timezone).date() == target_date
+        ),
+        key=lambda item: item.timestamp,
+    )
+    if len(hours) < MIN_FORECAST_HOURS:
+        raise WeatherUnavailableError(
+            "Nincs legalább 12 órányi használható előrejelzés erre a napra."
+        )
+    decision = evaluate_green_lawn(
+        hours,
+        source,
+        now=hours[0].timestamp,
+        settings=settings,
+    )
+    return replace(
+        decision,
+        max_temperature=round(max(hour.temperature for hour in hours), 1),
+    )
 
 
 def evaluate_green_lawn(

@@ -98,6 +98,11 @@ időjárásforrást, a maximum-hőmérsékletet, a csapadékot, a zónánkénti 
 a szüneteltetést, a `skip next` jelölést, az esőkorrekciót és a
 hőmérséklet-feltételt. A számítás csak előnézet, nem indít Yardian zónát.
 
+Egy naptári nap minden programja közös napi időjárási döntést használ. Ha az
+Időkép nem ad legalább 12 használható órát az adott nap egészéhez, akkor az
+adott nap összes programja OpenWeather 4.0-ra vált. Emiatt ugyanazon a napon
+nem jelenhet meg eltérő csapadék, maximum vagy időjárásforrás programonként.
+
 Távolabbi napnál csak akkor jelenik meg konkrét futási idő, ha az Időkép vagy
 az OpenWeather legalább 12 használható órát ad az adott program időpontjától.
 

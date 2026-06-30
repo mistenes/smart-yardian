@@ -588,9 +588,9 @@ export class SmartYardianPanel extends LitElement {
         <div>
           <h2>Következő 3 nap</h2>
           <div class="subtle">
-            A forrás programonként eltérhet: elsőként mindig az Időképet
-            használjuk, és csak akkor váltunk OpenWeatherre, ha az adott
-            futástól nincs legalább 12 órányi Időkép-előrejelzés.
+            Egy napon belül minden program ugyanazt a napi előrejelzést
+            használja. Elsődleges az Időkép; ha az egész naphoz nem elég
+            megbízható, az adott nap minden programja OpenWeatherre vált.
           </div>
         </div>
         <button

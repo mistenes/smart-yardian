@@ -43,6 +43,7 @@ from .storage import SmartYardianStore
 from .weather import (
     OpenWeatherClient,
     WeatherUnavailableError,
+    evaluate_calendar_day,
     evaluate_green_lawn,
     forecast_day_max_temperature,
     is_plausible_celsius,
@@ -326,72 +327,87 @@ class SmartYardianManager:
         openweather_forecast: list[ForecastHour] | None = None
         openweather_error = "Az OpenWeather nem érhető el."
         openweather_loaded = False
+        day_decisions: dict[str, WeatherDecision | None] = {}
+        day_errors: dict[str, str] = {}
+
+        weather_days: dict[str, datetime] = {}
+        for occurrence in occurrences:
+            program = occurrence.program
+            if (
+                program.weather_adjustment
+                or program.temperature_condition_enabled
+                or any(
+                    zone.duration_mode == "reference"
+                    for zone in program.zones
+                )
+            ):
+                weather_days.setdefault(
+                    occurrence.scheduled_at.date().isoformat(),
+                    occurrence.scheduled_at,
+                )
+
+        for day_key, scheduled_at in weather_days.items():
+            decision: WeatherDecision | None = None
+            idokep_day_error = idokep_error
+            openweather_day_error = openweather_error
+
+            if idokep_forecast is not None:
+                try:
+                    decision = evaluate_calendar_day(
+                        idokep_forecast,
+                        "Időkép",
+                        scheduled_at,
+                        settings=self.store.settings,
+                    )
+                except WeatherUnavailableError as err:
+                    idokep_day_error = str(err)
+
+            if decision is None:
+                if not openweather_loaded:
+                    openweather_loaded = True
+                    try:
+                        openweather_forecast = await self.weather.async_fetch()
+                    except WeatherUnavailableError as err:
+                        openweather_error = str(err)
+                openweather_day_error = openweather_error
+                if openweather_forecast is not None:
+                    try:
+                        decision = evaluate_calendar_day(
+                            openweather_forecast,
+                            "OpenWeather 4.0",
+                            scheduled_at,
+                            settings=self.store.settings,
+                        )
+                    except WeatherUnavailableError as err:
+                        openweather_day_error = str(err)
+
+            day_decisions[day_key] = decision
+            if decision is None:
+                day_errors[day_key] = (
+                    f"Időkép: {idokep_day_error} "
+                    f"OpenWeather: {openweather_day_error}"
+                )
+
         skip_next_consumed: set[str] = set()
 
         for occurrence in occurrences:
             program = occurrence.program
+            day_key = occurrence.scheduled_at.date().isoformat()
             needs_weather = (
                 program.weather_adjustment
                 or program.temperature_condition_enabled
                 or any(zone.duration_mode == "reference" for zone in program.zones)
             )
-            decision: WeatherDecision | None = None
-            weather_error: str | None = None
+            decision = day_decisions.get(day_key) if needs_weather else None
+            weather_error = day_errors.get(day_key) if needs_weather else None
 
-            if needs_weather:
-                if idokep_forecast is not None:
-                    try:
-                        decision = evaluate_green_lawn(
-                            idokep_forecast,
-                            "Időkép",
-                            now=occurrence.scheduled_at.astimezone(UTC),
-                            settings=self.store.settings,
-                        )
-                        decision = replace(
-                            decision,
-                            max_temperature=forecast_day_max_temperature(
-                                idokep_forecast, occurrence.scheduled_at
-                            ),
-                        )
-                    except WeatherUnavailableError as err:
-                        idokep_error = str(err)
-
-                if decision is None:
-                    if not openweather_loaded:
-                        openweather_loaded = True
-                        try:
-                            openweather_forecast = await self.weather.async_fetch()
-                        except WeatherUnavailableError as err:
-                            openweather_error = str(err)
-                    if openweather_forecast is not None:
-                        try:
-                            decision = evaluate_green_lawn(
-                                openweather_forecast,
-                                "OpenWeather 4.0",
-                                now=occurrence.scheduled_at.astimezone(UTC),
-                                settings=self.store.settings,
-                            )
-                            decision = replace(
-                                decision,
-                                max_temperature=forecast_day_max_temperature(
-                                    openweather_forecast,
-                                    occurrence.scheduled_at,
-                                ),
-                            )
-                        except WeatherUnavailableError as err:
-                            openweather_error = str(err)
-
-                if decision is None:
-                    weather_error = (
-                        f"Időkép: {idokep_error} OpenWeather: {openweather_error}"
-                    )
-                elif not program.weather_adjustment:
-                    decision = replace(
-                        decision,
-                        factor=1.0,
-                        rain_factor=1.0,
-                        climate_factor=1.0,
-                    )
+            if decision is not None and not program.weather_adjustment:
+                decision = replace(
+                    decision,
+                    factor=1.0,
+                    rain_factor=1.0,
+                    climate_factor=1.0,
+                )
 
             zones = [
                 self._preview_zone(zone, decision, program.weather_adjustment)
