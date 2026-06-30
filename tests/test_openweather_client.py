@@ -43,6 +43,18 @@ class FakeSession:
         return self.response
 
 
+class SequencedSession:
+    def __init__(self, responses: list[FakeResponse]) -> None:
+        self.responses = responses
+        self.calls = 0
+
+    def get(self, *args: object, **kwargs: object) -> FakeResponse:
+        del args, kwargs
+        response = self.responses[self.calls]
+        self.calls += 1
+        return response
+
+
 def payload() -> dict[str, Any]:
     now = datetime.now(UTC)
     return {
@@ -93,6 +105,36 @@ def test_openweather_quota_guard_runs_only_for_real_http_requests() -> None:
 
     assert reservations == 2
     assert session.calls == 2
+
+
+def test_openweather_follows_one_hour_timeline_next_page() -> None:
+    first = payload()
+    first["data"] = first["data"][:20]
+    first["next"] = "https://api.openweathermap.org/next-page"
+    second = payload()
+    second["data"] = second["data"][20:]
+    session = SequencedSession(
+        [FakeResponse(200, first), FakeResponse(200, second)]
+    )
+    reservations = 0
+
+    async def reserve() -> None:
+        nonlocal reservations
+        reservations += 1
+
+    client = OpenWeatherClient(
+        session,
+        "secret",
+        47.5,
+        19.0,
+        before_request=reserve,
+    )
+
+    forecast = asyncio.run(client.async_fetch())
+
+    assert len(forecast) == 24
+    assert session.calls == 2
+    assert reservations == 2
 
 
 def test_openweather_quota_guard_blocks_before_http() -> None:

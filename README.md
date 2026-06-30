@@ -101,8 +101,9 @@ az OpenWeather legalább 12 használható órát ad az adott program időpontjá
 
 ## OpenWeather híváskorlát
 
-Az OpenWeather-válasz 30 percig gyorsítótárazott, ezért normál működésben
-legfeljebb 48 valódi kérés történhet naponta. Ezen felül egy HA-szinten közös,
+Az OpenWeather-válasz 30 percig gyorsítótárazott. Az órás 4.0 végpont
+20 rekordos oldalait legfeljebb két kérésből fűzzük össze, ezért normál
+működésben legfeljebb 96 valódi kérés történhet naponta. Ezen felül egy HA-szinten közös,
 tartós számláló minden valódi HTTP-kérés előtt lefoglal egy hívást. A 200.
 hívás után további OpenWeather-kérés az adott UTC-napon nem indul el, HA
 újraindítása után sem. A mai felhasználás a **Beállítások** oldalon látható.

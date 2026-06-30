@@ -310,37 +310,14 @@ class OpenWeatherClient:
                 "units": "metric",
                 "lang": "hu",
             }
-            if self._before_request is not None:
-                await self._before_request()
-            try:
-                async with self._session.get(
-                    OPENWEATHER_URL,
-                    params=params,
-                    timeout=15,
-                ) as response:
-                    if response.status in (401, 403):
-                        raise OpenWeatherAuthenticationError(
-                            "Az OpenWeather API-kulcs nem érvényes vagy nincs 4.0 hozzáférése."
-                        )
-                    if response.status == 429:
-                        raise OpenWeatherRateLimitError(
-                            "Az OpenWeather napi hívási kerete elfogyott."
-                        )
-                    if response.status >= 500:
-                        raise WeatherUnavailableError(
-                            f"Az OpenWeather átmenetileg nem elérhető ({response.status})."
-                        )
-                    if response.status >= 400:
-                        raise WeatherUnavailableError(
-                            f"Az OpenWeather hibás választ adott ({response.status})."
-                        )
-                    payload = await response.json(content_type=None)
-            except TimeoutError as err:
-                raise WeatherUnavailableError(
-                    "Az OpenWeather kérés időtúllépés miatt leállt."
-                ) from err
+            payload = await self._async_get_payload(OPENWEATHER_URL, params)
+            items = list(payload.get("data") or [])
+            next_url = payload.get("next")
+            if next_url:
+                next_payload = await self._async_get_payload(str(next_url))
+                items.extend(next_payload.get("data") or [])
 
-            forecast = normalize_openweather(payload.get("data") or [])
+            forecast = normalize_openweather(items)
             if len(forecast) < MIN_FORECAST_HOURS:
                 raise WeatherUnavailableError(
                     "Az OpenWeather nem adott elegendő órás előrejelzést."
@@ -348,3 +325,39 @@ class OpenWeatherClient:
             self._cache = forecast
             self._cache_at = now
             return forecast
+
+    async def _async_get_payload(
+        self,
+        url: str,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Fetch one quota-counted OpenWeather timeline page."""
+        if self._before_request is not None:
+            await self._before_request()
+        try:
+            async with self._session.get(
+                url,
+                params=params,
+                timeout=15,
+            ) as response:
+                if response.status in (401, 403):
+                    raise OpenWeatherAuthenticationError(
+                        "Az OpenWeather API-kulcs nem érvényes vagy nincs 4.0 hozzáférése."
+                    )
+                if response.status == 429:
+                    raise OpenWeatherRateLimitError(
+                        "Az OpenWeather napi hívási kerete elfogyott."
+                    )
+                if response.status >= 500:
+                    raise WeatherUnavailableError(
+                        f"Az OpenWeather átmenetileg nem elérhető ({response.status})."
+                    )
+                if response.status >= 400:
+                    raise WeatherUnavailableError(
+                        f"Az OpenWeather hibás választ adott ({response.status})."
+                    )
+                return await response.json(content_type=None)
+        except TimeoutError as err:
+            raise WeatherUnavailableError(
+                "Az OpenWeather kérés időtúllépés miatt leállt."
+            ) from err
