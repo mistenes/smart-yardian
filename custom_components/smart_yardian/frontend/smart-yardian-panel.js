@@ -1,5 +1,5 @@
 const D = globalThis, O = D.ShadowRoot && (D.ShadyCSS === void 0 || D.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype, L = /* @__PURE__ */ Symbol(), q = /* @__PURE__ */ new WeakMap();
-let ie = class {
+let re = class {
   constructor(e, t, s) {
     if (this._$cssResult$ = !0, s !== L) throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");
     this.cssText = e, this.t = t;
@@ -17,53 +17,53 @@ let ie = class {
     return this.cssText;
   }
 };
-const ce = (i) => new ie(typeof i == "string" ? i : i + "", void 0, L), ue = (i, ...e) => {
-  const t = i.length === 1 ? i[0] : e.reduce((s, a, r) => s + ((n) => {
+const pe = (r) => new re(typeof r == "string" ? r : r + "", void 0, L), ue = (r, ...e) => {
+  const t = r.length === 1 ? r[0] : e.reduce((s, a, i) => s + ((n) => {
     if (n._$cssResult$ === !0) return n.cssText;
     if (typeof n == "number") return n;
     throw Error("Value passed to 'css' function must be a 'css' function result: " + n + ". Use 'unsafeCSS' to pass non-literal values, but take care to ensure page security.");
-  })(a) + i[r + 1], i[0]);
-  return new ie(t, i, L);
-}, he = (i, e) => {
-  if (O) i.adoptedStyleSheets = e.map((t) => t instanceof CSSStyleSheet ? t : t.styleSheet);
+  })(a) + r[i + 1], r[0]);
+  return new re(t, r, L);
+}, he = (r, e) => {
+  if (O) r.adoptedStyleSheets = e.map((t) => t instanceof CSSStyleSheet ? t : t.styleSheet);
   else for (const t of e) {
     const s = document.createElement("style"), a = D.litNonce;
-    a !== void 0 && s.setAttribute("nonce", a), s.textContent = t.cssText, i.appendChild(s);
+    a !== void 0 && s.setAttribute("nonce", a), s.textContent = t.cssText, r.appendChild(s);
   }
-}, F = O ? (i) => i : (i) => i instanceof CSSStyleSheet ? ((e) => {
+}, F = O ? (r) => r : (r) => r instanceof CSSStyleSheet ? ((e) => {
   let t = "";
   for (const s of e.cssRules) t += s.cssText;
-  return ce(t);
-})(i) : i;
-const { is: me, defineProperty: ge, getOwnPropertyDescriptor: _e, getOwnPropertyNames: be, getOwnPropertySymbols: ve, getPrototypeOf: fe } = Object, j = globalThis, V = j.trustedTypes, ye = V ? V.emptyScript : "", xe = j.reactiveElementPolyfillSupport, k = (i, e) => i, U = { toAttribute(i, e) {
+  return pe(t);
+})(r) : r;
+const { is: me, defineProperty: ge, getOwnPropertyDescriptor: _e, getOwnPropertyNames: ve, getOwnPropertySymbols: be, getPrototypeOf: fe } = Object, j = globalThis, V = j.trustedTypes, ye = V ? V.emptyScript : "", xe = j.reactiveElementPolyfillSupport, k = (r, e) => r, U = { toAttribute(r, e) {
   switch (e) {
     case Boolean:
-      i = i ? ye : null;
+      r = r ? ye : null;
       break;
     case Object:
     case Array:
-      i = i == null ? i : JSON.stringify(i);
+      r = r == null ? r : JSON.stringify(r);
   }
-  return i;
-}, fromAttribute(i, e) {
-  let t = i;
+  return r;
+}, fromAttribute(r, e) {
+  let t = r;
   switch (e) {
     case Boolean:
-      t = i !== null;
+      t = r !== null;
       break;
     case Number:
-      t = i === null ? null : Number(i);
+      t = r === null ? null : Number(r);
       break;
     case Object:
     case Array:
       try {
-        t = JSON.parse(i);
+        t = JSON.parse(r);
       } catch {
         t = null;
       }
   }
   return t;
-} }, re = (i, e) => !me(i, e), W = { attribute: !0, type: String, converter: U, reflect: !1, useDefault: !1, hasChanged: re };
+} }, ie = (r, e) => !me(r, e), W = { attribute: !0, type: String, converter: U, reflect: !1, useDefault: !1, hasChanged: ie };
 Symbol.metadata ??= /* @__PURE__ */ Symbol("metadata"), j.litPropertyMetadata ??= /* @__PURE__ */ new WeakMap();
 let y = class extends HTMLElement {
   static addInitializer(e) {
@@ -79,14 +79,14 @@ let y = class extends HTMLElement {
     }
   }
   static getPropertyDescriptor(e, t, s) {
-    const { get: a, set: r } = _e(this.prototype, e) ?? { get() {
+    const { get: a, set: i } = _e(this.prototype, e) ?? { get() {
       return this[t];
     }, set(n) {
       this[t] = n;
     } };
     return { get: a, set(n) {
-      const p = a?.call(this);
-      r?.call(this, n), this.requestUpdate(e, p, s);
+      const c = a?.call(this);
+      i?.call(this, n), this.requestUpdate(e, c, s);
     }, configurable: !0, enumerable: !0 };
   }
   static getPropertyOptions(e) {
@@ -100,7 +100,7 @@ let y = class extends HTMLElement {
   static finalize() {
     if (this.hasOwnProperty(k("finalized"))) return;
     if (this.finalized = !0, this._$Ei(), this.hasOwnProperty(k("properties"))) {
-      const t = this.properties, s = [...be(t), ...ve(t)];
+      const t = this.properties, s = [...ve(t), ...be(t)];
       for (const a of s) this.createProperty(a, t[a]);
     }
     const e = this[Symbol.metadata];
@@ -162,29 +162,29 @@ let y = class extends HTMLElement {
   _$ET(e, t) {
     const s = this.constructor.elementProperties.get(e), a = this.constructor._$Eu(e, s);
     if (a !== void 0 && s.reflect === !0) {
-      const r = (s.converter?.toAttribute !== void 0 ? s.converter : U).toAttribute(t, s.type);
-      this._$Em = e, r == null ? this.removeAttribute(a) : this.setAttribute(a, r), this._$Em = null;
+      const i = (s.converter?.toAttribute !== void 0 ? s.converter : U).toAttribute(t, s.type);
+      this._$Em = e, i == null ? this.removeAttribute(a) : this.setAttribute(a, i), this._$Em = null;
     }
   }
   _$AK(e, t) {
     const s = this.constructor, a = s._$Eh.get(e);
     if (a !== void 0 && this._$Em !== a) {
-      const r = s.getPropertyOptions(a), n = typeof r.converter == "function" ? { fromAttribute: r.converter } : r.converter?.fromAttribute !== void 0 ? r.converter : U;
+      const i = s.getPropertyOptions(a), n = typeof i.converter == "function" ? { fromAttribute: i.converter } : i.converter?.fromAttribute !== void 0 ? i.converter : U;
       this._$Em = a;
-      const p = n.fromAttribute(t, r.type);
-      this[a] = p ?? this._$Ej?.get(a) ?? p, this._$Em = null;
+      const c = n.fromAttribute(t, i.type);
+      this[a] = c ?? this._$Ej?.get(a) ?? c, this._$Em = null;
     }
   }
-  requestUpdate(e, t, s, a = !1, r) {
+  requestUpdate(e, t, s, a = !1, i) {
     if (e !== void 0) {
       const n = this.constructor;
-      if (a === !1 && (r = this[e]), s ??= n.getPropertyOptions(e), !((s.hasChanged ?? re)(r, t) || s.useDefault && s.reflect && r === this._$Ej?.get(e) && !this.hasAttribute(n._$Eu(e, s)))) return;
+      if (a === !1 && (i = this[e]), s ??= n.getPropertyOptions(e), !((s.hasChanged ?? ie)(i, t) || s.useDefault && s.reflect && i === this._$Ej?.get(e) && !this.hasAttribute(n._$Eu(e, s)))) return;
       this.C(e, t, s);
     }
     this.isUpdatePending === !1 && (this._$ES = this._$EP());
   }
-  C(e, t, { useDefault: s, reflect: a, wrapped: r }, n) {
-    s && !(this._$Ej ??= /* @__PURE__ */ new Map()).has(e) && (this._$Ej.set(e, n ?? t ?? this[e]), r !== !0 || n !== void 0) || (this._$AL.has(e) || (this.hasUpdated || s || (t = void 0), this._$AL.set(e, t)), a === !0 && this._$Em !== e && (this._$Eq ??= /* @__PURE__ */ new Set()).add(e));
+  C(e, t, { useDefault: s, reflect: a, wrapped: i }, n) {
+    s && !(this._$Ej ??= /* @__PURE__ */ new Map()).has(e) && (this._$Ej.set(e, n ?? t ?? this[e]), i !== !0 || n !== void 0) || (this._$AL.has(e) || (this.hasUpdated || s || (t = void 0), this._$AL.set(e, t)), a === !0 && this._$Em !== e && (this._$Eq ??= /* @__PURE__ */ new Set()).add(e));
   }
   async _$EP() {
     this.isUpdatePending = !0;
@@ -203,13 +203,13 @@ let y = class extends HTMLElement {
     if (!this.isUpdatePending) return;
     if (!this.hasUpdated) {
       if (this.renderRoot ??= this.createRenderRoot(), this._$Ep) {
-        for (const [a, r] of this._$Ep) this[a] = r;
+        for (const [a, i] of this._$Ep) this[a] = i;
         this._$Ep = void 0;
       }
       const s = this.constructor.elementProperties;
-      if (s.size > 0) for (const [a, r] of s) {
-        const { wrapped: n } = r, p = this[a];
-        n !== !0 || this._$AL.has(a) || p === void 0 || this.C(a, void 0, r, p);
+      if (s.size > 0) for (const [a, i] of s) {
+        const { wrapped: n } = i, c = this[a];
+        n !== !0 || this._$AL.has(a) || c === void 0 || this.C(a, void 0, i, c);
       }
     }
     let e = !1;
@@ -247,55 +247,55 @@ let y = class extends HTMLElement {
   }
 };
 y.elementStyles = [], y.shadowRootOptions = { mode: "open" }, y[k("elementProperties")] = /* @__PURE__ */ new Map(), y[k("finalized")] = /* @__PURE__ */ new Map(), xe?.({ ReactiveElement: y }), (j.reactiveElementVersions ??= []).push("2.1.2");
-const I = globalThis, Y = (i) => i, C = I.trustedTypes, J = C ? C.createPolicy("lit-html", { createHTML: (i) => i }) : void 0, ne = "$lit$", _ = `lit$${Math.random().toFixed(9).slice(2)}$`, oe = "?" + _, $e = `<${oe}>`, f = document, A = () => f.createComment(""), S = (i) => i === null || typeof i != "object" && typeof i != "function", B = Array.isArray, we = (i) => B(i) || typeof i?.[Symbol.iterator] == "function", T = `[ 	
-\f\r]`, w = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g, G = /-->/g, Q = />/g, b = RegExp(`>|${T}(?:([^\\s"'>=/]+)(${T}*=${T}*(?:[^ 	
-\f\r"'\`<>=]|("|')|))|$)`, "g"), X = /'/g, ee = /"/g, le = /^(?:script|style|textarea|title)$/i, ke = (i) => (e, ...t) => ({ _$litType$: i, strings: e, values: t }), o = ke(1), x = /* @__PURE__ */ Symbol.for("lit-noChange"), d = /* @__PURE__ */ Symbol.for("lit-nothing"), te = /* @__PURE__ */ new WeakMap(), v = f.createTreeWalker(f, 129);
-function de(i, e) {
-  if (!B(i) || !i.hasOwnProperty("raw")) throw Error("invalid template strings array");
+const I = globalThis, Y = (r) => r, C = I.trustedTypes, J = C ? C.createPolicy("lit-html", { createHTML: (r) => r }) : void 0, ne = "$lit$", _ = `lit$${Math.random().toFixed(9).slice(2)}$`, oe = "?" + _, $e = `<${oe}>`, f = document, A = () => f.createComment(""), S = (r) => r === null || typeof r != "object" && typeof r != "function", B = Array.isArray, we = (r) => B(r) || typeof r?.[Symbol.iterator] == "function", T = `[ 	
+\f\r]`, w = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g, G = /-->/g, Q = />/g, v = RegExp(`>|${T}(?:([^\\s"'>=/]+)(${T}*=${T}*(?:[^ 	
+\f\r"'\`<>=]|("|')|))|$)`, "g"), X = /'/g, ee = /"/g, le = /^(?:script|style|textarea|title)$/i, ke = (r) => (e, ...t) => ({ _$litType$: r, strings: e, values: t }), o = ke(1), x = /* @__PURE__ */ Symbol.for("lit-noChange"), d = /* @__PURE__ */ Symbol.for("lit-nothing"), te = /* @__PURE__ */ new WeakMap(), b = f.createTreeWalker(f, 129);
+function de(r, e) {
+  if (!B(r) || !r.hasOwnProperty("raw")) throw Error("invalid template strings array");
   return J !== void 0 ? J.createHTML(e) : e;
 }
-const ze = (i, e) => {
-  const t = i.length - 1, s = [];
-  let a, r = e === 2 ? "<svg>" : e === 3 ? "<math>" : "", n = w;
-  for (let p = 0; p < t; p++) {
-    const l = i[p];
-    let u, h, c = -1, m = 0;
-    for (; m < l.length && (n.lastIndex = m, h = n.exec(l), h !== null); ) m = n.lastIndex, n === w ? h[1] === "!--" ? n = G : h[1] !== void 0 ? n = Q : h[2] !== void 0 ? (le.test(h[2]) && (a = RegExp("</" + h[2], "g")), n = b) : h[3] !== void 0 && (n = b) : n === b ? h[0] === ">" ? (n = a ?? w, c = -1) : h[1] === void 0 ? c = -2 : (c = n.lastIndex - h[2].length, u = h[1], n = h[3] === void 0 ? b : h[3] === '"' ? ee : X) : n === ee || n === X ? n = b : n === G || n === Q ? n = w : (n = b, a = void 0);
-    const g = n === b && i[p + 1].startsWith("/>") ? " " : "";
-    r += n === w ? l + $e : c >= 0 ? (s.push(u), l.slice(0, c) + ne + l.slice(c) + _ + g) : l + _ + (c === -2 ? p : g);
+const ze = (r, e) => {
+  const t = r.length - 1, s = [];
+  let a, i = e === 2 ? "<svg>" : e === 3 ? "<math>" : "", n = w;
+  for (let c = 0; c < t; c++) {
+    const l = r[c];
+    let u, h, p = -1, m = 0;
+    for (; m < l.length && (n.lastIndex = m, h = n.exec(l), h !== null); ) m = n.lastIndex, n === w ? h[1] === "!--" ? n = G : h[1] !== void 0 ? n = Q : h[2] !== void 0 ? (le.test(h[2]) && (a = RegExp("</" + h[2], "g")), n = v) : h[3] !== void 0 && (n = v) : n === v ? h[0] === ">" ? (n = a ?? w, p = -1) : h[1] === void 0 ? p = -2 : (p = n.lastIndex - h[2].length, u = h[1], n = h[3] === void 0 ? v : h[3] === '"' ? ee : X) : n === ee || n === X ? n = v : n === G || n === Q ? n = w : (n = v, a = void 0);
+    const g = n === v && r[c + 1].startsWith("/>") ? " " : "";
+    i += n === w ? l + $e : p >= 0 ? (s.push(u), l.slice(0, p) + ne + l.slice(p) + _ + g) : l + _ + (p === -2 ? c : g);
   }
-  return [de(i, r + (i[t] || "<?>") + (e === 2 ? "</svg>" : e === 3 ? "</math>" : "")), s];
+  return [de(r, i + (r[t] || "<?>") + (e === 2 ? "</svg>" : e === 3 ? "</math>" : "")), s];
 };
 class M {
   constructor({ strings: e, _$litType$: t }, s) {
     let a;
     this.parts = [];
-    let r = 0, n = 0;
-    const p = e.length - 1, l = this.parts, [u, h] = ze(e, t);
-    if (this.el = M.createElement(u, s), v.currentNode = this.el.content, t === 2 || t === 3) {
-      const c = this.el.content.firstChild;
-      c.replaceWith(...c.childNodes);
+    let i = 0, n = 0;
+    const c = e.length - 1, l = this.parts, [u, h] = ze(e, t);
+    if (this.el = M.createElement(u, s), b.currentNode = this.el.content, t === 2 || t === 3) {
+      const p = this.el.content.firstChild;
+      p.replaceWith(...p.childNodes);
     }
-    for (; (a = v.nextNode()) !== null && l.length < p; ) {
+    for (; (a = b.nextNode()) !== null && l.length < c; ) {
       if (a.nodeType === 1) {
-        if (a.hasAttributes()) for (const c of a.getAttributeNames()) if (c.endsWith(ne)) {
-          const m = h[n++], g = a.getAttribute(c).split(_), E = /([.?@])?(.*)/.exec(m);
-          l.push({ type: 1, index: r, name: E[2], strings: g, ctor: E[1] === "." ? Se : E[1] === "?" ? Me : E[1] === "@" ? Pe : N }), a.removeAttribute(c);
-        } else c.startsWith(_) && (l.push({ type: 6, index: r }), a.removeAttribute(c));
+        if (a.hasAttributes()) for (const p of a.getAttributeNames()) if (p.endsWith(ne)) {
+          const m = h[n++], g = a.getAttribute(p).split(_), E = /([.?@])?(.*)/.exec(m);
+          l.push({ type: 1, index: i, name: E[2], strings: g, ctor: E[1] === "." ? Se : E[1] === "?" ? Me : E[1] === "@" ? Pe : N }), a.removeAttribute(p);
+        } else p.startsWith(_) && (l.push({ type: 6, index: i }), a.removeAttribute(p));
         if (le.test(a.tagName)) {
-          const c = a.textContent.split(_), m = c.length - 1;
+          const p = a.textContent.split(_), m = p.length - 1;
           if (m > 0) {
             a.textContent = C ? C.emptyScript : "";
-            for (let g = 0; g < m; g++) a.append(c[g], A()), v.nextNode(), l.push({ type: 2, index: ++r });
-            a.append(c[m], A());
+            for (let g = 0; g < m; g++) a.append(p[g], A()), b.nextNode(), l.push({ type: 2, index: ++i });
+            a.append(p[m], A());
           }
         }
-      } else if (a.nodeType === 8) if (a.data === oe) l.push({ type: 2, index: r });
+      } else if (a.nodeType === 8) if (a.data === oe) l.push({ type: 2, index: i });
       else {
-        let c = -1;
-        for (; (c = a.data.indexOf(_, c + 1)) !== -1; ) l.push({ type: 7, index: r }), c += _.length - 1;
+        let p = -1;
+        for (; (p = a.data.indexOf(_, p + 1)) !== -1; ) l.push({ type: 7, index: i }), p += _.length - 1;
       }
-      r++;
+      i++;
     }
   }
   static createElement(e, t) {
@@ -303,11 +303,11 @@ class M {
     return s.innerHTML = e, s;
   }
 }
-function $(i, e, t = i, s) {
+function $(r, e, t = r, s) {
   if (e === x) return e;
   let a = s !== void 0 ? t._$Co?.[s] : t._$Cl;
-  const r = S(e) ? void 0 : e._$litDirective$;
-  return a?.constructor !== r && (a?._$AO?.(!1), r === void 0 ? a = void 0 : (a = new r(i), a._$AT(i, t, s)), s !== void 0 ? (t._$Co ??= [])[s] = a : t._$Cl = a), a !== void 0 && (e = $(i, a._$AS(i, e.values), a, s)), e;
+  const i = S(e) ? void 0 : e._$litDirective$;
+  return a?.constructor !== i && (a?._$AO?.(!1), i === void 0 ? a = void 0 : (a = new i(r), a._$AT(r, t, s)), s !== void 0 ? (t._$Co ??= [])[s] = a : t._$Cl = a), a !== void 0 && (e = $(r, a._$AS(r, e.values), a, s)), e;
 }
 class Ae {
   constructor(e, t) {
@@ -321,16 +321,16 @@ class Ae {
   }
   u(e) {
     const { el: { content: t }, parts: s } = this._$AD, a = (e?.creationScope ?? f).importNode(t, !0);
-    v.currentNode = a;
-    let r = v.nextNode(), n = 0, p = 0, l = s[0];
+    b.currentNode = a;
+    let i = b.nextNode(), n = 0, c = 0, l = s[0];
     for (; l !== void 0; ) {
       if (n === l.index) {
         let u;
-        l.type === 2 ? u = new P(r, r.nextSibling, this, e) : l.type === 1 ? u = new l.ctor(r, l.name, l.strings, this, e) : l.type === 6 && (u = new Ee(r, this, e)), this._$AV.push(u), l = s[++p];
+        l.type === 2 ? u = new P(i, i.nextSibling, this, e) : l.type === 1 ? u = new l.ctor(i, l.name, l.strings, this, e) : l.type === 6 && (u = new Ee(i, this, e)), this._$AV.push(u), l = s[++c];
       }
-      n !== l?.index && (r = v.nextNode(), n++);
+      n !== l?.index && (i = b.nextNode(), n++);
     }
-    return v.currentNode = f, a;
+    return b.currentNode = f, a;
   }
   p(e) {
     let t = 0;
@@ -371,8 +371,8 @@ class P {
     const { values: t, _$litType$: s } = e, a = typeof s == "number" ? this._$AC(e) : (s.el === void 0 && (s.el = M.createElement(de(s.h, s.h[0]), this.options)), s);
     if (this._$AH?._$AD === a) this._$AH.p(t);
     else {
-      const r = new Ae(a, this), n = r.u(this.options);
-      r.p(t), this.T(n), this._$AH = r;
+      const i = new Ae(a, this), n = i.u(this.options);
+      i.p(t), this.T(n), this._$AH = i;
     }
   }
   _$AC(e) {
@@ -383,7 +383,7 @@ class P {
     B(this._$AH) || (this._$AH = [], this._$AR());
     const t = this._$AH;
     let s, a = 0;
-    for (const r of e) a === t.length ? t.push(s = new P(this.O(A()), this.O(A()), this, this.options)) : s = t[a], s._$AI(r), a++;
+    for (const i of e) a === t.length ? t.push(s = new P(this.O(A()), this.O(A()), this, this.options)) : s = t[a], s._$AI(i), a++;
     a < t.length && (this._$AR(s && s._$AB.nextSibling, a), t.length = a);
   }
   _$AR(e = this._$AA.nextSibling, t) {
@@ -403,17 +403,17 @@ class N {
   get _$AU() {
     return this._$AM._$AU;
   }
-  constructor(e, t, s, a, r) {
-    this.type = 1, this._$AH = d, this._$AN = void 0, this.element = e, this.name = t, this._$AM = a, this.options = r, s.length > 2 || s[0] !== "" || s[1] !== "" ? (this._$AH = Array(s.length - 1).fill(new String()), this.strings = s) : this._$AH = d;
+  constructor(e, t, s, a, i) {
+    this.type = 1, this._$AH = d, this._$AN = void 0, this.element = e, this.name = t, this._$AM = a, this.options = i, s.length > 2 || s[0] !== "" || s[1] !== "" ? (this._$AH = Array(s.length - 1).fill(new String()), this.strings = s) : this._$AH = d;
   }
   _$AI(e, t = this, s, a) {
-    const r = this.strings;
+    const i = this.strings;
     let n = !1;
-    if (r === void 0) e = $(this, e, t, 0), n = !S(e) || e !== this._$AH && e !== x, n && (this._$AH = e);
+    if (i === void 0) e = $(this, e, t, 0), n = !S(e) || e !== this._$AH && e !== x, n && (this._$AH = e);
     else {
-      const p = e;
+      const c = e;
       let l, u;
-      for (e = r[0], l = 0; l < r.length - 1; l++) u = $(this, p[s + l], t, l), u === x && (u = this._$AH[l]), n ||= !S(u) || u !== this._$AH[l], u === d ? e = d : e !== d && (e += (u ?? "") + r[l + 1]), this._$AH[l] = u;
+      for (e = i[0], l = 0; l < i.length - 1; l++) u = $(this, c[s + l], t, l), u === x && (u = this._$AH[l]), n ||= !S(u) || u !== this._$AH[l], u === d ? e = d : e !== d && (e += (u ?? "") + i[l + 1]), this._$AH[l] = u;
     }
     n && !a && this.j(e);
   }
@@ -438,13 +438,13 @@ class Me extends N {
   }
 }
 class Pe extends N {
-  constructor(e, t, s, a, r) {
-    super(e, t, s, a, r), this.type = 5;
+  constructor(e, t, s, a, i) {
+    super(e, t, s, a, i), this.type = 5;
   }
   _$AI(e, t = this) {
     if ((e = $(this, e, t, 0) ?? d) === x) return;
-    const s = this._$AH, a = e === d && s !== d || e.capture !== s.capture || e.once !== s.once || e.passive !== s.passive, r = e !== d && (s === d || a);
-    a && this.element.removeEventListener(this.name, this, s), r && this.element.addEventListener(this.name, this, e), this._$AH = e;
+    const s = this._$AH, a = e === d && s !== d || e.capture !== s.capture || e.once !== s.once || e.passive !== s.passive, i = e !== d && (s === d || a);
+    a && this.element.removeEventListener(this.name, this, s), i && this.element.addEventListener(this.name, this, e), this._$AH = e;
   }
   handleEvent(e) {
     typeof this._$AH == "function" ? this._$AH.call(this.options?.host ?? this.element, e) : this._$AH.handleEvent(e);
@@ -463,14 +463,14 @@ class Ee {
 }
 const De = I.litHtmlPolyfillSupport;
 De?.(M, P), (I.litHtmlVersions ??= []).push("3.3.3");
-const Ce = (i, e, t) => {
+const Ce = (r, e, t) => {
   const s = t?.renderBefore ?? e;
   let a = s._$litPart$;
   if (a === void 0) {
-    const r = t?.renderBefore ?? null;
-    s._$litPart$ = a = new P(e.insertBefore(A(), r), r, void 0, t ?? {});
+    const i = t?.renderBefore ?? null;
+    s._$litPart$ = a = new P(e.insertBefore(A(), i), i, void 0, t ?? {});
   }
-  return a._$AI(i), a;
+  return a._$AI(r), a;
 };
 const K = globalThis;
 class z extends y {
@@ -499,55 +499,68 @@ z._$litElement$ = !0, z.finalized = !0, K.litElementHydrateSupport?.({ LitElemen
 const je = K.litElementPolyfillSupport;
 je?.({ LitElement: z });
 (K.litElementVersions ??= []).push("4.2.2");
-const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary" }), Te = (i) => i.connection.sendMessagePromise({
+const Ne = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary" }), Te = (r) => r.connection.sendMessagePromise({
   type: "smart_yardian/weather/preview"
-}), He = (i) => i.connection.sendMessagePromise({
+}), He = (r) => r.connection.sendMessagePromise({
   type: "smart_yardian/schedule/preview"
-}), se = (i, e) => i.connection.sendMessagePromise({
+}), se = (r, e) => r.connection.sendMessagePromise({
   type: "smart_yardian/program/save",
   program: e
-}), Ze = (i, e) => i.connection.sendMessagePromise({
+}), Ze = (r, e) => r.connection.sendMessagePromise({
   type: "smart_yardian/program/delete",
   program_id: e
-}), Re = (i, e) => i.connection.sendMessagePromise({
+}), Re = (r, e) => r.connection.sendMessagePromise({
   type: "smart_yardian/settings/update",
   settings: e
-}), Ue = (i, e) => i.connection.sendMessagePromise({
+}), Ue = (r, e) => r.connection.sendMessagePromise({
   type: "smart_yardian/zone_profiles/update",
   profiles: e
-}), Oe = (i, e) => i.connection.sendMessagePromise({
+}), Oe = (r, e) => r.connection.sendMessagePromise({
   type: "smart_yardian/automation/set",
   enabled: e
-}), Le = (i, e) => i.connection.sendMessagePromise({
+}), Le = (r, e) => r.connection.sendMessagePromise({
   type: "smart_yardian/run/program",
   program_id: e,
   apply_weather: !0
-}), Ie = (i, e, t) => i.connection.sendMessagePromise({
+}), Ie = (r, e, t) => r.connection.sendMessagePromise({
   type: "smart_yardian/run/manual_program",
   program: e,
   apply_weather: t
-}), Be = (i, e, t) => i.connection.sendMessagePromise({
+}), Be = (r, e, t) => r.connection.sendMessagePromise({
   type: "smart_yardian/run/zone",
   entity_id: e,
   duration_minutes: t
-}), Ke = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/run/stop" }), qe = (i) => i.connection.sendMessagePromise({
+}), Ke = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/run/stop" }), qe = (r) => r.connection.sendMessagePromise({
   type: "smart_yardian/run/skip_current_zone"
-}), ae = (i, e) => i.connection.sendMessagePromise({
+}), ae = (r, e) => r.connection.sendMessagePromise({
   type: "smart_yardian/pause_until",
   until: e
-}), Fe = (i = Date.now(), e = Math.random()) => `program-${i.toString(36)}-${Math.floor(e * 4294967296).toString(36).padStart(7, "0")}`, Ve = ue`
+}), Fe = (r = Date.now(), e = Math.random()) => `program-${r.toString(36)}-${Math.floor(e * 4294967296).toString(36).padStart(7, "0")}`, Ve = ue`
   :host {
     --sy-blue: var(--primary-color, #1688e8);
-    --sy-blue-soft: color-mix(in srgb, var(--sy-blue) 9%, white);
-    --sy-green: #2e9637;
-    --sy-amber: #e79a09;
-    --sy-amber-soft: #fffaf0;
-    --sy-red: #df2f2f;
+    --sy-green: var(--success-color, #2e9637);
+    --sy-amber: var(--warning-color, #c98200);
+    --sy-red: var(--error-color, #df2f2f);
     --sy-text: var(--primary-text-color, #20252b);
     --sy-muted: var(--secondary-text-color, #697078);
+    --sy-disabled: var(--disabled-text-color, #8b9298);
     --sy-border: var(--divider-color, #dfe3e7);
     --sy-surface: var(--card-background-color, #ffffff);
-    --sy-background: var(--primary-background-color, #ffffff);
+    --sy-background: var(--primary-background-color, #f4f6f8);
+    --sy-surface-muted: var(
+      --secondary-background-color,
+      color-mix(in srgb, var(--sy-surface) 94%, var(--sy-text))
+    );
+    --sy-control: var(--input-fill-color, var(--sy-surface));
+    --sy-control-hover: color-mix(in srgb, var(--sy-blue) 7%, var(--sy-control));
+    --sy-hover: color-mix(in srgb, var(--sy-text) 6%, transparent);
+    --sy-blue-soft: color-mix(in srgb, var(--sy-blue) 13%, var(--sy-surface));
+    --sy-green-soft: color-mix(in srgb, var(--sy-green) 13%, var(--sy-surface));
+    --sy-amber-soft: color-mix(in srgb, var(--sy-amber) 13%, var(--sy-surface));
+    --sy-red-soft: color-mix(in srgb, var(--sy-red) 12%, var(--sy-surface));
+    --sy-on-accent: var(--text-primary-color, #ffffff);
+    --sy-toggle-knob: #ffffff;
+    --sy-shadow: rgb(0 0 0 / 18%);
     display: block;
     min-height: 100%;
     color: var(--sy-text);
@@ -564,10 +577,45 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
   input,
   select {
     font: inherit;
+    color-scheme: inherit;
   }
 
   button {
     cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition:
+      background-color 140ms ease,
+      border-color 140ms ease,
+      color 140ms ease,
+      opacity 140ms ease;
+  }
+
+  input::placeholder {
+    color: var(--sy-muted);
+    opacity: 0.85;
+  }
+
+  input:disabled,
+  select:disabled {
+    cursor: not-allowed;
+    color: var(--sy-disabled);
+    background: var(--sy-surface-muted);
+    opacity: 1;
+  }
+
+  input:not(:disabled):hover,
+  select:not(:disabled):hover {
+    border-color: color-mix(in srgb, var(--sy-blue) 55%, var(--sy-border));
+    background: var(--sy-control-hover);
+  }
+
+  select {
+    accent-color: var(--sy-blue);
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: var(--sy-blue);
   }
 
   button:focus-visible,
@@ -580,6 +628,20 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
   .shell {
     min-height: 100vh;
     background: var(--sy-surface);
+    color-scheme: light;
+  }
+
+  .shell[dark] {
+    --sy-control: var(--input-fill-color, var(--sy-surface-muted));
+    --sy-control-hover: color-mix(in srgb, var(--sy-blue) 15%, var(--sy-control));
+    --sy-hover: color-mix(in srgb, var(--sy-text) 10%, transparent);
+    --sy-blue-soft: color-mix(in srgb, var(--sy-blue) 20%, var(--sy-surface));
+    --sy-green-soft: color-mix(in srgb, var(--sy-green) 18%, var(--sy-surface));
+    --sy-amber-soft: color-mix(in srgb, var(--sy-amber) 18%, var(--sy-surface));
+    --sy-red-soft: color-mix(in srgb, var(--sy-red) 18%, var(--sy-surface));
+    --sy-on-accent: #07131f;
+    --sy-shadow: rgb(0 0 0 / 42%);
+    color-scheme: dark;
   }
 
   .topbar {
@@ -627,6 +689,13 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
     border-bottom-color: var(--sy-blue);
   }
 
+  .tab:hover:not([selected]),
+  .controller-head:hover,
+  .program-list-item:hover:not([selected]),
+  .active-run-summary:hover {
+    background: var(--sy-hover);
+  }
+
   .content {
     width: min(100%, 1280px);
     margin: 0 auto;
@@ -646,7 +715,7 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
     border-radius: 50%;
     display: grid;
     place-items: center;
-    color: white;
+    color: var(--sy-on-accent);
     background: var(--sy-green);
   }
 
@@ -688,7 +757,7 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
     padding: 0;
     border: 0;
     border-radius: 12px;
-    background: #a9afb5;
+    background: var(--sy-disabled);
   }
 
   .toggle::after {
@@ -699,7 +768,7 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background: white;
+    background: var(--sy-toggle-knob);
     transition: left 140ms ease;
   }
 
@@ -716,7 +785,7 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
     display: grid;
     grid-template-columns: minmax(270px, 1fr) repeat(4, minmax(100px, auto));
     align-items: center;
-    border: 1px solid #efb132;
+    border: 1px solid color-mix(in srgb, var(--sy-amber) 72%, var(--sy-border));
     border-radius: 8px;
     background: var(--sy-amber-soft);
     overflow: hidden;
@@ -754,7 +823,7 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
     grid-template-columns: 25px auto;
     align-content: center;
     gap: 2px 9px;
-    border-left: 1px solid #ecd7a7;
+    border-left: 1px solid color-mix(in srgb, var(--sy-amber) 32%, var(--sy-border));
   }
 
   .metric ha-icon {
@@ -844,10 +913,10 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
     height: 34px;
     display: grid;
     place-items: center;
-    border: 1px solid #bfc5ca;
+    border: 1px solid var(--sy-border);
     border-radius: 7px;
-    background: #edf0f1;
-    color: #677078;
+    background: var(--sy-surface-muted);
+    color: var(--sy-muted);
   }
 
   .controller-name {
@@ -937,7 +1006,7 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
     border: 1px solid var(--sy-border);
     border-radius: 6px;
     color: var(--sy-text);
-    background: var(--sy-surface);
+    background: var(--sy-control);
     appearance: textfield;
     -moz-appearance: textfield;
   }
@@ -961,7 +1030,7 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
     justify-content: center;
     gap: 7px;
     color: var(--sy-blue);
-    background: var(--sy-surface);
+    background: var(--sy-control);
     border: 1px solid var(--sy-blue);
     border-radius: 7px;
     font-size: 13px;
@@ -969,7 +1038,7 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
   }
 
   .button.primary {
-    color: white;
+    color: var(--sy-on-accent);
     background: var(--sy-blue);
   }
 
@@ -985,7 +1054,34 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
 
   .button:disabled {
     cursor: not-allowed;
-    opacity: 0.48;
+    color: var(--sy-disabled);
+    background: var(--sy-surface-muted);
+    border-color: var(--sy-border);
+    opacity: 0.72;
+  }
+
+  .button:hover:not(:disabled) {
+    background: var(--sy-blue-soft);
+  }
+
+  .button.primary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--sy-blue) 86%, var(--sy-text));
+  }
+
+  .button.danger:hover:not(:disabled) {
+    background: var(--sy-red-soft);
+  }
+
+  .button.quiet:hover:not(:disabled) {
+    background: var(--sy-hover);
+    border-color: color-mix(in srgb, var(--sy-text) 24%, var(--sy-border));
+  }
+
+  .button:active:not(:disabled),
+  .day:active,
+  .icon-button:active,
+  .text-action:active {
+    transform: translateY(1px);
   }
 
   .rail {
@@ -1011,6 +1107,16 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
     border: 0;
     font-size: 12px;
     font-weight: 600;
+  }
+
+  .text-action:hover,
+  .icon-button:hover {
+    color: var(--sy-blue);
+  }
+
+  .icon-button:hover {
+    background: var(--sy-hover);
+    border-radius: 6px;
   }
 
   .program-rail-item {
@@ -1174,7 +1280,7 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
     border: 1px solid var(--sy-border);
     border-bottom: 0;
     border-radius: 14px 14px 0 0;
-    box-shadow: 0 -8px 28px rgb(0 0 0 / 16%);
+    box-shadow: 0 -8px 28px var(--sy-shadow);
   }
 
   .active-run-summary {
@@ -1354,7 +1460,7 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
     justify-content: space-between;
     gap: 8px;
     border-bottom: 1px solid var(--sy-border);
-    background: color-mix(in srgb, var(--sy-surface) 94%, var(--sy-text));
+    background: var(--sy-surface-muted);
   }
 
   .schedule-day-head strong {
@@ -1529,7 +1635,7 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
     min-height: 40px;
     padding: 8px 10px;
     color: var(--sy-text);
-    background: var(--sy-surface);
+    background: var(--sy-control);
     border: 1px solid var(--sy-border);
     border-radius: 7px;
   }
@@ -1544,13 +1650,13 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
     min-width: 42px;
     height: 36px;
     color: var(--sy-text);
-    background: var(--sy-surface);
+    background: var(--sy-control);
     border: 1px solid var(--sy-border);
     border-radius: 7px;
   }
 
   .day[selected] {
-    color: white;
+    color: var(--sy-on-accent);
     background: var(--sy-blue);
     border-color: var(--sy-blue);
   }
@@ -1579,7 +1685,7 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
     min-height: 34px;
     padding: 5px 8px;
     color: var(--sy-text);
-    background: var(--sy-surface);
+    background: var(--sy-control);
     border: 1px solid var(--sy-border);
     border-radius: 6px;
   }
@@ -1636,7 +1742,7 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
     min-height: 36px;
     padding: 6px 8px;
     color: var(--sy-text);
-    background: var(--sy-surface);
+    background: var(--sy-control);
     border: 1px solid var(--sy-border);
     border-radius: 6px;
   }
@@ -1681,7 +1787,7 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
 
   th {
     color: var(--sy-muted);
-    background: color-mix(in srgb, var(--sy-surface) 92%, var(--sy-text));
+    background: var(--sy-surface-muted);
     font-size: 12px;
     font-weight: 600;
   }
@@ -1741,7 +1847,7 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
     height: 34px;
     padding: 5px 8px;
     color: var(--sy-text);
-    background: var(--sy-surface);
+    background: var(--sy-control);
     border: 1px solid var(--sy-border);
     border-radius: 6px;
   }
@@ -1792,7 +1898,7 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
     height: 36px;
     padding: 5px 8px;
     color: var(--sy-text);
-    background: var(--sy-surface);
+    background: var(--sy-control);
     border: 1px solid var(--sy-border);
     border-radius: 6px;
   }
@@ -1816,7 +1922,7 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
     height: 34px;
     padding: 5px 8px;
     color: var(--sy-text);
-    background: var(--sy-surface);
+    background: var(--sy-control);
     border: 1px solid var(--sy-border);
     border-radius: 6px;
   }
@@ -1923,7 +2029,7 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
 
     .weather-summary {
       grid-column: 1 / -1;
-      border-bottom: 1px solid #ecd7a7;
+      border-bottom: 1px solid color-mix(in srgb, var(--sy-amber) 32%, var(--sy-border));
     }
 
     .metric {
@@ -2013,7 +2119,7 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
       width: auto;
       margin: 0;
       background: var(--sy-surface);
-      box-shadow: 0 2px 8px rgb(0 0 0 / 14%);
+      box-shadow: 0 2px 8px var(--sy-shadow);
     }
   }
 
@@ -2192,7 +2298,7 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
   { value: "spray", label: "Spray / esőztető", rate: 40 },
   { value: "rotor", label: "Rotoros", rate: 12 },
   { value: "drip", label: "Csepegtető", rate: 12 }
-], pe = () => ({
+], ce = () => ({
   program_id: Fe(),
   name: "Új program",
   enabled: !0,
@@ -2205,14 +2311,14 @@ const Ne = (i) => i.connection.sendMessagePromise({ type: "smart_yardian/summary
   soil_moisture_enabled: !1,
   zones: [],
   skip_next: !1
-}), Z = (i) => JSON.parse(JSON.stringify(i)), R = () => {
-  const i = /* @__PURE__ */ new Date();
+}), Z = (r) => JSON.parse(JSON.stringify(r)), R = () => {
+  const r = /* @__PURE__ */ new Date();
   return {
-    ...pe(),
+    ...ce(),
     name: "Kézi öntözés",
-    weekdays: [i.getDay() === 0 ? 6 : i.getDay() - 1],
-    start_time: `${String(i.getHours()).padStart(2, "0")}:${String(
-      i.getMinutes()
+    weekdays: [r.getDay() === 0 ? 6 : r.getDay() - 1],
+    start_time: `${String(r.getHours()).padStart(2, "0")}:${String(
+      r.getMinutes()
     ).padStart(2, "0")}`,
     enabled: !1,
     weather_adjustment: !1
@@ -2232,12 +2338,12 @@ class Je extends z {
         }
       }
     }, this._newProgram = () => {
-      this._draft = pe(), this._tab = "programs", this._error = "";
+      this._draft = ce(), this._tab = "programs", this._error = "";
     }, this._resetManualProgram = () => {
       this._manualDraft = R(), this._error = "";
     }, this._importManualProgram = (e) => {
       const t = e.target, s = this._summary?.programs.find(
-        (r) => r.program_id === t.value
+        (i) => i.program_id === t.value
       );
       if (!s) return;
       const a = R();
@@ -2246,7 +2352,7 @@ class Je extends z {
         name: `Kézi – ${s.name}`,
         weather_adjustment: s.weather_adjustment,
         soil_moisture_enabled: s.soil_moisture_enabled,
-        zones: s.zones.map((r) => ({ ...r }))
+        zones: s.zones.map((i) => ({ ...i }))
       }, t.value = "";
     }, this._addManualZone = (e) => {
       const t = e.target;
@@ -2434,7 +2540,7 @@ class Je extends z {
   }
   render() {
     return o`
-      <div class="shell">
+      <div class="shell" ?dark=${this.hass?.themes?.darkMode}>
         <header class="topbar">
           <ha-icon icon="mdi:water"></ha-icon>
           <h1>Öntözés</h1>
@@ -2544,7 +2650,7 @@ class Je extends z {
     `;
   }
   _renderActiveRun() {
-    const e = this._summary.active_run, t = Math.max(0, e.current_index ?? 0), s = e.zones[t - 1], a = e.zones[t], r = e.zones[t + 1], n = this._remainingSeconds(e.zone_ends_at), p = e.zones.slice(t + 1).reduce((c, m) => c + m.planned_minutes * 60, 0), l = n + p, u = Math.max(1, e.total_minutes * 60), h = Math.max(
+    const e = this._summary.active_run, t = Math.max(0, e.current_index ?? 0), s = e.zones[t - 1], a = e.zones[t], i = e.zones[t + 1], n = this._remainingSeconds(e.zone_ends_at), c = e.zones.slice(t + 1).reduce((p, m) => p + m.planned_minutes * 60, 0), l = n + c, u = Math.max(1, e.total_minutes * 60), h = Math.max(
       0,
       Math.min(100, (u - l) / u * 100)
     );
@@ -2572,7 +2678,7 @@ class Je extends z {
                 <div class="run-sequence">
                   ${this._runStep("Előző", s)}
                   ${this._runStep("Aktuális", a, !0)}
-                  ${this._runStep("Következő", r)}
+                  ${this._runStep("Következő", i)}
                 </div>
               </div>
             ` : d}
@@ -2681,12 +2787,12 @@ class Je extends z {
             icon=${s ? "mdi:chevron-up" : "mdi:chevron-down"}
           ></ha-icon>
         </button>
-        ${e.zones.map((r) => this._renderZone(r))}
+        ${e.zones.map((i) => this._renderZone(i))}
       </section>
     `;
   }
   _renderZone(e) {
-    const t = this._zoneDurations[e.entity_id] ?? 15, s = e.state === "on", a = this._summary?.active_run?.current_zone === e.entity_id, r = Number(this._summary?.active_run?.current_duration ?? t), n = this._headLabel(e.profile.head_type), p = this._zoneIssueLabel(e);
+    const t = this._zoneDurations[e.entity_id] ?? 15, s = e.state === "on", a = this._summary?.active_run?.current_zone === e.entity_id, i = Number(this._summary?.active_run?.current_duration ?? t), n = this._headLabel(e.profile.head_type), c = this._zoneIssueLabel(e);
     return o`
       <div class="zone-row">
         <ha-icon icon="mdi:water"></ha-icon>
@@ -2697,7 +2803,7 @@ class Je extends z {
           ?unavailable=${!e.available}
           title=${e.availability_issue ?? e.entity_id}
         >
-          ${s ? a ? `Fut · ${r} perc` : "Fut" : e.available ? `Tétlen · ${n}` : o`Nem elérhető <small>${p}</small>`}
+          ${s ? a ? `Fut · ${i} perc` : "Fut" : e.available ? `Tétlen · ${n}` : o`Nem elérhető <small>${c}</small>`}
         </span>
         <label class="duration">
           <input
@@ -2902,15 +3008,15 @@ class Je extends z {
         </div>
         <div class="manual-zone-list">
           ${e.zones.map((s, a) => {
-      const r = t.find(
+      const i = t.find(
         (n) => n.entity_id === s.entity_id
       );
       return o`
               <div class="manual-zone">
                 <span class="manual-zone-order">${a + 1}</span>
-                <strong>${r?.name ?? s.entity_id}</strong>
+                <strong>${i?.name ?? s.entity_id}</strong>
                 <select
-                  aria-label="${r?.name ?? s.entity_id} számítási módja"
+                  aria-label="${i?.name ?? s.entity_id} számítási módja"
                   .value=${s.duration_mode}
                   @change=${(n) => this._updateManualZone(a, {
         ...s,
@@ -3170,12 +3276,12 @@ class Je extends z {
           <span class="field-label">Zónák sorrendben</span>
           <div class="editor-zones">
             ${e.zones.map((s, a) => {
-      const r = t.find((n) => n.entity_id === s.entity_id);
+      const i = t.find((n) => n.entity_id === s.entity_id);
       return o`
                 <div class="editor-zone">
-                  <span>${r?.name ?? s.entity_id}</span>
+                  <span>${i?.name ?? s.entity_id}</span>
                   <select
-                    aria-label="${r?.name ?? s.entity_id} időtartam módja"
+                    aria-label="${i?.name ?? s.entity_id} időtartam módja"
                     .value=${s.duration_mode}
                     @change=${(n) => this._updateDraftZone(a, {
         ...s,
@@ -3195,7 +3301,7 @@ class Je extends z {
                             type="number"
                             min="1"
                             max="180"
-                            aria-label="${r?.name ?? s.entity_id} időtartama"
+                            aria-label="${i?.name ?? s.entity_id} időtartama"
                             .value=${String(s.duration_minutes)}
                             @change=${(n) => this._updateDraftZone(a, {
         ...s,
@@ -3442,9 +3548,9 @@ class Je extends z {
           <select
             .value=${t.head_type}
             @change=${(a) => {
-      const r = a.target.value, n = H.find((p) => p.value === r);
+      const i = a.target.value, n = H.find((c) => c.value === i);
       this._patchZoneProfile(e.entity_id, {
-        head_type: r,
+        head_type: i,
         reference_rate_mm_h: n?.rate ?? t.reference_rate_mm_h
       });
     }}
@@ -3517,7 +3623,7 @@ class Je extends z {
       </div>
     `;
   }
-  _profileNumber(e, t, s, a, r = !1) {
+  _profileNumber(e, t, s, a, i = !1) {
     const n = e.profile[t];
     return o`
       <label class="profile-number">
@@ -3526,10 +3632,10 @@ class Je extends z {
           type="number"
           min="0.1"
           step=${a}
-          placeholder=${r ? "opcionális" : ""}
+          placeholder=${i ? "opcionális" : ""}
           .value=${n === null ? "" : String(n)}
-          @change=${(p) => {
-      const l = p.target;
+          @change=${(c) => {
+      const l = c.target;
       this._patchZoneProfile(e.entity_id, {
         [t]: l.value === "" ? null : l.valueAsNumber
       });
@@ -3594,13 +3700,13 @@ class Je extends z {
     }
     const a = this._zoneProfile(t.entity_id);
     if (!a) return t.duration_minutes;
-    const r = s?.max_temperature ?? 20, n = r >= 35 ? 9 : r >= 25 ? 5.5 : r >= 20 ? 4.5 : 2.5, p = e.weather_adjustment ? s?.rain_factor ?? s?.factor ?? 1 : 1, l = a.exposure === "shady" ? 0.8 : 1;
+    const i = s?.max_temperature ?? 20, n = i >= 35 ? 9 : i >= 25 ? 5.5 : i >= 20 ? 4.5 : 2.5, c = e.weather_adjustment ? s?.rain_factor ?? s?.factor ?? 1 : 1, l = a.exposure === "shady" ? 0.8 : 1;
     return Math.max(
       1,
       Math.min(
         180,
         Math.round(
-          n * p * l * 60 / this._effectiveRate(a)
+          n * c * l * 60 / this._effectiveRate(a)
         )
       )
     );
@@ -3676,8 +3782,8 @@ class Je extends z {
   _moistureSensors() {
     return Object.entries(this.hass?.states ?? {}).filter(([e, t]) => {
       if (!e.startsWith("sensor.")) return !1;
-      const s = t.attributes, a = String(s.device_class ?? "").toLowerCase(), r = String(s.friendly_name ?? e).toLowerCase();
-      return a === "moisture" || r.includes("talajnedv") || r.includes("soil moisture");
+      const s = t.attributes, a = String(s.device_class ?? "").toLowerCase(), i = String(s.friendly_name ?? e).toLowerCase();
+      return a === "moisture" || i.includes("talajnedv") || i.includes("soil moisture");
     }).map(([e, t]) => ({
       entity_id: e,
       name: String(t.attributes.friendly_name ?? e)

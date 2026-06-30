@@ -155,7 +155,7 @@ export class SmartYardianPanel extends LitElement {
 
   protected render(): TemplateResult {
     return html`
-      <div class="shell">
+      <div class="shell" ?dark=${this.hass?.themes?.darkMode}>
         <header class="topbar">
           <ha-icon icon="mdi:water"></ha-icon>
           <h1>Öntözés</h1>

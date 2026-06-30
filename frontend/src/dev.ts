@@ -185,6 +185,23 @@ let automationEnabled = true;
 const forceUnavailable =
   new URLSearchParams(window.location.search).get("yardian_state") === "unavailable";
 const forceIdle = new URLSearchParams(window.location.search).get("idle") === "1";
+const forceDark = new URLSearchParams(window.location.search).get("dark") === "1";
+if (forceDark) {
+  const root = document.documentElement.style;
+  root.setProperty("--primary-color", "#5eb2ff");
+  root.setProperty("--success-color", "#67c970");
+  root.setProperty("--warning-color", "#f6ad36");
+  root.setProperty("--error-color", "#ff6b6b");
+  root.setProperty("--primary-text-color", "#e8eaed");
+  root.setProperty("--text-primary-color", "#07131f");
+  root.setProperty("--secondary-text-color", "#a9b0b8");
+  root.setProperty("--disabled-text-color", "#747b83");
+  root.setProperty("--divider-color", "#3b4148");
+  root.setProperty("--card-background-color", "#202428");
+  root.setProperty("--primary-background-color", "#111418");
+  root.setProperty("--secondary-background-color", "#292e33");
+  root.setProperty("--input-fill-color", "#292e33");
+}
 let runningEntity: string =
   forceUnavailable || forceIdle ? "" : (zones[3]?.[0] ?? "");
 const runningIndex = (): number =>
@@ -417,6 +434,7 @@ const schedulePreview = (): SchedulePreview => {
 };
 
 const hass: Hass = {
+  themes: { darkMode: forceDark },
   states: {
     "sensor.elso_kert_talajnedvesseg": {
       state: "43",

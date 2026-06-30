@@ -3,16 +3,29 @@ import { css } from "lit";
 export const panelStyles = css`
   :host {
     --sy-blue: var(--primary-color, #1688e8);
-    --sy-blue-soft: color-mix(in srgb, var(--sy-blue) 9%, white);
-    --sy-green: #2e9637;
-    --sy-amber: #e79a09;
-    --sy-amber-soft: #fffaf0;
-    --sy-red: #df2f2f;
+    --sy-green: var(--success-color, #2e9637);
+    --sy-amber: var(--warning-color, #c98200);
+    --sy-red: var(--error-color, #df2f2f);
     --sy-text: var(--primary-text-color, #20252b);
     --sy-muted: var(--secondary-text-color, #697078);
+    --sy-disabled: var(--disabled-text-color, #8b9298);
     --sy-border: var(--divider-color, #dfe3e7);
     --sy-surface: var(--card-background-color, #ffffff);
-    --sy-background: var(--primary-background-color, #ffffff);
+    --sy-background: var(--primary-background-color, #f4f6f8);
+    --sy-surface-muted: var(
+      --secondary-background-color,
+      color-mix(in srgb, var(--sy-surface) 94%, var(--sy-text))
+    );
+    --sy-control: var(--input-fill-color, var(--sy-surface));
+    --sy-control-hover: color-mix(in srgb, var(--sy-blue) 7%, var(--sy-control));
+    --sy-hover: color-mix(in srgb, var(--sy-text) 6%, transparent);
+    --sy-blue-soft: color-mix(in srgb, var(--sy-blue) 13%, var(--sy-surface));
+    --sy-green-soft: color-mix(in srgb, var(--sy-green) 13%, var(--sy-surface));
+    --sy-amber-soft: color-mix(in srgb, var(--sy-amber) 13%, var(--sy-surface));
+    --sy-red-soft: color-mix(in srgb, var(--sy-red) 12%, var(--sy-surface));
+    --sy-on-accent: var(--text-primary-color, #ffffff);
+    --sy-toggle-knob: #ffffff;
+    --sy-shadow: rgb(0 0 0 / 18%);
     display: block;
     min-height: 100%;
     color: var(--sy-text);
@@ -29,10 +42,45 @@ export const panelStyles = css`
   input,
   select {
     font: inherit;
+    color-scheme: inherit;
   }
 
   button {
     cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition:
+      background-color 140ms ease,
+      border-color 140ms ease,
+      color 140ms ease,
+      opacity 140ms ease;
+  }
+
+  input::placeholder {
+    color: var(--sy-muted);
+    opacity: 0.85;
+  }
+
+  input:disabled,
+  select:disabled {
+    cursor: not-allowed;
+    color: var(--sy-disabled);
+    background: var(--sy-surface-muted);
+    opacity: 1;
+  }
+
+  input:not(:disabled):hover,
+  select:not(:disabled):hover {
+    border-color: color-mix(in srgb, var(--sy-blue) 55%, var(--sy-border));
+    background: var(--sy-control-hover);
+  }
+
+  select {
+    accent-color: var(--sy-blue);
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: var(--sy-blue);
   }
 
   button:focus-visible,
@@ -45,6 +93,20 @@ export const panelStyles = css`
   .shell {
     min-height: 100vh;
     background: var(--sy-surface);
+    color-scheme: light;
+  }
+
+  .shell[dark] {
+    --sy-control: var(--input-fill-color, var(--sy-surface-muted));
+    --sy-control-hover: color-mix(in srgb, var(--sy-blue) 15%, var(--sy-control));
+    --sy-hover: color-mix(in srgb, var(--sy-text) 10%, transparent);
+    --sy-blue-soft: color-mix(in srgb, var(--sy-blue) 20%, var(--sy-surface));
+    --sy-green-soft: color-mix(in srgb, var(--sy-green) 18%, var(--sy-surface));
+    --sy-amber-soft: color-mix(in srgb, var(--sy-amber) 18%, var(--sy-surface));
+    --sy-red-soft: color-mix(in srgb, var(--sy-red) 18%, var(--sy-surface));
+    --sy-on-accent: #07131f;
+    --sy-shadow: rgb(0 0 0 / 42%);
+    color-scheme: dark;
   }
 
   .topbar {
@@ -92,6 +154,13 @@ export const panelStyles = css`
     border-bottom-color: var(--sy-blue);
   }
 
+  .tab:hover:not([selected]),
+  .controller-head:hover,
+  .program-list-item:hover:not([selected]),
+  .active-run-summary:hover {
+    background: var(--sy-hover);
+  }
+
   .content {
     width: min(100%, 1280px);
     margin: 0 auto;
@@ -111,7 +180,7 @@ export const panelStyles = css`
     border-radius: 50%;
     display: grid;
     place-items: center;
-    color: white;
+    color: var(--sy-on-accent);
     background: var(--sy-green);
   }
 
@@ -153,7 +222,7 @@ export const panelStyles = css`
     padding: 0;
     border: 0;
     border-radius: 12px;
-    background: #a9afb5;
+    background: var(--sy-disabled);
   }
 
   .toggle::after {
@@ -164,7 +233,7 @@ export const panelStyles = css`
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background: white;
+    background: var(--sy-toggle-knob);
     transition: left 140ms ease;
   }
 
@@ -181,7 +250,7 @@ export const panelStyles = css`
     display: grid;
     grid-template-columns: minmax(270px, 1fr) repeat(4, minmax(100px, auto));
     align-items: center;
-    border: 1px solid #efb132;
+    border: 1px solid color-mix(in srgb, var(--sy-amber) 72%, var(--sy-border));
     border-radius: 8px;
     background: var(--sy-amber-soft);
     overflow: hidden;
@@ -219,7 +288,7 @@ export const panelStyles = css`
     grid-template-columns: 25px auto;
     align-content: center;
     gap: 2px 9px;
-    border-left: 1px solid #ecd7a7;
+    border-left: 1px solid color-mix(in srgb, var(--sy-amber) 32%, var(--sy-border));
   }
 
   .metric ha-icon {
@@ -309,10 +378,10 @@ export const panelStyles = css`
     height: 34px;
     display: grid;
     place-items: center;
-    border: 1px solid #bfc5ca;
+    border: 1px solid var(--sy-border);
     border-radius: 7px;
-    background: #edf0f1;
-    color: #677078;
+    background: var(--sy-surface-muted);
+    color: var(--sy-muted);
   }
 
   .controller-name {
@@ -402,7 +471,7 @@ export const panelStyles = css`
     border: 1px solid var(--sy-border);
     border-radius: 6px;
     color: var(--sy-text);
-    background: var(--sy-surface);
+    background: var(--sy-control);
     appearance: textfield;
     -moz-appearance: textfield;
   }
@@ -426,7 +495,7 @@ export const panelStyles = css`
     justify-content: center;
     gap: 7px;
     color: var(--sy-blue);
-    background: var(--sy-surface);
+    background: var(--sy-control);
     border: 1px solid var(--sy-blue);
     border-radius: 7px;
     font-size: 13px;
@@ -434,7 +503,7 @@ export const panelStyles = css`
   }
 
   .button.primary {
-    color: white;
+    color: var(--sy-on-accent);
     background: var(--sy-blue);
   }
 
@@ -450,7 +519,34 @@ export const panelStyles = css`
 
   .button:disabled {
     cursor: not-allowed;
-    opacity: 0.48;
+    color: var(--sy-disabled);
+    background: var(--sy-surface-muted);
+    border-color: var(--sy-border);
+    opacity: 0.72;
+  }
+
+  .button:hover:not(:disabled) {
+    background: var(--sy-blue-soft);
+  }
+
+  .button.primary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--sy-blue) 86%, var(--sy-text));
+  }
+
+  .button.danger:hover:not(:disabled) {
+    background: var(--sy-red-soft);
+  }
+
+  .button.quiet:hover:not(:disabled) {
+    background: var(--sy-hover);
+    border-color: color-mix(in srgb, var(--sy-text) 24%, var(--sy-border));
+  }
+
+  .button:active:not(:disabled),
+  .day:active,
+  .icon-button:active,
+  .text-action:active {
+    transform: translateY(1px);
   }
 
   .rail {
@@ -476,6 +572,16 @@ export const panelStyles = css`
     border: 0;
     font-size: 12px;
     font-weight: 600;
+  }
+
+  .text-action:hover,
+  .icon-button:hover {
+    color: var(--sy-blue);
+  }
+
+  .icon-button:hover {
+    background: var(--sy-hover);
+    border-radius: 6px;
   }
 
   .program-rail-item {
@@ -639,7 +745,7 @@ export const panelStyles = css`
     border: 1px solid var(--sy-border);
     border-bottom: 0;
     border-radius: 14px 14px 0 0;
-    box-shadow: 0 -8px 28px rgb(0 0 0 / 16%);
+    box-shadow: 0 -8px 28px var(--sy-shadow);
   }
 
   .active-run-summary {
@@ -819,7 +925,7 @@ export const panelStyles = css`
     justify-content: space-between;
     gap: 8px;
     border-bottom: 1px solid var(--sy-border);
-    background: color-mix(in srgb, var(--sy-surface) 94%, var(--sy-text));
+    background: var(--sy-surface-muted);
   }
 
   .schedule-day-head strong {
@@ -994,7 +1100,7 @@ export const panelStyles = css`
     min-height: 40px;
     padding: 8px 10px;
     color: var(--sy-text);
-    background: var(--sy-surface);
+    background: var(--sy-control);
     border: 1px solid var(--sy-border);
     border-radius: 7px;
   }
@@ -1009,13 +1115,13 @@ export const panelStyles = css`
     min-width: 42px;
     height: 36px;
     color: var(--sy-text);
-    background: var(--sy-surface);
+    background: var(--sy-control);
     border: 1px solid var(--sy-border);
     border-radius: 7px;
   }
 
   .day[selected] {
-    color: white;
+    color: var(--sy-on-accent);
     background: var(--sy-blue);
     border-color: var(--sy-blue);
   }
@@ -1044,7 +1150,7 @@ export const panelStyles = css`
     min-height: 34px;
     padding: 5px 8px;
     color: var(--sy-text);
-    background: var(--sy-surface);
+    background: var(--sy-control);
     border: 1px solid var(--sy-border);
     border-radius: 6px;
   }
@@ -1101,7 +1207,7 @@ export const panelStyles = css`
     min-height: 36px;
     padding: 6px 8px;
     color: var(--sy-text);
-    background: var(--sy-surface);
+    background: var(--sy-control);
     border: 1px solid var(--sy-border);
     border-radius: 6px;
   }
@@ -1146,7 +1252,7 @@ export const panelStyles = css`
 
   th {
     color: var(--sy-muted);
-    background: color-mix(in srgb, var(--sy-surface) 92%, var(--sy-text));
+    background: var(--sy-surface-muted);
     font-size: 12px;
     font-weight: 600;
   }
@@ -1206,7 +1312,7 @@ export const panelStyles = css`
     height: 34px;
     padding: 5px 8px;
     color: var(--sy-text);
-    background: var(--sy-surface);
+    background: var(--sy-control);
     border: 1px solid var(--sy-border);
     border-radius: 6px;
   }
@@ -1257,7 +1363,7 @@ export const panelStyles = css`
     height: 36px;
     padding: 5px 8px;
     color: var(--sy-text);
-    background: var(--sy-surface);
+    background: var(--sy-control);
     border: 1px solid var(--sy-border);
     border-radius: 6px;
   }
@@ -1281,7 +1387,7 @@ export const panelStyles = css`
     height: 34px;
     padding: 5px 8px;
     color: var(--sy-text);
-    background: var(--sy-surface);
+    background: var(--sy-control);
     border: 1px solid var(--sy-border);
     border-radius: 6px;
   }
@@ -1388,7 +1494,7 @@ export const panelStyles = css`
 
     .weather-summary {
       grid-column: 1 / -1;
-      border-bottom: 1px solid #ecd7a7;
+      border-bottom: 1px solid color-mix(in srgb, var(--sy-amber) 32%, var(--sy-border));
     }
 
     .metric {
@@ -1478,7 +1584,7 @@ export const panelStyles = css`
       width: auto;
       margin: 0;
       background: var(--sy-surface);
-      box-shadow: 0 2px 8px rgb(0 0 0 / 14%);
+      box-shadow: 0 2px 8px var(--sy-shadow);
     }
   }
 
