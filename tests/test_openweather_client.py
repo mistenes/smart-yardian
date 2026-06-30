@@ -47,9 +47,10 @@ class SequencedSession:
     def __init__(self, responses: list[FakeResponse]) -> None:
         self.responses = responses
         self.calls = 0
+        self.requests: list[tuple[tuple[object, ...], dict[str, object]]] = []
 
     def get(self, *args: object, **kwargs: object) -> FakeResponse:
-        del args, kwargs
+        self.requests.append((args, kwargs))
         response = self.responses[self.calls]
         self.calls += 1
         return response
@@ -135,6 +136,11 @@ def test_openweather_follows_one_hour_timeline_next_page() -> None:
     assert len(forecast) == 24
     assert session.calls == 2
     assert reservations == 2
+    assert session.requests[1][1]["params"] == {
+        "appid": "secret",
+        "units": "metric",
+        "lang": "hu",
+    }
 
 
 def test_openweather_quota_guard_blocks_before_http() -> None:

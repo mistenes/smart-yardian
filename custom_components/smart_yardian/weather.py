@@ -79,6 +79,18 @@ def _ha_celsius_temperature(value: Any) -> float:
     return temperature
 
 
+def _openweather_celsius_temperature(value: Any) -> float:
+    """Normalize OpenWeather metric output and defensive Kelvin fallback."""
+    temperature = _as_float(value)
+    if temperature > 100:
+        temperature -= 273.15
+    if not is_plausible_celsius(temperature):
+        raise WeatherUnavailableError(
+            f"Az OpenWeather érvénytelen hőmérsékletet adott: {temperature:g} °C."
+        )
+    return temperature
+
+
 def _parse_timestamp(value: Any) -> datetime:
     if isinstance(value, (int, float)):
         return datetime.fromtimestamp(value, UTC)
@@ -129,7 +141,7 @@ def normalize_openweather(items: Iterable[dict[str, Any]]) -> list[ForecastHour]
             normalized.append(
                 ForecastHour(
                     timestamp=_parse_timestamp(item["dt"]),
-                    temperature=_as_float(item.get("temp")),
+                    temperature=_openweather_celsius_temperature(item.get("temp")),
                     precipitation_mm=max(
                         0.0,
                         _as_float(rain.get("1h")) + _as_float(snow.get("1h")),
@@ -329,7 +341,14 @@ class OpenWeatherClient:
             items = list(payload.get("data") or [])
             next_url = payload.get("next")
             if next_url:
-                next_payload = await self._async_get_payload(str(next_url))
+                next_payload = await self._async_get_payload(
+                    str(next_url),
+                    {
+                        "appid": self._api_key,
+                        "units": "metric",
+                        "lang": "hu",
+                    },
+                )
                 items.extend(next_payload.get("data") or [])
 
             forecast = normalize_openweather(items)

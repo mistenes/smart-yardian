@@ -107,6 +107,41 @@ def test_openweather_normalization() -> None:
     assert normalized[0].is_daylight is True
 
 
+def test_openweather_kelvin_page_is_converted_to_celsius() -> None:
+    normalized = normalize_openweather(
+        [
+            {
+                "dt": int(NOW.timestamp()),
+                "temp": 304.2,
+                "pop": 0,
+                "clouds": 10,
+                "weather": [{"main": "Clear", "icon": "01d"}],
+            }
+        ]
+    )
+
+    assert normalized[0].temperature == pytest.approx(31.05)
+
+
+def test_openweather_mixed_unit_pages_keep_correct_maximum() -> None:
+    normalized = normalize_openweather(
+        [
+            {
+                "dt": int(NOW.timestamp()),
+                "temp": 36.9,
+                "weather": [{"main": "Clear", "icon": "01d"}],
+            },
+            {
+                "dt": int((NOW + timedelta(hours=1)).timestamp()),
+                "temp": 304.2,
+                "weather": [{"main": "Clear", "icon": "01d"}],
+            },
+        ]
+    )
+
+    assert max(hour.temperature for hour in normalized) == 36.9
+
+
 def test_idokep_implausible_temperature_triggers_fallback() -> None:
     with pytest.raises(WeatherUnavailableError, match="297.8 °C"):
         normalize_ha_forecast(
