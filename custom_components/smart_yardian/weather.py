@@ -64,6 +64,16 @@ def _as_float(value: Any, default: float = 0.0) -> float:
         return default
 
 
+def _ha_celsius_temperature(value: Any) -> float:
+    """Validate a Home Assistant forecast value declared as Celsius."""
+    temperature = _as_float(value)
+    if not -60 <= temperature <= 60:
+        raise WeatherUnavailableError(
+            f"Az Időkép érvénytelen hőmérsékletet adott: {temperature:g} °C."
+        )
+    return temperature
+
+
 def _parse_timestamp(value: Any) -> datetime:
     if isinstance(value, (int, float)):
         return datetime.fromtimestamp(value, UTC)
@@ -82,7 +92,7 @@ def normalize_ha_forecast(items: Iterable[dict[str, Any]]) -> list[ForecastHour]
             normalized.append(
                 ForecastHour(
                     timestamp=timestamp,
-                    temperature=_as_float(item.get("temperature")),
+                    temperature=_ha_celsius_temperature(item.get("temperature")),
                     precipitation_mm=max(0.0, _as_float(item.get("precipitation"))),
                     precipitation_probability=max(
                         0.0,

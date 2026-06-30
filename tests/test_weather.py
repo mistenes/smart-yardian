@@ -11,6 +11,7 @@ from custom_components.smart_yardian.weather import (
     WeatherUnavailableError,
     evaluate_green_lawn,
     forecast_day_max_temperature,
+    normalize_ha_forecast,
     normalize_openweather,
 )
 
@@ -103,3 +104,18 @@ def test_openweather_normalization() -> None:
     assert normalized[0].precipitation_probability == 42
     assert normalized[0].precipitation_mm == 0.7
     assert normalized[0].is_daylight is True
+
+
+def test_idokep_implausible_temperature_triggers_fallback() -> None:
+    with pytest.raises(WeatherUnavailableError, match="297.8 °C"):
+        normalize_ha_forecast(
+            [
+                {
+                    "datetime": NOW.isoformat(),
+                    "temperature": 297.8,
+                    "condition": "sunny",
+                    "precipitation": 0,
+                    "precipitation_probability": 0,
+                }
+            ]
+        )
