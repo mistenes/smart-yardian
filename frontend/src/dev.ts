@@ -478,6 +478,12 @@ const hass: Hass = {
           zoneProfiles.set(profile.entity_id, profile);
         }
       }
+      if (type === "smart_yardian/run/program") {
+        const program = programs.find(
+          (item) => item.program_id === message.program_id,
+        );
+        runningEntity = program?.zones[0]?.entity_id ?? "";
+      }
       if (type === "smart_yardian/run/zone") runningEntity = String(message.entity_id);
       if (type === "smart_yardian/run/manual_program") {
         const program = message.program as Program;

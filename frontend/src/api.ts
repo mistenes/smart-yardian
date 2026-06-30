@@ -58,6 +58,12 @@ export const runProgram = (hass: Hass, programId: string) =>
     apply_weather: true,
   });
 
+export const saveAndRunProgram = async (hass: Hass, program: Program) => {
+  const saved = await saveProgram(hass, program);
+  await runProgram(hass, saved.program_id);
+  return saved;
+};
+
 export const runManualProgram = (
   hass: Hass,
   program: Program,

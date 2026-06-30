@@ -6,8 +6,8 @@ import {
   previewSchedule,
   previewWeather,
   runManualProgram,
-  runProgram,
   runZone,
+  saveAndRunProgram,
   saveProgram,
   setAutomation,
   skipCurrentZone,
@@ -1741,18 +1741,16 @@ export class SmartYardianPanel extends LitElement {
 
   private _runDraft = async (draft: Program): Promise<void> => {
     if (!this.hass) return;
+    this._saving = true;
+    this._error = "";
     try {
-      const exists = this._summary?.programs.some(
-        (program) => program.program_id === draft.program_id,
-      );
-      if (!exists) {
-        this._error = "A programot futtatás előtt mentsd el.";
-        return;
-      }
-      await runProgram(this.hass, draft.program_id);
+      const saved = await saveAndRunProgram(this.hass, draft);
+      this._draft = cloneProgram(saved);
       await this._load(false);
     } catch (error) {
       this._error = this._errorMessage(error);
+    } finally {
+      this._saving = false;
     }
   };
 

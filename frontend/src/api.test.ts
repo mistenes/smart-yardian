@@ -4,6 +4,7 @@ import {
   runManualProgram,
   runProgram,
   runZone,
+  saveAndRunProgram,
   setAutomation,
   skipCurrentZone,
   updateSettings,
@@ -84,6 +85,59 @@ describe("Smart Yardian WebSocket client", () => {
       program_id: "morning",
       apply_weather: true,
     });
+  });
+
+  it("saves every edited zone before running a conditional program", async () => {
+    const messages: Array<Record<string, unknown>> = [];
+    const program = {
+      program_id: "hot-day",
+      name: "Forró nap",
+      enabled: true,
+      weekdays: [0],
+      start_time: "12:00",
+      weather_adjustment: true,
+      temperature_condition_enabled: true,
+      temperature_condition_operator: "above" as const,
+      temperature_condition_value: 30,
+      soil_moisture_enabled: false,
+      zones: [
+        {
+          entity_id: "switch.elso",
+          duration_minutes: 10,
+          duration_mode: "manual" as const,
+        },
+        {
+          entity_id: "switch.masodik",
+          duration_minutes: 15,
+          duration_mode: "manual" as const,
+        },
+      ],
+      skip_next: false,
+    };
+    const hass: Hass = {
+      states: {},
+      connection: {
+        async sendMessagePromise<T>(
+          message: Record<string, unknown>,
+        ): Promise<T> {
+          messages.push(message);
+          return (message.type === "smart_yardian/program/save"
+            ? program
+            : undefined) as T;
+        },
+      },
+    };
+
+    await saveAndRunProgram(hass, program);
+
+    expect(messages).toEqual([
+      { type: "smart_yardian/program/save", program },
+      {
+        type: "smart_yardian/run/program",
+        program_id: "hot-day",
+        apply_weather: true,
+      },
+    ]);
   });
 
   it("runs an ephemeral multi-zone manual program", async () => {
