@@ -18,6 +18,9 @@ Időjárás-alapú, magyar nyelvű öntözésvezérlő Home Assistant 2026.6+ re
 - napos vagy árnyékos területjelleg, amely referencia módban módosítja az időt;
 - Home Assistant/Zigbee talajnedvességmérő hozzárendelése egy, több vagy minden
   zónához, programonkénti engedélyezésre előkészítve;
+- futás közben minden nézetből elérhető sticky állapotsáv program- és
+  kör-visszaszámlálóval, előző/aktuális/következő körrel, körkihagyással és
+  azonnali leállítással;
 - megszakítás-, újraindítás- és párhuzamos futás elleni védelem;
 - automatikusan regisztrált, reszponzív Home Assistant oldalsó panel;
 - Home Assistant műveletek és állapotentitások külső automatizálásokhoz.

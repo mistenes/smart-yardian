@@ -9,6 +9,7 @@ import {
   runZone,
   saveProgram,
   setAutomation,
+  skipCurrentZone,
   stopAll,
   updateSettings,
   updateZoneProfiles,
@@ -81,6 +82,8 @@ export class SmartYardianPanel extends LitElement {
     _bulkMoistureSensor: { state: true },
     _settingsSaving: { state: true },
     _settingsSaved: { state: true },
+    _runExpanded: { state: true },
+    _now: { state: true },
   };
 
   static styles = panelStyles;
@@ -101,7 +104,10 @@ export class SmartYardianPanel extends LitElement {
   private _bulkMoistureSensor = "";
   private _settingsSaving = false;
   private _settingsSaved = false;
+  private _runExpanded = false;
+  private _now = Date.now();
   private _timer?: number;
+  private _clockTimer?: number;
 
   connectedCallback(): void {
     super.connectedCallback();
@@ -111,10 +117,14 @@ export class SmartYardianPanel extends LitElement {
         void this._load(false);
       }
     }, 5000);
+    this._clockTimer = window.setInterval(() => {
+      this._now = Date.now();
+    }, 1000);
   }
 
   disconnectedCallback(): void {
     if (this._timer) window.clearInterval(this._timer);
+    if (this._clockTimer) window.clearInterval(this._clockTimer);
     super.disconnectedCallback();
   }
 
@@ -139,6 +149,7 @@ export class SmartYardianPanel extends LitElement {
               ? html`<div class="error">${this._error}</div>`
               : this._renderTab()}
         </main>
+        ${this._summary?.active_run ? this._renderActiveRun() : nothing}
       </div>
     `;
   }
@@ -238,11 +249,111 @@ export class SmartYardianPanel extends LitElement {
         </aside>
       </div>
 
-      <button class="button danger stop-all" @click=${this._stopAll}>
-        <ha-icon icon="mdi:stop"></ha-icon>
-        Minden leállítása
-      </button>
+      ${summary.active_run
+        ? nothing
+        : html`
+            <button class="button danger stop-all" @click=${this._stopAll}>
+              <ha-icon icon="mdi:stop"></ha-icon>
+              Minden leállítása
+            </button>
+          `}
     `;
+  }
+
+  private _renderActiveRun(): TemplateResult {
+    const run = this._summary!.active_run!;
+    const index = Math.max(0, run.current_index ?? 0);
+    const previous = run.zones[index - 1];
+    const current = run.zones[index];
+    const next = run.zones[index + 1];
+    const zoneRemaining = this._remainingSeconds(run.zone_ends_at);
+    const remainingAfterCurrent = run.zones
+      .slice(index + 1)
+      .reduce((sum, zone) => sum + zone.planned_minutes * 60, 0);
+    const totalRemaining = zoneRemaining + remainingAfterCurrent;
+    const totalSeconds = Math.max(1, run.total_minutes * 60);
+    const progress = Math.max(
+      0,
+      Math.min(100, ((totalSeconds - totalRemaining) / totalSeconds) * 100),
+    );
+    return html`
+      <aside class="active-run" ?expanded=${this._runExpanded}>
+        ${this._runExpanded
+          ? html`
+              <div class="active-run-detail">
+                <div class="active-run-detail-head">
+                  <div>
+                    <span>Aktuális program</span>
+                    <strong>${run.program_name}</strong>
+                  </div>
+                  <button
+                    class="icon-button"
+                    aria-label="Futás részleteinek bezárása"
+                    @click=${() => (this._runExpanded = false)}
+                  >
+                    <ha-icon icon="mdi:chevron-down"></ha-icon>
+                  </button>
+                </div>
+                <div class="run-countdowns">
+                  <div><span>Aktuális kör</span><strong>${this._clock(zoneRemaining)}</strong></div>
+                  <div><span>Program vége</span><strong>${this._clock(totalRemaining)}</strong></div>
+                </div>
+                <div class="run-sequence">
+                  ${this._runStep("Előző", previous)}
+                  ${this._runStep("Aktuális", current, true)}
+                  ${this._runStep("Következő", next)}
+                </div>
+              </div>
+            `
+          : nothing}
+        <button
+          class="active-run-summary"
+          aria-expanded=${this._runExpanded}
+          @click=${() => (this._runExpanded = !this._runExpanded)}
+        >
+          <span class="run-pulse"></span>
+          <span>
+            <strong>${run.program_name}</strong>
+            <small>${current?.name ?? "Indítás…"} · ${this._clock(zoneRemaining)}</small>
+          </span>
+          <span class="run-progress-label">${Math.round(progress)}%</span>
+          <ha-icon icon=${this._runExpanded ? "mdi:chevron-down" : "mdi:chevron-up"}></ha-icon>
+        </button>
+        <div class="active-run-progress"><span style=${`width:${progress}%`}></span></div>
+        <div class="active-run-actions">
+          <button class="button quiet" @click=${this._skipCurrentZone}>
+            Aktuális kör kihagyása
+          </button>
+          <button class="button danger" @click=${this._stopAll}>
+            <ha-icon icon="mdi:stop"></ha-icon>
+            Leállítás
+          </button>
+        </div>
+      </aside>
+    `;
+  }
+
+  private _runStep(
+    label: string,
+    zone: { name: string; planned_minutes: number; outcome: string } | undefined,
+    active = false,
+  ): TemplateResult {
+    return html`
+      <div class="run-step" ?active=${active} ?empty=${!zone}>
+        <span>${label}</span>
+        <strong>${zone?.name ?? "—"}</strong>
+        <small>${zone ? `${zone.planned_minutes} perc` : ""}</small>
+      </div>
+    `;
+  }
+
+  private _remainingSeconds(end?: string): number {
+    return end ? Math.max(0, Math.ceil((new Date(end).getTime() - this._now) / 1000)) : 0;
+  }
+
+  private _clock(seconds: number): string {
+    const minutes = Math.floor(seconds / 60);
+    return `${String(minutes).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
   }
 
   private _renderWeather(weather: WeatherDecision | null): TemplateResult {
@@ -1392,6 +1503,17 @@ export class SmartYardianPanel extends LitElement {
     if (!this.hass) return;
     try {
       await stopAll(this.hass);
+      await this._load(false);
+    } catch (error) {
+      this._error = this._errorMessage(error);
+    }
+  };
+
+  private _skipCurrentZone = async (event: Event): Promise<void> => {
+    event.stopPropagation();
+    if (!this.hass) return;
+    try {
+      await skipCurrentZone(this.hass);
       await this._load(false);
     } catch (error) {
       this._error = this._errorMessage(error);

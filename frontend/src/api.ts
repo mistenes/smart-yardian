@@ -72,6 +72,11 @@ export const runZone = (
 export const stopAll = (hass: Hass) =>
   hass.connection.sendMessagePromise<void>({ type: "smart_yardian/run/stop" });
 
+export const skipCurrentZone = (hass: Hass) =>
+  hass.connection.sendMessagePromise<void>({
+    type: "smart_yardian/run/skip_current_zone",
+  });
+
 export const skipNext = (hass: Hass, programId: string) =>
   hass.connection.sendMessagePromise<void>({
     type: "smart_yardian/program/skip_next",

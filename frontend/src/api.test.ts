@@ -4,6 +4,7 @@ import {
   runProgram,
   runZone,
   setAutomation,
+  skipCurrentZone,
   updateSettings,
   updateZoneProfiles,
 } from "./api";
@@ -41,6 +42,14 @@ describe("Smart Yardian WebSocket client", () => {
     await previewSchedule(hass);
     expect(messages[0]).toEqual({
       type: "smart_yardian/schedule/preview",
+    });
+  });
+
+  it("skips only the current running zone", async () => {
+    const { hass, messages } = recordingHass();
+    await skipCurrentZone(hass);
+    expect(messages[0]).toEqual({
+      type: "smart_yardian/run/skip_current_zone",
     });
   });
 

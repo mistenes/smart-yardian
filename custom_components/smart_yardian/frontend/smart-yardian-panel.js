@@ -1,13 +1,13 @@
-const D = globalThis, R = D.ShadowRoot && (D.ShadyCSS === void 0 || D.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype, L = /* @__PURE__ */ Symbol(), F = /* @__PURE__ */ new WeakMap();
+const D = globalThis, O = D.ShadowRoot && (D.ShadyCSS === void 0 || D.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype, Z = /* @__PURE__ */ Symbol(), F = /* @__PURE__ */ new WeakMap();
 let ie = class {
   constructor(e, t, s) {
-    if (this._$cssResult$ = !0, s !== L) throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");
+    if (this._$cssResult$ = !0, s !== Z) throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");
     this.cssText = e, this.t = t;
   }
   get styleSheet() {
     let e = this.o;
     const t = this.t;
-    if (R && e === void 0) {
+    if (O && e === void 0) {
       const s = t !== void 0 && t.length === 1;
       s && (e = F.get(t)), e === void 0 && ((this.o = e = new CSSStyleSheet()).replaceSync(this.cssText), s && F.set(t, e));
     }
@@ -17,28 +17,28 @@ let ie = class {
     return this.cssText;
   }
 };
-const de = (r) => new ie(typeof r == "string" ? r : r + "", void 0, L), ce = (r, ...e) => {
+const de = (r) => new ie(typeof r == "string" ? r : r + "", void 0, Z), pe = (r, ...e) => {
   const t = r.length === 1 ? r[0] : e.reduce((s, i, a) => s + ((n) => {
     if (n._$cssResult$ === !0) return n.cssText;
     if (typeof n == "number") return n;
     throw Error("Value passed to 'css' function must be a 'css' function result: " + n + ". Use 'unsafeCSS' to pass non-literal values, but take care to ensure page security.");
   })(i) + r[a + 1], r[0]);
-  return new ie(t, r, L);
-}, pe = (r, e) => {
-  if (R) r.adoptedStyleSheets = e.map((t) => t instanceof CSSStyleSheet ? t : t.styleSheet);
+  return new ie(t, r, Z);
+}, ce = (r, e) => {
+  if (O) r.adoptedStyleSheets = e.map((t) => t instanceof CSSStyleSheet ? t : t.styleSheet);
   else for (const t of e) {
     const s = document.createElement("style"), i = D.litNonce;
     i !== void 0 && s.setAttribute("nonce", i), s.textContent = t.cssText, r.appendChild(s);
   }
-}, q = R ? (r) => r : (r) => r instanceof CSSStyleSheet ? ((e) => {
+}, q = O ? (r) => r : (r) => r instanceof CSSStyleSheet ? ((e) => {
   let t = "";
   for (const s of e.cssRules) t += s.cssText;
   return de(t);
 })(r) : r;
-const { is: he, defineProperty: ue, getOwnPropertyDescriptor: me, getOwnPropertyNames: ge, getOwnPropertySymbols: _e, getPrototypeOf: fe } = Object, N = globalThis, V = N.trustedTypes, be = V ? V.emptyScript : "", ve = N.reactiveElementPolyfillSupport, k = (r, e) => r, O = { toAttribute(r, e) {
+const { is: he, defineProperty: ue, getOwnPropertyDescriptor: me, getOwnPropertyNames: ge, getOwnPropertySymbols: _e, getPrototypeOf: be } = Object, N = globalThis, K = N.trustedTypes, ve = K ? K.emptyScript : "", fe = N.reactiveElementPolyfillSupport, k = (r, e) => r, R = { toAttribute(r, e) {
   switch (e) {
     case Boolean:
-      r = r ? be : null;
+      r = r ? ve : null;
       break;
     case Object:
     case Array:
@@ -63,7 +63,7 @@ const { is: he, defineProperty: ue, getOwnPropertyDescriptor: me, getOwnProperty
       }
   }
   return t;
-} }, re = (r, e) => !he(r, e), K = { attribute: !0, type: String, converter: O, reflect: !1, useDefault: !1, hasChanged: re };
+} }, re = (r, e) => !he(r, e), V = { attribute: !0, type: String, converter: R, reflect: !1, useDefault: !1, hasChanged: re };
 Symbol.metadata ??= /* @__PURE__ */ Symbol("metadata"), N.litPropertyMetadata ??= /* @__PURE__ */ new WeakMap();
 let y = class extends HTMLElement {
   static addInitializer(e) {
@@ -72,7 +72,7 @@ let y = class extends HTMLElement {
   static get observedAttributes() {
     return this.finalize(), this._$Eh && [...this._$Eh.keys()];
   }
-  static createProperty(e, t = K) {
+  static createProperty(e, t = V) {
     if (t.state && (t.attribute = !1), this._$Ei(), this.prototype.hasOwnProperty(e) && ((t = Object.create(t)).wrapped = !0), this.elementProperties.set(e, t), !t.noAccessor) {
       const s = /* @__PURE__ */ Symbol(), i = this.getPropertyDescriptor(e, s, t);
       i !== void 0 && ue(this.prototype, e, i);
@@ -85,16 +85,16 @@ let y = class extends HTMLElement {
       this[t] = n;
     } };
     return { get: i, set(n) {
-      const c = i?.call(this);
-      a?.call(this, n), this.requestUpdate(e, c, s);
+      const p = i?.call(this);
+      a?.call(this, n), this.requestUpdate(e, p, s);
     }, configurable: !0, enumerable: !0 };
   }
   static getPropertyOptions(e) {
-    return this.elementProperties.get(e) ?? K;
+    return this.elementProperties.get(e) ?? V;
   }
   static _$Ei() {
     if (this.hasOwnProperty(k("elementProperties"))) return;
-    const e = fe(this);
+    const e = be(this);
     e.finalize(), e.l !== void 0 && (this.l = [...e.l]), this.elementProperties = new Map(e.elementProperties);
   }
   static finalize() {
@@ -146,7 +146,7 @@ let y = class extends HTMLElement {
   }
   createRenderRoot() {
     const e = this.shadowRoot ?? this.attachShadow(this.constructor.shadowRootOptions);
-    return pe(e, this.constructor.elementStyles), e;
+    return ce(e, this.constructor.elementStyles), e;
   }
   connectedCallback() {
     this.renderRoot ??= this.createRenderRoot(), this.enableUpdating(!0), this._$EO?.forEach((e) => e.hostConnected?.());
@@ -162,17 +162,17 @@ let y = class extends HTMLElement {
   _$ET(e, t) {
     const s = this.constructor.elementProperties.get(e), i = this.constructor._$Eu(e, s);
     if (i !== void 0 && s.reflect === !0) {
-      const a = (s.converter?.toAttribute !== void 0 ? s.converter : O).toAttribute(t, s.type);
+      const a = (s.converter?.toAttribute !== void 0 ? s.converter : R).toAttribute(t, s.type);
       this._$Em = e, a == null ? this.removeAttribute(i) : this.setAttribute(i, a), this._$Em = null;
     }
   }
   _$AK(e, t) {
     const s = this.constructor, i = s._$Eh.get(e);
     if (i !== void 0 && this._$Em !== i) {
-      const a = s.getPropertyOptions(i), n = typeof a.converter == "function" ? { fromAttribute: a.converter } : a.converter?.fromAttribute !== void 0 ? a.converter : O;
+      const a = s.getPropertyOptions(i), n = typeof a.converter == "function" ? { fromAttribute: a.converter } : a.converter?.fromAttribute !== void 0 ? a.converter : R;
       this._$Em = i;
-      const c = n.fromAttribute(t, a.type);
-      this[i] = c ?? this._$Ej?.get(i) ?? c, this._$Em = null;
+      const p = n.fromAttribute(t, a.type);
+      this[i] = p ?? this._$Ej?.get(i) ?? p, this._$Em = null;
     }
   }
   requestUpdate(e, t, s, i = !1, a) {
@@ -208,8 +208,8 @@ let y = class extends HTMLElement {
       }
       const s = this.constructor.elementProperties;
       if (s.size > 0) for (const [i, a] of s) {
-        const { wrapped: n } = a, c = this[i];
-        n !== !0 || this._$AL.has(i) || c === void 0 || this.C(i, void 0, a, c);
+        const { wrapped: n } = a, p = this[i];
+        n !== !0 || this._$AL.has(i) || p === void 0 || this.C(i, void 0, a, p);
       }
     }
     let e = !1;
@@ -246,10 +246,10 @@ let y = class extends HTMLElement {
   firstUpdated(e) {
   }
 };
-y.elementStyles = [], y.shadowRootOptions = { mode: "open" }, y[k("elementProperties")] = /* @__PURE__ */ new Map(), y[k("finalized")] = /* @__PURE__ */ new Map(), ve?.({ ReactiveElement: y }), (N.reactiveElementVersions ??= []).push("2.1.2");
-const Z = globalThis, W = (r) => r, C = Z.trustedTypes, Y = C ? C.createPolicy("lit-html", { createHTML: (r) => r }) : void 0, ae = "$lit$", _ = `lit$${Math.random().toFixed(9).slice(2)}$`, ne = "?" + _, ye = `<${ne}>`, v = document, A = () => v.createComment(""), S = (r) => r === null || typeof r != "object" && typeof r != "function", I = Array.isArray, xe = (r) => I(r) || typeof r?.[Symbol.iterator] == "function", H = `[ 	
-\f\r]`, w = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g, J = /-->/g, G = />/g, f = RegExp(`>|${H}(?:([^\\s"'>=/]+)(${H}*=${H}*(?:[^ 	
-\f\r"'\`<>=]|("|')|))|$)`, "g"), Q = /'/g, X = /"/g, oe = /^(?:script|style|textarea|title)$/i, $e = (r) => (e, ...t) => ({ _$litType$: r, strings: e, values: t }), o = $e(1), x = /* @__PURE__ */ Symbol.for("lit-noChange"), d = /* @__PURE__ */ Symbol.for("lit-nothing"), ee = /* @__PURE__ */ new WeakMap(), b = v.createTreeWalker(v, 129);
+y.elementStyles = [], y.shadowRootOptions = { mode: "open" }, y[k("elementProperties")] = /* @__PURE__ */ new Map(), y[k("finalized")] = /* @__PURE__ */ new Map(), fe?.({ ReactiveElement: y }), (N.reactiveElementVersions ??= []).push("2.1.2");
+const L = globalThis, W = (r) => r, C = L.trustedTypes, Y = C ? C.createPolicy("lit-html", { createHTML: (r) => r }) : void 0, ae = "$lit$", _ = `lit$${Math.random().toFixed(9).slice(2)}$`, ne = "?" + _, ye = `<${ne}>`, f = document, A = () => f.createComment(""), S = (r) => r === null || typeof r != "object" && typeof r != "function", I = Array.isArray, xe = (r) => I(r) || typeof r?.[Symbol.iterator] == "function", T = `[ 	
+\f\r]`, w = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g, J = /-->/g, G = />/g, b = RegExp(`>|${T}(?:([^\\s"'>=/]+)(${T}*=${T}*(?:[^ 	
+\f\r"'\`<>=]|("|')|))|$)`, "g"), Q = /'/g, X = /"/g, oe = /^(?:script|style|textarea|title)$/i, $e = (r) => (e, ...t) => ({ _$litType$: r, strings: e, values: t }), o = $e(1), x = /* @__PURE__ */ Symbol.for("lit-noChange"), d = /* @__PURE__ */ Symbol.for("lit-nothing"), ee = /* @__PURE__ */ new WeakMap(), v = f.createTreeWalker(f, 129);
 function le(r, e) {
   if (!I(r) || !r.hasOwnProperty("raw")) throw Error("invalid template strings array");
   return Y !== void 0 ? Y.createHTML(e) : e;
@@ -257,12 +257,12 @@ function le(r, e) {
 const we = (r, e) => {
   const t = r.length - 1, s = [];
   let i, a = e === 2 ? "<svg>" : e === 3 ? "<math>" : "", n = w;
-  for (let c = 0; c < t; c++) {
-    const l = r[c];
-    let h, u, p = -1, m = 0;
-    for (; m < l.length && (n.lastIndex = m, u = n.exec(l), u !== null); ) m = n.lastIndex, n === w ? u[1] === "!--" ? n = J : u[1] !== void 0 ? n = G : u[2] !== void 0 ? (oe.test(u[2]) && (i = RegExp("</" + u[2], "g")), n = f) : u[3] !== void 0 && (n = f) : n === f ? u[0] === ">" ? (n = i ?? w, p = -1) : u[1] === void 0 ? p = -2 : (p = n.lastIndex - u[2].length, h = u[1], n = u[3] === void 0 ? f : u[3] === '"' ? X : Q) : n === X || n === Q ? n = f : n === J || n === G ? n = w : (n = f, i = void 0);
-    const g = n === f && r[c + 1].startsWith("/>") ? " " : "";
-    a += n === w ? l + ye : p >= 0 ? (s.push(h), l.slice(0, p) + ae + l.slice(p) + _ + g) : l + _ + (p === -2 ? c : g);
+  for (let p = 0; p < t; p++) {
+    const l = r[p];
+    let h, u, c = -1, m = 0;
+    for (; m < l.length && (n.lastIndex = m, u = n.exec(l), u !== null); ) m = n.lastIndex, n === w ? u[1] === "!--" ? n = J : u[1] !== void 0 ? n = G : u[2] !== void 0 ? (oe.test(u[2]) && (i = RegExp("</" + u[2], "g")), n = b) : u[3] !== void 0 && (n = b) : n === b ? u[0] === ">" ? (n = i ?? w, c = -1) : u[1] === void 0 ? c = -2 : (c = n.lastIndex - u[2].length, h = u[1], n = u[3] === void 0 ? b : u[3] === '"' ? X : Q) : n === X || n === Q ? n = b : n === J || n === G ? n = w : (n = b, i = void 0);
+    const g = n === b && r[p + 1].startsWith("/>") ? " " : "";
+    a += n === w ? l + ye : c >= 0 ? (s.push(h), l.slice(0, c) + ae + l.slice(c) + _ + g) : l + _ + (c === -2 ? p : g);
   }
   return [le(r, a + (r[t] || "<?>") + (e === 2 ? "</svg>" : e === 3 ? "</math>" : "")), s];
 };
@@ -271,35 +271,35 @@ class P {
     let i;
     this.parts = [];
     let a = 0, n = 0;
-    const c = e.length - 1, l = this.parts, [h, u] = we(e, t);
-    if (this.el = P.createElement(h, s), b.currentNode = this.el.content, t === 2 || t === 3) {
-      const p = this.el.content.firstChild;
-      p.replaceWith(...p.childNodes);
+    const p = e.length - 1, l = this.parts, [h, u] = we(e, t);
+    if (this.el = P.createElement(h, s), v.currentNode = this.el.content, t === 2 || t === 3) {
+      const c = this.el.content.firstChild;
+      c.replaceWith(...c.childNodes);
     }
-    for (; (i = b.nextNode()) !== null && l.length < c; ) {
+    for (; (i = v.nextNode()) !== null && l.length < p; ) {
       if (i.nodeType === 1) {
-        if (i.hasAttributes()) for (const p of i.getAttributeNames()) if (p.endsWith(ae)) {
-          const m = u[n++], g = i.getAttribute(p).split(_), E = /([.?@])?(.*)/.exec(m);
-          l.push({ type: 1, index: a, name: E[2], strings: g, ctor: E[1] === "." ? ze : E[1] === "?" ? Ae : E[1] === "@" ? Se : j }), i.removeAttribute(p);
-        } else p.startsWith(_) && (l.push({ type: 6, index: a }), i.removeAttribute(p));
+        if (i.hasAttributes()) for (const c of i.getAttributeNames()) if (c.endsWith(ae)) {
+          const m = u[n++], g = i.getAttribute(c).split(_), E = /([.?@])?(.*)/.exec(m);
+          l.push({ type: 1, index: a, name: E[2], strings: g, ctor: E[1] === "." ? ze : E[1] === "?" ? Ae : E[1] === "@" ? Se : j }), i.removeAttribute(c);
+        } else c.startsWith(_) && (l.push({ type: 6, index: a }), i.removeAttribute(c));
         if (oe.test(i.tagName)) {
-          const p = i.textContent.split(_), m = p.length - 1;
+          const c = i.textContent.split(_), m = c.length - 1;
           if (m > 0) {
             i.textContent = C ? C.emptyScript : "";
-            for (let g = 0; g < m; g++) i.append(p[g], A()), b.nextNode(), l.push({ type: 2, index: ++a });
-            i.append(p[m], A());
+            for (let g = 0; g < m; g++) i.append(c[g], A()), v.nextNode(), l.push({ type: 2, index: ++a });
+            i.append(c[m], A());
           }
         }
       } else if (i.nodeType === 8) if (i.data === ne) l.push({ type: 2, index: a });
       else {
-        let p = -1;
-        for (; (p = i.data.indexOf(_, p + 1)) !== -1; ) l.push({ type: 7, index: a }), p += _.length - 1;
+        let c = -1;
+        for (; (c = i.data.indexOf(_, c + 1)) !== -1; ) l.push({ type: 7, index: a }), c += _.length - 1;
       }
       a++;
     }
   }
   static createElement(e, t) {
-    const s = v.createElement("template");
+    const s = f.createElement("template");
     return s.innerHTML = e, s;
   }
 }
@@ -320,17 +320,17 @@ class ke {
     return this._$AM._$AU;
   }
   u(e) {
-    const { el: { content: t }, parts: s } = this._$AD, i = (e?.creationScope ?? v).importNode(t, !0);
-    b.currentNode = i;
-    let a = b.nextNode(), n = 0, c = 0, l = s[0];
+    const { el: { content: t }, parts: s } = this._$AD, i = (e?.creationScope ?? f).importNode(t, !0);
+    v.currentNode = i;
+    let a = v.nextNode(), n = 0, p = 0, l = s[0];
     for (; l !== void 0; ) {
       if (n === l.index) {
         let h;
-        l.type === 2 ? h = new M(a, a.nextSibling, this, e) : l.type === 1 ? h = new l.ctor(a, l.name, l.strings, this, e) : l.type === 6 && (h = new Pe(a, this, e)), this._$AV.push(h), l = s[++c];
+        l.type === 2 ? h = new M(a, a.nextSibling, this, e) : l.type === 1 ? h = new l.ctor(a, l.name, l.strings, this, e) : l.type === 6 && (h = new Pe(a, this, e)), this._$AV.push(h), l = s[++p];
       }
-      n !== l?.index && (a = b.nextNode(), n++);
+      n !== l?.index && (a = v.nextNode(), n++);
     }
-    return b.currentNode = v, i;
+    return v.currentNode = f, i;
   }
   p(e) {
     let t = 0;
@@ -365,7 +365,7 @@ class M {
     this._$AH !== e && (this._$AR(), this._$AH = this.O(e));
   }
   _(e) {
-    this._$AH !== d && S(this._$AH) ? this._$AA.nextSibling.data = e : this.T(v.createTextNode(e)), this._$AH = e;
+    this._$AH !== d && S(this._$AH) ? this._$AA.nextSibling.data = e : this.T(f.createTextNode(e)), this._$AH = e;
   }
   $(e) {
     const { values: t, _$litType$: s } = e, i = typeof s == "number" ? this._$AC(e) : (s.el === void 0 && (s.el = P.createElement(le(s.h, s.h[0]), this.options)), s);
@@ -411,9 +411,9 @@ class j {
     let n = !1;
     if (a === void 0) e = $(this, e, t, 0), n = !S(e) || e !== this._$AH && e !== x, n && (this._$AH = e);
     else {
-      const c = e;
+      const p = e;
       let l, h;
-      for (e = a[0], l = 0; l < a.length - 1; l++) h = $(this, c[s + l], t, l), h === x && (h = this._$AH[l]), n ||= !S(h) || h !== this._$AH[l], h === d ? e = d : e !== d && (e += (h ?? "") + a[l + 1]), this._$AH[l] = h;
+      for (e = a[0], l = 0; l < a.length - 1; l++) h = $(this, p[s + l], t, l), h === x && (h = this._$AH[l]), n ||= !S(h) || h !== this._$AH[l], h === d ? e = d : e !== d && (e += (h ?? "") + a[l + 1]), this._$AH[l] = h;
     }
     n && !i && this.j(e);
   }
@@ -461,8 +461,8 @@ class Pe {
     $(this, e);
   }
 }
-const Me = Z.litHtmlPolyfillSupport;
-Me?.(P, M), (Z.litHtmlVersions ??= []).push("3.3.3");
+const Me = L.litHtmlPolyfillSupport;
+Me?.(P, M), (L.litHtmlVersions ??= []).push("3.3.3");
 const Ee = (r, e, t) => {
   const s = t?.renderBefore ?? e;
   let i = s._$litPart$;
@@ -506,30 +506,32 @@ const Ce = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
 }), te = (r, e) => r.connection.sendMessagePromise({
   type: "smart_yardian/program/save",
   program: e
-}), He = (r, e) => r.connection.sendMessagePromise({
+}), Te = (r, e) => r.connection.sendMessagePromise({
   type: "smart_yardian/program/delete",
   program_id: e
-}), Te = (r, e) => r.connection.sendMessagePromise({
+}), He = (r, e) => r.connection.sendMessagePromise({
   type: "smart_yardian/settings/update",
   settings: e
 }), Ue = (r, e) => r.connection.sendMessagePromise({
   type: "smart_yardian/zone_profiles/update",
   profiles: e
-}), Oe = (r, e) => r.connection.sendMessagePromise({
+}), Re = (r, e) => r.connection.sendMessagePromise({
   type: "smart_yardian/automation/set",
   enabled: e
-}), Re = (r, e) => r.connection.sendMessagePromise({
+}), Oe = (r, e) => r.connection.sendMessagePromise({
   type: "smart_yardian/run/program",
   program_id: e,
   apply_weather: !0
-}), Le = (r, e, t) => r.connection.sendMessagePromise({
+}), Ze = (r, e, t) => r.connection.sendMessagePromise({
   type: "smart_yardian/run/zone",
   entity_id: e,
   duration_minutes: t
-}), Ze = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/run/stop" }), se = (r, e) => r.connection.sendMessagePromise({
+}), Le = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/run/stop" }), Ie = (r) => r.connection.sendMessagePromise({
+  type: "smart_yardian/run/skip_current_zone"
+}), se = (r, e) => r.connection.sendMessagePromise({
   type: "smart_yardian/pause_until",
   until: e
-}), Ie = (r = Date.now(), e = Math.random()) => `program-${r.toString(36)}-${Math.floor(e * 4294967296).toString(36).padStart(7, "0")}`, Be = ce`
+}), Be = (r = Date.now(), e = Math.random()) => `program-${r.toString(36)}-${Math.floor(e * 4294967296).toString(36).padStart(7, "0")}`, Fe = pe`
   :host {
     --sy-blue: var(--primary-color, #1688e8);
     --sy-blue-soft: color-mix(in srgb, var(--sy-blue) 9%, white);
@@ -1053,6 +1055,165 @@ const Ce = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
     width: 100%;
     min-height: 48px;
     margin-top: 18px;
+  }
+
+  .shell:has(.active-run) .content {
+    padding-bottom: 112px;
+  }
+
+  .active-run {
+    position: fixed;
+    z-index: 10;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    max-width: 1180px;
+    margin: 0 auto;
+    color: var(--sy-text);
+    background: var(--sy-surface);
+    border: 1px solid var(--sy-border);
+    border-bottom: 0;
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -8px 28px rgb(0 0 0 / 16%);
+  }
+
+  .active-run-summary {
+    display: grid;
+    width: 100%;
+    min-height: 58px;
+    padding: 9px 14px;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 10px;
+    color: inherit;
+    background: transparent;
+    border: 0;
+    text-align: left;
+  }
+
+  .active-run-summary > span:nth-child(2) {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+  }
+
+  .active-run-summary strong,
+  .active-run-summary small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .active-run-summary small,
+  .run-progress-label {
+    color: var(--sy-muted);
+  }
+
+  .run-pulse {
+    width: 10px;
+    height: 10px;
+    background: var(--sy-green);
+    border-radius: 50%;
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--sy-green) 18%, transparent);
+  }
+
+  .active-run-progress {
+    height: 3px;
+    background: color-mix(in srgb, var(--sy-blue) 15%, transparent);
+  }
+
+  .active-run-progress span {
+    display: block;
+    height: 100%;
+    background: var(--sy-blue);
+    transition: width 1s linear;
+  }
+
+  .active-run-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 8px 14px calc(8px + env(safe-area-inset-bottom));
+  }
+
+  .active-run-detail {
+    padding: 16px 16px 8px;
+    border-bottom: 1px solid var(--sy-border);
+  }
+
+  .active-run-detail-head,
+  .active-run-detail-head > div {
+    display: flex;
+    align-items: center;
+  }
+
+  .active-run-detail-head {
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .active-run-detail-head > div {
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .active-run-detail-head span,
+  .run-countdowns span,
+  .run-step > span,
+  .run-step small {
+    color: var(--sy-muted);
+    font-size: 11px;
+  }
+
+  .run-countdowns {
+    display: grid;
+    margin-top: 14px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .run-countdowns > div {
+    display: grid;
+    gap: 3px;
+    padding: 10px 12px;
+    background: var(--sy-blue-soft);
+    border-radius: 8px;
+  }
+
+  .run-countdowns strong {
+    font-size: 22px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .run-sequence {
+    display: grid;
+    margin-top: 12px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .run-step {
+    display: grid;
+    min-width: 0;
+    gap: 3px;
+    padding: 10px;
+    border: 1px solid var(--sy-border);
+    border-radius: 8px;
+  }
+
+  .run-step[active] {
+    border-color: var(--sy-blue);
+    background: var(--sy-blue-soft);
+  }
+
+  .run-step[empty] {
+    opacity: 0.55;
+  }
+
+  .run-step strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .page-head {
@@ -1736,6 +1897,25 @@ const Ce = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
   }
 
   @media (max-width: 600px) {
+    .active-run {
+      width: auto;
+      right: 8px;
+      left: 8px;
+    }
+
+    .active-run-actions > button {
+      flex: 1;
+    }
+
+    .run-sequence {
+      grid-template-columns: 1fr;
+    }
+
+    .run-step {
+      grid-template-columns: 70px minmax(0, 1fr) auto;
+      align-items: center;
+    }
+
     .topbar {
       min-height: 54px;
     }
@@ -1885,14 +2065,14 @@ const Ce = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
       padding-bottom: 12px;
     }
   }
-`, Fe = ["H", "K", "Sze", "Cs", "P", "Szo", "V"], qe = ["Hé", "Ke", "Sze", "Csü", "Pén", "Szo", "Vas"], T = [
+`, qe = ["H", "K", "Sze", "Cs", "P", "Szo", "V"], Ke = ["Hé", "Ke", "Sze", "Csü", "Pén", "Szo", "Vas"], H = [
   { value: "rotator", label: "Rotátor (MP)", rate: 10 },
   { value: "mp800", label: "Rotátor MP800", rate: 20 },
   { value: "spray", label: "Spray / esőztető", rate: 40 },
   { value: "rotor", label: "Rotoros", rate: 12 },
   { value: "drip", label: "Csepegtető", rate: 12 }
 ], Ve = () => ({
-  program_id: Ie(),
+  program_id: Be(),
   name: "Új program",
   enabled: !0,
   weekdays: [0, 2, 4],
@@ -1905,9 +2085,9 @@ const Ce = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
   zones: [],
   skip_next: !1
 }), U = (r) => JSON.parse(JSON.stringify(r));
-class Ke extends z {
+class We extends z {
   constructor() {
-    super(...arguments), this.narrow = !1, this._summary = null, this._tab = "overview", this._loading = !0, this._error = "", this._draft = null, this._saving = !1, this._zoneDurations = {}, this._expandedControllers = [], this._schedulePreview = null, this._scheduleLoading = !1, this._bulkMoistureSensor = "", this._settingsSaving = !1, this._settingsSaved = !1, this._loadSchedule = async () => {
+    super(...arguments), this.narrow = !1, this._summary = null, this._tab = "overview", this._loading = !0, this._error = "", this._draft = null, this._saving = !1, this._zoneDurations = {}, this._expandedControllers = [], this._schedulePreview = null, this._scheduleLoading = !1, this._bulkMoistureSensor = "", this._settingsSaving = !1, this._settingsSaved = !1, this._runExpanded = !1, this._now = Date.now(), this._loadSchedule = async () => {
       if (!(!this.hass || this._scheduleLoading)) {
         this._scheduleLoading = !0;
         try {
@@ -1962,7 +2142,7 @@ class Ke extends z {
         return;
       }
       try {
-        await He(this.hass, this._draft.program_id), this._draft = null, await this._load(!1), this._selectFirstProgram();
+        await Te(this.hass, this._draft.program_id), this._draft = null, await this._load(!1), this._selectFirstProgram();
       } catch (t) {
         this._error = this._errorMessage(t);
       }
@@ -1975,7 +2155,7 @@ class Ke extends z {
             this._error = "A programot futtatás előtt mentsd el.";
             return;
           }
-          await Re(this.hass, e.program_id), await this._load(!1);
+          await Oe(this.hass, e.program_id), await this._load(!1);
         } catch (t) {
           this._error = this._errorMessage(t);
         }
@@ -1989,7 +2169,7 @@ class Ke extends z {
     }, this._startZone = async (e) => {
       if (this.hass)
         try {
-          await Le(
+          await Ze(
             this.hass,
             e.entity_id,
             this._zoneDurations[e.entity_id] ?? 15
@@ -2000,14 +2180,21 @@ class Ke extends z {
     }, this._stopAll = async () => {
       if (this.hass)
         try {
-          await Ze(this.hass), await this._load(!1);
+          await Le(this.hass), await this._load(!1);
         } catch (e) {
           this._error = this._errorMessage(e);
+        }
+    }, this._skipCurrentZone = async (e) => {
+      if (e.stopPropagation(), !!this.hass)
+        try {
+          await Ie(this.hass), await this._load(!1);
+        } catch (t) {
+          this._error = this._errorMessage(t);
         }
     }, this._toggleAutomation = async () => {
       if (!(!this.hass || !this._summary))
         try {
-          await Oe(this.hass, !this._summary.automation_enabled), await this._load(!1);
+          await Re(this.hass, !this._summary.automation_enabled), await this._load(!1);
         } catch (e) {
           this._error = this._errorMessage(e);
         }
@@ -2015,7 +2202,7 @@ class Ke extends z {
       if (!(!this.hass || !this._summary || this._settingsSaving)) {
         this._settingsSaving = !0, this._settingsSaved = !1;
         try {
-          await Te(this.hass, this._summary.settings), await Ue(
+          await He(this.hass, this._summary.settings), await Ue(
             this.hass,
             this._allZones().map((e) => e.profile)
           ), await this._load(!1), this._settingsSaved = !0, this._error = "";
@@ -2050,19 +2237,23 @@ class Ke extends z {
       _scheduleLoading: { state: !0 },
       _bulkMoistureSensor: { state: !0 },
       _settingsSaving: { state: !0 },
-      _settingsSaved: { state: !0 }
+      _settingsSaved: { state: !0 },
+      _runExpanded: { state: !0 },
+      _now: { state: !0 }
     };
   }
   static {
-    this.styles = Be;
+    this.styles = Fe;
   }
   connectedCallback() {
     super.connectedCallback(), this._load(!0), this._timer = window.setInterval(() => {
       this._tab !== "settings" && this._tab !== "schedule" && this._load(!1);
-    }, 5e3);
+    }, 5e3), this._clockTimer = window.setInterval(() => {
+      this._now = Date.now();
+    }, 1e3);
   }
   disconnectedCallback() {
-    this._timer && window.clearInterval(this._timer), super.disconnectedCallback();
+    this._timer && window.clearInterval(this._timer), this._clockTimer && window.clearInterval(this._clockTimer), super.disconnectedCallback();
   }
   render() {
     return o`
@@ -2081,6 +2272,7 @@ class Ke extends z {
         <main class="content">
           ${this._loading && !this._summary ? o`<div class="loading">Az öntözésvezérlő betöltése…</div>` : this._error && !this._summary ? o`<div class="error">${this._error}</div>` : this._renderTab()}
         </main>
+        ${this._summary?.active_run ? this._renderActiveRun() : d}
       </div>
     `;
   }
@@ -2163,11 +2355,88 @@ class Ke extends z {
         </aside>
       </div>
 
-      <button class="button danger stop-all" @click=${this._stopAll}>
-        <ha-icon icon="mdi:stop"></ha-icon>
-        Minden leállítása
-      </button>
+      ${e.active_run ? d : o`
+            <button class="button danger stop-all" @click=${this._stopAll}>
+              <ha-icon icon="mdi:stop"></ha-icon>
+              Minden leállítása
+            </button>
+          `}
     `;
+  }
+  _renderActiveRun() {
+    const e = this._summary.active_run, t = Math.max(0, e.current_index ?? 0), s = e.zones[t - 1], i = e.zones[t], a = e.zones[t + 1], n = this._remainingSeconds(e.zone_ends_at), p = e.zones.slice(t + 1).reduce((c, m) => c + m.planned_minutes * 60, 0), l = n + p, h = Math.max(1, e.total_minutes * 60), u = Math.max(
+      0,
+      Math.min(100, (h - l) / h * 100)
+    );
+    return o`
+      <aside class="active-run" ?expanded=${this._runExpanded}>
+        ${this._runExpanded ? o`
+              <div class="active-run-detail">
+                <div class="active-run-detail-head">
+                  <div>
+                    <span>Aktuális program</span>
+                    <strong>${e.program_name}</strong>
+                  </div>
+                  <button
+                    class="icon-button"
+                    aria-label="Futás részleteinek bezárása"
+                    @click=${() => this._runExpanded = !1}
+                  >
+                    <ha-icon icon="mdi:chevron-down"></ha-icon>
+                  </button>
+                </div>
+                <div class="run-countdowns">
+                  <div><span>Aktuális kör</span><strong>${this._clock(n)}</strong></div>
+                  <div><span>Program vége</span><strong>${this._clock(l)}</strong></div>
+                </div>
+                <div class="run-sequence">
+                  ${this._runStep("Előző", s)}
+                  ${this._runStep("Aktuális", i, !0)}
+                  ${this._runStep("Következő", a)}
+                </div>
+              </div>
+            ` : d}
+        <button
+          class="active-run-summary"
+          aria-expanded=${this._runExpanded}
+          @click=${() => this._runExpanded = !this._runExpanded}
+        >
+          <span class="run-pulse"></span>
+          <span>
+            <strong>${e.program_name}</strong>
+            <small>${i?.name ?? "Indítás…"} · ${this._clock(n)}</small>
+          </span>
+          <span class="run-progress-label">${Math.round(u)}%</span>
+          <ha-icon icon=${this._runExpanded ? "mdi:chevron-down" : "mdi:chevron-up"}></ha-icon>
+        </button>
+        <div class="active-run-progress"><span style=${`width:${u}%`}></span></div>
+        <div class="active-run-actions">
+          <button class="button quiet" @click=${this._skipCurrentZone}>
+            Aktuális kör kihagyása
+          </button>
+          <button class="button danger" @click=${this._stopAll}>
+            <ha-icon icon="mdi:stop"></ha-icon>
+            Leállítás
+          </button>
+        </div>
+      </aside>
+    `;
+  }
+  _runStep(e, t, s = !1) {
+    return o`
+      <div class="run-step" ?active=${s} ?empty=${!t}>
+        <span>${e}</span>
+        <strong>${t?.name ?? "—"}</strong>
+        <small>${t ? `${t.planned_minutes} perc` : ""}</small>
+      </div>
+    `;
+  }
+  _remainingSeconds(e) {
+    return e ? Math.max(0, Math.ceil((new Date(e).getTime() - this._now) / 1e3)) : 0;
+  }
+  _clock(e) {
+    const t = Math.floor(e / 60);
+    return `${String(t).padStart(2, "0")}:${String(e % 60).padStart(2, "0")}`;
   }
   _renderWeather(e) {
     if (!e)
@@ -2237,7 +2506,7 @@ class Ke extends z {
     `;
   }
   _renderZone(e) {
-    const t = this._zoneDurations[e.entity_id] ?? 15, s = e.state === "on", i = this._summary?.active_run?.current_zone === e.entity_id, a = Number(this._summary?.active_run?.current_duration ?? t), n = this._headLabel(e.profile.head_type), c = this._zoneIssueLabel(e);
+    const t = this._zoneDurations[e.entity_id] ?? 15, s = e.state === "on", i = this._summary?.active_run?.current_zone === e.entity_id, a = Number(this._summary?.active_run?.current_duration ?? t), n = this._headLabel(e.profile.head_type), p = this._zoneIssueLabel(e);
     return o`
       <div class="zone-row">
         <ha-icon icon="mdi:water"></ha-icon>
@@ -2248,7 +2517,7 @@ class Ke extends z {
           ?unavailable=${!e.available}
           title=${e.availability_issue ?? e.entity_id}
         >
-          ${s ? i ? `Fut · ${a} perc` : "Fut" : e.available ? `Tétlen · ${n}` : o`Nem elérhető <small>${c}</small>`}
+          ${s ? i ? `Fut · ${a} perc` : "Fut" : e.available ? `Tétlen · ${n}` : o`Nem elérhető <small>${p}</small>`}
         </span>
         <label class="duration">
           <input
@@ -2455,7 +2724,7 @@ class Ke extends z {
         <div class="field">
           <span class="field-label">Napok</span>
           <div class="days">
-            ${Fe.map(
+            ${qe.map(
       (s, i) => o`
                 <button
                   class="day"
@@ -2846,14 +3115,14 @@ class Ke extends z {
           <select
             .value=${t.head_type}
             @change=${(i) => {
-      const a = i.target.value, n = T.find((c) => c.value === a);
+      const a = i.target.value, n = H.find((p) => p.value === a);
       this._patchZoneProfile(e.entity_id, {
         head_type: a,
         reference_rate_mm_h: n?.rate ?? t.reference_rate_mm_h
       });
     }}
           >
-            ${T.map(
+            ${H.map(
       (i) => o`
                   <option
                     value=${i.value}
@@ -2932,8 +3201,8 @@ class Ke extends z {
           step=${i}
           placeholder=${a ? "opcionális" : ""}
           .value=${n === null ? "" : String(n)}
-          @change=${(c) => {
-      const l = c.target;
+          @change=${(p) => {
+      const l = p.target;
       this._patchZoneProfile(e.entity_id, {
         [t]: l.value === "" ? null : l.valueAsNumber
       });
@@ -2998,13 +3267,13 @@ class Ke extends z {
     }
     const i = this._zoneProfile(t.entity_id);
     if (!i) return t.duration_minutes;
-    const a = s?.max_temperature ?? 20, n = a >= 35 ? 9 : a >= 25 ? 5.5 : a >= 20 ? 4.5 : 2.5, c = e.weather_adjustment ? s?.rain_factor ?? s?.factor ?? 1 : 1, l = i.exposure === "shady" ? 0.8 : 1;
+    const a = s?.max_temperature ?? 20, n = a >= 35 ? 9 : a >= 25 ? 5.5 : a >= 20 ? 4.5 : 2.5, p = e.weather_adjustment ? s?.rain_factor ?? s?.factor ?? 1 : 1, l = i.exposure === "shady" ? 0.8 : 1;
     return Math.max(
       1,
       Math.min(
         180,
         Math.round(
-          n * c * l * 60 / this._effectiveRate(i)
+          n * p * l * 60 / this._effectiveRate(i)
         )
       )
     );
@@ -3068,7 +3337,7 @@ class Ke extends z {
     })).sort((e, t) => e.name.localeCompare(t.name, "hu"));
   }
   _formatDays(e) {
-    return e.map((t) => qe[t] ?? "").join(", ");
+    return e.map((t) => Ke[t] ?? "").join(", ");
   }
   _temperatureConditionText(e) {
     return `${e.temperature_condition_operator === "above" ? "Max. hőmérséklet >" : "Max. hőmérséklet <"} ${e.temperature_condition_value} °C`;
@@ -3080,7 +3349,7 @@ class Ke extends z {
     return e.flow_l_min !== null && e.area_m2 !== null && e.area_m2 > 0 ? e.flow_l_min * 60 / e.area_m2 : e.reference_rate_mm_h;
   }
   _headLabel(e) {
-    return T.find((t) => t.value === e)?.label ?? e;
+    return H.find((t) => t.value === e)?.label ?? e;
   }
   _formatDateTime(e) {
     return new Intl.DateTimeFormat("hu-HU", {
@@ -3141,8 +3410,8 @@ class Ke extends z {
     return e instanceof Error || typeof e == "object" && e !== null && "message" in e && typeof e.message == "string" ? e.message : "A művelet nem sikerült.";
   }
 }
-customElements.get("smart-yardian-panel") || customElements.define("smart-yardian-panel", Ke);
+customElements.get("smart-yardian-panel") || customElements.define("smart-yardian-panel", We);
 export {
-  Ke as SmartYardianPanel
+  We as SmartYardianPanel
 };
 //# sourceMappingURL=smart-yardian-panel.js.map

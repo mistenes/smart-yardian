@@ -153,7 +153,7 @@ export type Summary = {
   programs: Program[];
   history: RunRecord[];
   settings: Settings;
-  active_run: Record<string, unknown> | null;
+  active_run: ActiveRun | null;
   weather: WeatherDecision | null;
   last_error: string | null;
   next_run: string | null;
@@ -168,4 +168,26 @@ export type Summary = {
     limit: number;
     remaining: number;
   } | null;
+};
+
+export type ActiveRunZone = {
+  entity_id: string;
+  name: string;
+  planned_minutes: number;
+  outcome: "pending" | "running" | "completed" | "skipped" | "stopped";
+};
+
+export type ActiveRun = {
+  run_id: string;
+  program_id: string;
+  program_name: string;
+  started_at: string;
+  current_zone?: string;
+  current_duration?: number;
+  current_index?: number;
+  zone_started_at?: string;
+  zone_ends_at?: string;
+  total_minutes: number;
+  completed_minutes: number;
+  zones: ActiveRunZone[];
 };

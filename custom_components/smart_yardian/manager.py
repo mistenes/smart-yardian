@@ -78,6 +78,7 @@ class SmartYardianManager:
         self.openweather_quota: OpenWeatherDailyQuota | None = None
         self._run_lock = asyncio.Lock()
         self._stop_event = asyncio.Event()
+        self._skip_zone_event = asyncio.Event()
         self._listeners: set[Callable[[], None]] = set()
         self._remove_time_listener: Callable[[], None] | None = None
         self._tasks: set[asyncio.Task[Any]] = set()
@@ -696,8 +697,14 @@ class SmartYardianManager:
     ) -> None:
         """Execute the program while holding the run lock."""
         self._stop_event.clear()
+        self._skip_zone_event.clear()
         started = dt_util.utcnow()
-        zone_results: list[dict[str, Any]] = []
+        zone_results = [
+            self._zone_run_details(zone, decision) for zone in program.zones
+        ]
+        total_minutes = sum(
+            int(item["planned_minutes"]) for item in zone_results
+        )
         self.status = "running"
         self.last_error = None
         self.active_run = {
@@ -709,6 +716,8 @@ class SmartYardianManager:
             "factor": decision.factor,
             "weather_source": decision.source,
             "zones": zone_results,
+            "total_minutes": total_minutes,
+            "completed_minutes": 0,
         }
         self.store.runtime["active_run"] = self.active_run
         await self.store.async_save()
@@ -717,62 +726,38 @@ class SmartYardianManager:
         outcome = "completed"
         reason = decision.reason
         try:
-            for zone in program.zones:
+            for index, (zone, result) in enumerate(
+                zip(program.zones, zone_results, strict=True)
+            ):
                 if self._stop_event.is_set():
                     outcome = "stopped"
                     reason = "A futást a felhasználó leállította."
                     break
-                if zone.duration_mode == "reference":
-                    profile = self.zone_profile(zone.entity_id)
-                    target = seasonal_target(decision.max_temperature)
-                    duration = reference_duration_minutes(
-                        profile,
-                        decision.max_temperature,
-                        decision.rain_factor,
-                    )
-                    base_minutes = reference_duration_minutes(
-                        profile,
-                        decision.max_temperature,
-                    )
-                    calculation = {
-                        "duration_mode": "reference",
-                        "head_type": profile.head_type,
-                        "exposure": profile.exposure,
-                        "exposure_factor": profile.exposure_factor,
-                        "application_rate_mm_h": round(
-                            profile.effective_rate_mm_h, 2
-                        ),
-                        "rate_source": profile.rate_source,
-                        "target_mm": target.depth_mm,
-                        "rain_factor": decision.rain_factor,
-                    }
-                else:
-                    duration = max(
-                        1, min(180, round(zone.duration_minutes * decision.factor))
-                    )
-                    base_minutes = zone.duration_minutes
-                    calculation = {"duration_mode": "manual"}
-                result = {
-                    "entity_id": zone.entity_id,
-                    "base_minutes": base_minutes,
-                    "planned_minutes": duration,
-                    "outcome": "running",
-                    **calculation,
-                }
-                zone_results.append(result)
+                duration = int(result["planned_minutes"])
+                result["outcome"] = "running"
+                self._skip_zone_event.clear()
                 self.active_run["current_zone"] = zone.entity_id
                 self.active_run["current_duration"] = duration
+                self.active_run["current_index"] = index
                 self.active_run["zone_started_at"] = dt_util.utcnow().isoformat()
+                self.active_run["zone_ends_at"] = (
+                    dt_util.utcnow() + timedelta(minutes=duration)
+                ).isoformat()
                 await self.store.async_save()
                 self._notify_listeners()
                 await self._async_start_zone(zone.entity_id, duration)
-                stopped_early = await self._async_wait_duration(duration)
+                wait_outcome = await self._async_wait_duration(duration)
                 await self._async_stop_zone(zone.entity_id)
-                result["outcome"] = "stopped" if stopped_early else "completed"
-                if stopped_early:
+                result["outcome"] = wait_outcome
+                if wait_outcome == "stopped":
                     outcome = "stopped"
                     reason = "A futást a felhasználó leállította."
                     break
+                self.active_run["completed_minutes"] = (
+                    int(self.active_run["completed_minutes"]) + duration
+                )
+                await self.store.async_save()
+                self._notify_listeners()
         except Exception as err:  # noqa: BLE001 - device failures must become audit records
             _LOGGER.exception("Smart Yardian run failed")
             outcome = "failed"
@@ -802,6 +787,50 @@ class SmartYardianManager:
             if self.status != "error":
                 self.status = "idle"
             self._notify_listeners()
+
+    def _zone_run_details(
+        self,
+        zone: ProgramZone,
+        decision: WeatherDecision,
+    ) -> dict[str, Any]:
+        """Build one planned zone result before program execution."""
+        if zone.duration_mode == "reference":
+            profile = self.zone_profile(zone.entity_id)
+            target = seasonal_target(decision.max_temperature)
+            duration = reference_duration_minutes(
+                profile,
+                decision.max_temperature,
+                decision.rain_factor,
+            )
+            base_minutes = reference_duration_minutes(
+                profile,
+                decision.max_temperature,
+            )
+            calculation = {
+                "duration_mode": "reference",
+                "head_type": profile.head_type,
+                "exposure": profile.exposure,
+                "exposure_factor": profile.exposure_factor,
+                "application_rate_mm_h": round(profile.effective_rate_mm_h, 2),
+                "rate_source": profile.rate_source,
+                "target_mm": target.depth_mm,
+                "rain_factor": decision.rain_factor,
+            }
+        else:
+            duration = max(
+                1, min(180, round(zone.duration_minutes * decision.factor))
+            )
+            base_minutes = zone.duration_minutes
+            calculation = {"duration_mode": "manual"}
+        state = self.hass.states.get(zone.entity_id)
+        return {
+            "entity_id": zone.entity_id,
+            "name": state.name if state else zone.entity_id,
+            "base_minutes": base_minutes,
+            "planned_minutes": duration,
+            "outcome": "pending",
+            **calculation,
+        }
 
     async def async_run_manual_zone(self, entity_id: str, duration: int) -> None:
         """Run one exact-duration zone using the same global safety lock."""
@@ -858,15 +887,23 @@ class SmartYardianManager:
             await asyncio.sleep(1)
         return False
 
-    async def _async_wait_duration(self, duration_minutes: int) -> bool:
-        try:
-            await asyncio.wait_for(
-                self._stop_event.wait(),
-                timeout=duration_minutes * 60,
-            )
-            return True
-        except TimeoutError:
-            return False
+    async def _async_wait_duration(self, duration_minutes: int) -> str:
+        stop_task = asyncio.create_task(self._stop_event.wait())
+        skip_task = asyncio.create_task(self._skip_zone_event.wait())
+        done, pending = await asyncio.wait(
+            {stop_task, skip_task},
+            timeout=duration_minutes * 60,
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        for task in pending:
+            task.cancel()
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
+        if not done:
+            return "completed"
+        if stop_task in done and stop_task.result():
+            return "stopped"
+        return "skipped"
 
     async def _async_wait_for_external_irrigation(self) -> None:
         deadline = asyncio.get_running_loop().time() + MAX_QUEUE_DELAY_SECONDS
@@ -896,6 +933,13 @@ class SmartYardianManager:
                 target={ATTR_ENTITY_ID: active},
                 blocking=True,
             )
+        self._notify_listeners()
+
+    async def async_skip_current_zone(self) -> None:
+        """Stop only the current zone and continue with the next one."""
+        if not self.active_run or not self.active_run.get("current_zone"):
+            raise ValueError("Nincs kihagyható, aktív öntözési kör.")
+        self._skip_zone_event.set()
         self._notify_listeners()
 
     async def _async_record_skip(

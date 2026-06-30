@@ -185,6 +185,8 @@ let automationEnabled = true;
 const forceUnavailable =
   new URLSearchParams(window.location.search).get("yardian_state") === "unavailable";
 let runningEntity: string = forceUnavailable ? "" : (zones[3]?.[0] ?? "");
+const runningIndex = (): number =>
+  Math.max(0, zones.findIndex(([entityId]) => entityId === runningEntity));
 
 const nextRun = (): string => {
   const next = new Date();
@@ -260,10 +262,28 @@ const summary = (): Summary => ({
   },
   active_run: runningEntity
     ? {
+        run_id: "dev-run",
+        program_id: "morning",
         program_name: "Reggeli kert",
+        started_at: new Date(Date.now() - 18 * 60 * 1000).toISOString(),
         current_zone: runningEntity,
         current_duration: 20,
+        current_index: runningIndex(),
         zone_started_at: new Date(Date.now() - 8 * 60 * 1000).toISOString(),
+        zone_ends_at: new Date(Date.now() + 12 * 60 * 1000).toISOString(),
+        total_minutes: 72,
+        completed_minutes: 32,
+        zones: zones.slice(0, 5).map(([entity_id, name], index) => ({
+          entity_id,
+          name,
+          planned_minutes: [12, 10, 10, 20, 20][index] ?? 15,
+          outcome:
+            index < runningIndex()
+              ? "completed"
+              : index === runningIndex()
+                ? "running"
+                : "pending",
+        })),
       }
     : null,
   weather: {
@@ -439,6 +459,9 @@ const hass: Hass = {
         }
       }
       if (type === "smart_yardian/run/zone") runningEntity = String(message.entity_id);
+      if (type === "smart_yardian/run/skip_current_zone") {
+        runningEntity = zones[4]?.[0] ?? "";
+      }
       if (type === "smart_yardian/run/stop") runningEntity = "";
       await new Promise((resolve) => window.setTimeout(resolve, 80));
       return undefined as T;

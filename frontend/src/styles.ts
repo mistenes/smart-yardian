@@ -526,6 +526,165 @@ export const panelStyles = css`
     margin-top: 18px;
   }
 
+  .shell:has(.active-run) .content {
+    padding-bottom: 112px;
+  }
+
+  .active-run {
+    position: fixed;
+    z-index: 10;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    max-width: 1180px;
+    margin: 0 auto;
+    color: var(--sy-text);
+    background: var(--sy-surface);
+    border: 1px solid var(--sy-border);
+    border-bottom: 0;
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -8px 28px rgb(0 0 0 / 16%);
+  }
+
+  .active-run-summary {
+    display: grid;
+    width: 100%;
+    min-height: 58px;
+    padding: 9px 14px;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 10px;
+    color: inherit;
+    background: transparent;
+    border: 0;
+    text-align: left;
+  }
+
+  .active-run-summary > span:nth-child(2) {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+  }
+
+  .active-run-summary strong,
+  .active-run-summary small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .active-run-summary small,
+  .run-progress-label {
+    color: var(--sy-muted);
+  }
+
+  .run-pulse {
+    width: 10px;
+    height: 10px;
+    background: var(--sy-green);
+    border-radius: 50%;
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--sy-green) 18%, transparent);
+  }
+
+  .active-run-progress {
+    height: 3px;
+    background: color-mix(in srgb, var(--sy-blue) 15%, transparent);
+  }
+
+  .active-run-progress span {
+    display: block;
+    height: 100%;
+    background: var(--sy-blue);
+    transition: width 1s linear;
+  }
+
+  .active-run-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 8px 14px calc(8px + env(safe-area-inset-bottom));
+  }
+
+  .active-run-detail {
+    padding: 16px 16px 8px;
+    border-bottom: 1px solid var(--sy-border);
+  }
+
+  .active-run-detail-head,
+  .active-run-detail-head > div {
+    display: flex;
+    align-items: center;
+  }
+
+  .active-run-detail-head {
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .active-run-detail-head > div {
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .active-run-detail-head span,
+  .run-countdowns span,
+  .run-step > span,
+  .run-step small {
+    color: var(--sy-muted);
+    font-size: 11px;
+  }
+
+  .run-countdowns {
+    display: grid;
+    margin-top: 14px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .run-countdowns > div {
+    display: grid;
+    gap: 3px;
+    padding: 10px 12px;
+    background: var(--sy-blue-soft);
+    border-radius: 8px;
+  }
+
+  .run-countdowns strong {
+    font-size: 22px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .run-sequence {
+    display: grid;
+    margin-top: 12px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .run-step {
+    display: grid;
+    min-width: 0;
+    gap: 3px;
+    padding: 10px;
+    border: 1px solid var(--sy-border);
+    border-radius: 8px;
+  }
+
+  .run-step[active] {
+    border-color: var(--sy-blue);
+    background: var(--sy-blue-soft);
+  }
+
+  .run-step[empty] {
+    opacity: 0.55;
+  }
+
+  .run-step strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .page-head {
     min-height: 48px;
     display: flex;
@@ -1207,6 +1366,25 @@ export const panelStyles = css`
   }
 
   @media (max-width: 600px) {
+    .active-run {
+      width: auto;
+      right: 8px;
+      left: 8px;
+    }
+
+    .active-run-actions > button {
+      flex: 1;
+    }
+
+    .run-sequence {
+      grid-template-columns: 1fr;
+    }
+
+    .run-step {
+      grid-template-columns: 70px minmax(0, 1fr) auto;
+      align-items: center;
+    }
+
     .topbar {
       min-height: 54px;
     }

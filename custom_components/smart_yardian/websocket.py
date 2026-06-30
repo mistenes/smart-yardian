@@ -216,6 +216,24 @@ async def websocket_stop(
 
 
 @websocket_api.websocket_command(
+    {vol.Required("type"): f"{WS_PREFIX}/run/skip_current_zone"}
+)
+@websocket_api.async_response
+async def websocket_skip_current_zone(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Stop the active zone while allowing the program to continue."""
+    try:
+        await _manager(hass).async_skip_current_zone()
+    except ValueError as err:
+        connection.send_error(msg["id"], "no_active_zone", str(err))
+        return
+    connection.send_result(msg["id"])
+
+
+@websocket_api.websocket_command(
     {
         vol.Required("type"): f"{WS_PREFIX}/program/skip_next",
         vol.Required("program_id"): str,
@@ -268,6 +286,7 @@ COMMANDS = (
     websocket_run_program,
     websocket_run_zone,
     websocket_stop,
+    websocket_skip_current_zone,
     websocket_skip_next,
     websocket_pause_until,
 )
