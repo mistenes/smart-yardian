@@ -3667,7 +3667,7 @@ class Je extends z {
     }
     try {
       const t = await Ne(this.hass);
-      this._summary = t, !this._expandedControllers.length && t.controllers[0] && (this._expandedControllers = [t.controllers[0].id]), this._error = "", !t.weather && e && (t.weather = await Te(this.hass), this._summary = { ...t }), this._tab === "programs" && !this._draft && this._selectFirstProgram();
+      this._summary = t, !this._expandedControllers.length && t.controllers[0] && (this._expandedControllers = [t.controllers[0].id]), this._error = "", (e || !t.weather) && (t.weather = await Te(this.hass), this._summary = { ...t }), this._tab === "programs" && !this._draft && this._selectFirstProgram();
     } catch (t) {
       this._error = this._errorMessage(t);
     } finally {

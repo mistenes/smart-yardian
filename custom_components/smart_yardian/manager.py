@@ -45,6 +45,7 @@ from .weather import (
     WeatherUnavailableError,
     evaluate_green_lawn,
     forecast_day_max_temperature,
+    is_plausible_celsius,
     normalize_ha_forecast,
 )
 
@@ -1098,9 +1099,14 @@ class SmartYardianManager:
             controller["available"] = controller["available_zone_count"] > 0
 
         next_run = self.next_run()
+        weather_decision = self.last_decision
+        if weather_decision and not is_plausible_celsius(
+            weather_decision.max_temperature
+        ):
+            weather_decision = None
         target = (
-            seasonal_target(self.last_decision.max_temperature).as_dict()
-            if self.last_decision
+            seasonal_target(weather_decision.max_temperature).as_dict()
+            if weather_decision
             else None
         )
         return {
@@ -1112,7 +1118,7 @@ class SmartYardianManager:
             "history": list(reversed(self.store.history[-20:])),
             "settings": self.store.settings,
             "active_run": self.active_run,
-            "weather": self.last_decision.as_dict() if self.last_decision else None,
+            "weather": weather_decision.as_dict() if weather_decision else None,
             "last_error": self.last_error,
             "next_run": next_run.isoformat() if next_run else None,
             "seasonal_target": target,

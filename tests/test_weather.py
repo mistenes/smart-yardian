@@ -11,6 +11,7 @@ from custom_components.smart_yardian.weather import (
     WeatherUnavailableError,
     evaluate_green_lawn,
     forecast_day_max_temperature,
+    is_plausible_celsius,
     normalize_ha_forecast,
     normalize_openweather,
 )
@@ -119,3 +120,8 @@ def test_idokep_implausible_temperature_triggers_fallback() -> None:
                 }
             ]
         )
+
+
+def test_temperature_plausibility_guard() -> None:
+    assert is_plausible_celsius(36.9)
+    assert not is_plausible_celsius(297.8)

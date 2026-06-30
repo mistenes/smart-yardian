@@ -1473,7 +1473,7 @@ export class SmartYardianPanel extends LitElement {
         this._expandedControllers = [summary.controllers[0].id];
       }
       this._error = "";
-      if (!summary.weather && initial) {
+      if (initial || !summary.weather) {
         summary.weather = await previewWeather(this.hass);
         this._summary = { ...summary };
       }

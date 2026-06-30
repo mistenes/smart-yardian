@@ -64,10 +64,15 @@ def _as_float(value: Any, default: float = 0.0) -> float:
         return default
 
 
+def is_plausible_celsius(value: float) -> bool:
+    """Return whether a temperature is credible for an outdoor forecast."""
+    return -60 <= value <= 60
+
+
 def _ha_celsius_temperature(value: Any) -> float:
     """Validate a Home Assistant forecast value declared as Celsius."""
     temperature = _as_float(value)
-    if not -60 <= temperature <= 60:
+    if not is_plausible_celsius(temperature):
         raise WeatherUnavailableError(
             f"Az Időkép érvénytelen hőmérsékletet adott: {temperature:g} °C."
         )
