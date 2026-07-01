@@ -40,6 +40,7 @@ from .weather import (
     evaluate_calendar_day,
     is_plausible_celsius,
     normalize_ha_forecast,
+    rebase_idokep_timeline,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -239,7 +240,10 @@ class SmartYardianManager:
             return_response=True,
         )
         items = (response or {}).get(weather_entity, {}).get("forecast", [])
-        forecast = normalize_ha_forecast(items)
+        forecast = rebase_idokep_timeline(
+            normalize_ha_forecast(items),
+            dt_util.now(),
+        )
         if not forecast:
             raise WeatherUnavailableError(
                 "Az Időkép nem adott használható órás előrejelzést."

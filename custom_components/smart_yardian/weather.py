@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 from typing import Any
 
 from .const import FORECAST_HORIZON_HOURS, MIN_FORECAST_HOURS
@@ -87,6 +87,50 @@ def normalize_ha_forecast(items: Iterable[dict[str, Any]]) -> list[ForecastHour]
         except (KeyError, TypeError, ValueError):
             continue
     return normalized
+
+
+def rebase_idokep_timeline(
+    forecast: Iterable[ForecastHour],
+    now: datetime,
+) -> list[ForecastHour]:
+    """Rebuild Időkép dates from its ordered hourly card sequence."""
+    hours = list(forecast)
+    if not hours:
+        return []
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=UTC)
+    timezone = now.tzinfo
+    current_hour = now.hour
+
+    start_index = next(
+        (
+            index
+            for index, hour in enumerate(hours)
+            if hour.timestamp.astimezone(timezone).hour >= current_hour
+        ),
+        None,
+    )
+    if start_index is None:
+        selected = hours
+        current_date = now.date() + timedelta(days=1)
+    else:
+        selected = hours[start_index:]
+        current_date = now.date()
+
+    rebased: list[ForecastHour] = []
+    previous_hour: int | None = None
+    for hour in selected:
+        local = hour.timestamp.astimezone(timezone)
+        if previous_hour is not None and local.hour < previous_hour:
+            current_date += timedelta(days=1)
+        timestamp = datetime.combine(
+            current_date,
+            time(local.hour, local.minute),
+            tzinfo=timezone,
+        )
+        rebased.append(replace(hour, timestamp=timestamp))
+        previous_hour = local.hour
+    return rebased
 
 
 def _is_rainy(hour: ForecastHour) -> bool:

@@ -14,6 +14,7 @@ from custom_components.smart_yardian.weather import (
     forecast_day_max_temperature,
     is_plausible_celsius,
     normalize_ha_forecast,
+    rebase_idokep_timeline,
 )
 
 NOW = datetime(2026, 7, 1, 4, 0, tzinfo=UTC)
@@ -145,6 +146,63 @@ def test_calendar_day_requires_at_least_one_hour_for_that_date() -> None:
             "Időkép",
             NOW + timedelta(days=3),
         )
+
+
+def test_idokep_timeline_rebuilds_today_after_hidden_past_hours() -> None:
+    local_now = datetime(2026, 7, 1, 6, 9, tzinfo=UTC)
+    raw = [
+        ForecastHour(
+            timestamp=datetime(2026, 7, 2, hour, tzinfo=UTC),
+            temperature=20 + hour,
+            precipitation_mm=0,
+            precipitation_probability=0,
+            condition="sunny",
+        )
+        for hour in range(24)
+    ] + [
+        ForecastHour(
+            timestamp=datetime(2026, 7, 3, hour, tzinfo=UTC),
+            temperature=18,
+            precipitation_mm=0,
+            precipitation_probability=0,
+            condition="cloudy",
+        )
+        for hour in range(6)
+    ]
+
+    rebased = rebase_idokep_timeline(raw, local_now)
+
+    assert rebased[0].timestamp.isoformat() == "2026-07-01T06:00:00+00:00"
+    assert rebased[17].timestamp.isoformat() == "2026-07-01T23:00:00+00:00"
+    assert rebased[18].timestamp.isoformat() == "2026-07-02T00:00:00+00:00"
+
+
+def test_idokep_timeline_keeps_normal_current_hour_sequence() -> None:
+    local_now = datetime(2026, 7, 1, 6, 9, tzinfo=UTC)
+    raw = [
+        ForecastHour(
+            timestamp=local_now.replace(hour=hour, minute=0),
+            temperature=25,
+            precipitation_mm=0,
+            precipitation_probability=0,
+            condition="sunny",
+        )
+        for hour in range(7, 24)
+    ] + [
+        ForecastHour(
+            timestamp=datetime(2026, 7, 2, hour, tzinfo=UTC),
+            temperature=20,
+            precipitation_mm=0,
+            precipitation_probability=0,
+            condition="cloudy",
+        )
+        for hour in range(6)
+    ]
+
+    rebased = rebase_idokep_timeline(raw, local_now)
+
+    assert rebased[0].timestamp.isoformat() == "2026-07-01T07:00:00+00:00"
+    assert rebased[-1].timestamp.isoformat() == "2026-07-02T05:00:00+00:00"
 
 
 def test_idokep_implausible_temperature_is_rejected() -> None:
