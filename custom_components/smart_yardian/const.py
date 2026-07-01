@@ -13,7 +13,8 @@ CONF_NOTIFY_SERVICE: Final = "notify_service"
 
 PANEL_URL: Final = "smart-yardian"
 PANEL_COMPONENT: Final = "smart-yardian-panel"
-PANEL_MODULE_URL: Final = "/smart_yardian/smart-yardian-panel.js"
+PANEL_STATIC_URL: Final = "/smart_yardian/smart-yardian-panel.js"
+PANEL_MODULE_URL: Final = f"{PANEL_STATIC_URL}?v=0.11.2"
 
 STORE_VERSION: Final = 1
 STORE_KEY_PREFIX: Final = "smart_yardian"

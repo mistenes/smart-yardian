@@ -8,7 +8,12 @@ from homeassistant.components import frontend, panel_custom
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import HomeAssistant
 
-from .const import PANEL_COMPONENT, PANEL_MODULE_URL, PANEL_URL
+from .const import (
+    PANEL_COMPONENT,
+    PANEL_MODULE_URL,
+    PANEL_STATIC_URL,
+    PANEL_URL,
+)
 
 
 async def async_register_panel(
@@ -20,7 +25,7 @@ async def async_register_panel(
     bundle = Path(__file__).parent / "frontend" / "smart-yardian-panel.js"
     if register_static:
         await hass.http.async_register_static_paths(
-            [StaticPathConfig(PANEL_MODULE_URL, str(bundle), False)]
+            [StaticPathConfig(PANEL_STATIC_URL, str(bundle), False)]
         )
     await panel_custom.async_register_panel(
         hass,
