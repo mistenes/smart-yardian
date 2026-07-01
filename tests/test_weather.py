@@ -14,7 +14,6 @@ from custom_components.smart_yardian.weather import (
     forecast_day_max_temperature,
     is_plausible_celsius,
     normalize_ha_forecast,
-    normalize_openweather,
 )
 
 NOW = datetime(2026, 7, 1, 4, 0, tzinfo=UTC)
@@ -53,10 +52,21 @@ def test_green_lawn_skips_heavy_rain() -> None:
     assert "kimarad" in decision.reason
 
 
+def test_rainy_conditions_without_precipitation_do_not_skip() -> None:
+    decision = evaluate_green_lawn(
+        forecast(precipitation=0, probability=90, rainy_hours=6),
+        "Időkép",
+        NOW,
+    )
+
+    assert decision.factor > 0
+    assert decision.precipitation_mm == 0
+
+
 def test_green_lawn_increases_hot_sunny_day() -> None:
     decision = evaluate_green_lawn(
         forecast(temperature=33, cloud_cover=5),
-        "OpenWeather 4.0",
+        "Időkép",
         NOW,
     )
     assert decision.factor == 1.35
@@ -91,71 +101,17 @@ def test_day_max_includes_hours_before_program_start() -> None:
 
 def test_calendar_day_decision_is_identical_for_every_program_time() -> None:
     hours = forecast(temperature=32, precipitation=3, probability=75)
-    early = evaluate_calendar_day(hours, "OpenWeather 4.0", NOW)
+    early = evaluate_calendar_day(hours, "Időkép", NOW)
     later = evaluate_calendar_day(
         hours,
-        "OpenWeather 4.0",
+        "Időkép",
         NOW + timedelta(hours=12),
     )
 
     assert early.as_dict() == later.as_dict()
 
 
-def test_openweather_normalization() -> None:
-    normalized = normalize_openweather(
-        [
-            {
-                "dt": int(NOW.timestamp()),
-                "temp": 28.5,
-                "pop": 0.42,
-                "clouds": 25,
-                "rain": {"1h": 0.7},
-                "weather": [{"main": "Rain", "icon": "10d"}],
-            }
-        ]
-    )
-    assert normalized[0].temperature == 28.5
-    assert normalized[0].precipitation_probability == 42
-    assert normalized[0].precipitation_mm == 0.7
-    assert normalized[0].is_daylight is True
-
-
-def test_openweather_kelvin_page_is_converted_to_celsius() -> None:
-    normalized = normalize_openweather(
-        [
-            {
-                "dt": int(NOW.timestamp()),
-                "temp": 304.2,
-                "pop": 0,
-                "clouds": 10,
-                "weather": [{"main": "Clear", "icon": "01d"}],
-            }
-        ]
-    )
-
-    assert normalized[0].temperature == pytest.approx(31.05)
-
-
-def test_openweather_mixed_unit_pages_keep_correct_maximum() -> None:
-    normalized = normalize_openweather(
-        [
-            {
-                "dt": int(NOW.timestamp()),
-                "temp": 36.9,
-                "weather": [{"main": "Clear", "icon": "01d"}],
-            },
-            {
-                "dt": int((NOW + timedelta(hours=1)).timestamp()),
-                "temp": 304.2,
-                "weather": [{"main": "Clear", "icon": "01d"}],
-            },
-        ]
-    )
-
-    assert max(hour.temperature for hour in normalized) == 36.9
-
-
-def test_idokep_implausible_temperature_triggers_fallback() -> None:
+def test_idokep_implausible_temperature_is_rejected() -> None:
     with pytest.raises(WeatherUnavailableError, match="297.8 °C"):
         normalize_ha_forecast(
             [

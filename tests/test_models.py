@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from custom_components.smart_yardian.models import IrrigationProgram
+from custom_components.smart_yardian.models import IrrigationProgram, RunRecord
 
 
 def test_program_roundtrip_preserves_zone_order() -> None:
@@ -124,3 +124,32 @@ def test_program_rejects_duplicate_zone() -> None:
                 ],
             }
         )
+
+
+def test_run_record_preserves_weather_decision_snapshot() -> None:
+    record = RunRecord(
+        run_id="run-1",
+        program_id="program-1",
+        program_name="Általános öntözés",
+        scheduled_at="2026-07-01T02:00:00+02:00",
+        started_at=None,
+        completed_at="2026-07-01T02:00:01+02:00",
+        outcome="skipped",
+        reason="Eső miatt kimarad.",
+        factor=0,
+        weather_source="Időkép",
+        zones=[],
+        weather={
+            "precipitation_mm": 2.9,
+            "max_probability": 92,
+            "rainy_hours": 3,
+            "max_temperature": 32,
+        },
+    )
+
+    assert record.as_dict()["weather"] == {
+        "precipitation_mm": 2.9,
+        "max_probability": 92,
+        "rainy_hours": 3,
+        "max_temperature": 32,
+    }

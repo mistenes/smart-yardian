@@ -92,6 +92,7 @@ export type RunRecord = {
   factor: number;
   weather_source: string;
   zones: Array<Record<string, unknown>>;
+  weather?: WeatherDecision | null;
 };
 
 export type ScheduleStatus =
@@ -161,12 +162,6 @@ export type Summary = {
     depth_mm: number;
     cadence: string;
     label: string;
-  } | null;
-  openweather_quota: {
-    date: string;
-    count: number;
-    limit: number;
-    remaining: number;
   } | null;
 };
 

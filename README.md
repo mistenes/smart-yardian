@@ -6,7 +6,7 @@ Időjárás-alapú, magyar nyelvű öntözésvezérlő Home Assistant 2026.6+ re
 
 - több Yardian vezérlő és dinamikusan bővíthető zónalista;
 - Yardian-szerű heti programok, soros végrehajtással;
-- elsődleges Időkép előrejelzés, OpenWeather One Call API 4.0 fallback;
+- egységes, kizárólag Időkép-alapú napi előrejelzés;
 - átlátható, 0–150%-os időjárási korrekció;
 - zónánként választható manuális vagy szórófej-referencia alapján számolt idő;
 - programonként opcionális hőmérséklet-feltétel a program naptári napjának
@@ -34,12 +34,10 @@ Időjárás-alapú, magyar nyelvű öntözésvezérlő Home Assistant 2026.6+ re
 2. HACS-ban add hozzá ezt a repositoryt egyéni integrációként, majd telepítsd.
 3. Telepítsd és állítsd be az
    [Időkép integrációt](https://github.com/rinyakok/homeassistant_idokep).
-4. Aktiváld az OpenWeather **One Call by Call 4.0** csomagot, és készíts API-kulcsot.
-5. Indítsd újra a Home Assistantot, majd a **Beállítások → Eszközök és
+4. Indítsd újra a Home Assistantot, majd a **Beállítások → Eszközök és
    szolgáltatások → Integráció hozzáadása** menüben válaszd a **Smart Yardian**
    integrációt.
-6. Válaszd ki az Időkép weather entitást, a Yardian zónákat, és add meg az
-   OpenWeather API-kulcsot.
+5. Válaszd ki az Időkép weather entitást és a Yardian zónákat.
 
 Az integráció ezután **Öntözés** néven megjelenik az oldalsávban.
 
@@ -100,20 +98,12 @@ hőmérséklet-feltételt. A számítás csak előnézet, nem indít Yardian zó
 
 Egy naptári nap minden programja közös napi időjárási döntést használ. Ha az
 Időkép nem ad legalább 12 használható órát az adott nap egészéhez, akkor az
-adott nap összes programja OpenWeather 4.0-ra vált. Emiatt ugyanazon a napon
-nem jelenhet meg eltérő csapadék, maximum vagy időjárásforrás programonként.
+adott nap időjárásfüggő programjai biztonsági okból nem indulnak el. Emiatt
+ugyanazon a napon nem jelenhet meg eltérő csapadék, maximum vagy
+időjárásforrás programonként.
 
-Távolabbi napnál csak akkor jelenik meg konkrét futási idő, ha az Időkép vagy
-az OpenWeather legalább 12 használható órát ad az adott program időpontjától.
-
-## OpenWeather híváskorlát
-
-Az OpenWeather-válasz 30 percig gyorsítótárazott. Az órás 4.0 végpont
-20 rekordos oldalait legfeljebb két kérésből fűzzük össze, ezért normál
-működésben legfeljebb 96 valódi kérés történhet naponta. Ezen felül egy HA-szinten közös,
-tartós számláló minden valódi HTTP-kérés előtt lefoglal egy hívást. A 200.
-hívás után további OpenWeather-kérés az adott UTC-napon nem indul el, HA
-újraindítása után sem. A mai felhasználás a **Beállítások** oldalon látható.
+Távolabbi napnál csak akkor jelenik meg konkrét futási idő, ha az Időkép
+legalább 12 használható órát ad az adott naptári naphoz.
 
 ## Ha a Yardian zóna „Nem elérhető”
 

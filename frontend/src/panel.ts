@@ -589,8 +589,8 @@ export class SmartYardianPanel extends LitElement {
           <h2>Következő 3 nap</h2>
           <div class="subtle">
             Egy napon belül minden program ugyanazt a napi előrejelzést
-            használja. Elsődleges az Időkép; ha az egész naphoz nem elég
-            megbízható, az adott nap minden programja OpenWeatherre vált.
+            használja. Ha az Időkép nem ad legalább 12 megbízható órát,
+            az adott nap időjárásfüggő programjai biztonságosan nem indulnak el.
           </div>
         </div>
         <button
@@ -1154,7 +1154,25 @@ export class SmartYardianPanel extends LitElement {
                         </td>
                         <td>${Math.round(record.factor * 100)}%</td>
                         <td>${record.weather_source}</td>
-                        <td class="reason-cell">${record.reason}</td>
+                        <td class="reason-cell">
+                          <div>${record.reason}</div>
+                          ${record.weather
+                            ? html`
+                                <div class="history-weather">
+                                  Döntéskor:
+                                  ${record.weather.precipitation_mm ?? 0} mm ·
+                                  ${record.weather.max_probability ?? 0}% ·
+                                  ${record.weather.rainy_hours ?? 0} esős óra ·
+                                  ${record.weather.max_temperature ?? "–"} °C
+                                  ${record.weather.evaluated_at
+                                    ? html` · ${this._formatDateTime(
+                                        record.weather.evaluated_at,
+                                      )}`
+                                    : nothing}
+                                </div>
+                              `
+                            : nothing}
+                        </td>
                       </tr>
                     `,
                   )}
@@ -1240,14 +1258,6 @@ export class SmartYardianPanel extends LitElement {
           <div class="setting-row">
             <span>Legutóbbi aktuális számítás forrása</span>
             <strong>${this._summary!.weather?.source ?? "Nincs értékelés"}</strong>
-          </div>
-          <div class="setting-row">
-            <span>OpenWeather API-hívások ma</span>
-            <strong>
-              ${this._summary!.openweather_quota
-                ? `${this._summary!.openweather_quota.count} / ${this._summary!.openweather_quota.limit}`
-                : "Nincs adat"}
-            </strong>
           </div>
         </section>
       </div>

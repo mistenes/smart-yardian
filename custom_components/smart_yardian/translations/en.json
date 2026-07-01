@@ -4,30 +4,22 @@
     "step": {
       "user": {
         "title": "Set up Smart Yardian",
-        "description": "Select the Időkép weather entity and Yardian zones, then enter an OpenWeather One Call API 4.0 key.",
+        "description": "Select the Időkép weather entity and Yardian zones.",
         "data": {
           "weather_entity": "Időkép weather entity",
           "zone_entities": "Yardian zones",
-          "openweather_api_key": "OpenWeather 4.0 API key",
-          "latitude": "Latitude",
-          "longitude": "Longitude",
           "notify_service": "Mobile notification service (optional)"
         }
       },
       "reconfigure": {
         "title": "Reconfigure Smart Yardian",
+        "description": "Change the Yardian zones or Időkép weather source.",
         "data": {
           "weather_entity": "Időkép weather entity",
           "zone_entities": "Yardian zones",
-          "openweather_api_key": "OpenWeather 4.0 API key",
-          "latitude": "Latitude",
-          "longitude": "Longitude",
           "notify_service": "Mobile notification service (optional)"
         }
       }
-    },
-    "error": {
-      "cannot_connect": "The OpenWeather API key could not be validated."
     },
     "abort": {
       "already_configured": "Smart Yardian is already configured.",

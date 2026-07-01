@@ -15,15 +15,11 @@ from homeassistant.const import ATTR_ENTITY_ID, STATE_ON
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.util import dt as dt_util
 
 from .const import (
-    CONF_LATITUDE,
-    CONF_LONGITUDE,
     CONF_NOTIFY_SERVICE,
-    CONF_OPENWEATHER_API_KEY,
     CONF_WEATHER_ENTITY,
     CONF_ZONE_ENTITIES,
     DOMAIN,
@@ -38,10 +34,8 @@ from .irrigation import (
 )
 from .models import ForecastHour, IrrigationProgram, ProgramZone, RunRecord, WeatherDecision
 from .planning import upcoming_occurrences
-from .quota import OpenWeatherDailyQuota, async_get_openweather_quota
 from .storage import SmartYardianStore
 from .weather import (
-    OpenWeatherClient,
     WeatherUnavailableError,
     evaluate_calendar_day,
     evaluate_green_lawn,
@@ -67,17 +61,10 @@ class SmartYardianManager:
         self.entry_id = entry_id
         self.config = config
         self.store = SmartYardianStore(hass, entry_id)
-        self.weather = OpenWeatherClient(
-            async_get_clientsession(hass),
-            config[CONF_OPENWEATHER_API_KEY],
-            float(config[CONF_LATITUDE]),
-            float(config[CONF_LONGITUDE]),
-        )
         self.status = "idle"
         self.active_run: dict[str, Any] | None = None
         self.last_decision: WeatherDecision | None = None
         self.last_error: str | None = None
-        self.openweather_quota: OpenWeatherDailyQuota | None = None
         self._run_lock = asyncio.Lock()
         self._stop_event = asyncio.Event()
         self._skip_zone_event = asyncio.Event()
@@ -93,8 +80,6 @@ class SmartYardianManager:
     async def async_setup(self) -> None:
         """Load storage, recover interrupted work and start scheduler."""
         await self.store.async_load()
-        self.openweather_quota = await async_get_openweather_quota(self.hass)
-        self.weather.set_before_request(self.openweather_quota.async_reserve)
         added_profiles = False
         for entity_id in self.zone_entities:
             if entity_id not in self.store.zone_profiles:
@@ -122,6 +107,7 @@ class SmartYardianManager:
                 factor=float(interrupted.get("factor") or 1),
                 weather_source=str(interrupted.get("weather_source") or "ismeretlen"),
                 zones=list(interrupted.get("zones") or []),
+                weather=interrupted.get("weather"),
             )
             self.store.runtime.pop("active_run", None)
             await self.store.async_add_history(record.as_dict())
@@ -216,9 +202,8 @@ class SmartYardianManager:
         self,
         scheduled_at: datetime | None = None,
     ) -> WeatherDecision:
-        """Evaluate Időkép first and OpenWeather 4.0 second."""
+        """Evaluate the configured Időkép hourly forecast."""
         now = dt_util.utcnow()
-        idokep_error = "Az Időkép entitás nem érhető el."
 
         try:
             forecast = await self._async_idokep_forecast()
@@ -240,29 +225,8 @@ class SmartYardianManager:
             self._notify_listeners()
             return decision
         except (KeyError, TypeError, ValueError, WeatherUnavailableError) as err:
-            idokep_error = str(err)
-
-        try:
-            forecast = await self.weather.async_fetch()
-            decision = evaluate_green_lawn(
-                forecast,
-                "OpenWeather 4.0",
-                now=now,
-                settings=self.store.settings,
-            )
-            if scheduled_at is not None:
-                decision = replace(
-                    decision,
-                    max_temperature=forecast_day_max_temperature(
-                        forecast, scheduled_at
-                    ),
-                )
-            self.last_decision = decision
-            self.last_error = None
-            self._notify_listeners()
-            return decision
-        except WeatherUnavailableError as err:
-            self.last_error = f"Időkép: {idokep_error} OpenWeather: {err}"
+            self.last_decision = None
+            self.last_error = f"Időkép: {err}"
             self._notify_listeners()
             raise WeatherUnavailableError(self.last_error) from err
 
@@ -324,9 +288,6 @@ class SmartYardianManager:
         except (KeyError, TypeError, ValueError, WeatherUnavailableError) as err:
             idokep_error = str(err)
 
-        openweather_forecast: list[ForecastHour] | None = None
-        openweather_error = "Az OpenWeather nem érhető el."
-        openweather_loaded = False
         day_decisions: dict[str, WeatherDecision | None] = {}
         day_errors: dict[str, str] = {}
 
@@ -349,7 +310,6 @@ class SmartYardianManager:
         for day_key, scheduled_at in weather_days.items():
             decision: WeatherDecision | None = None
             idokep_day_error = idokep_error
-            openweather_day_error = openweather_error
 
             if idokep_forecast is not None:
                 try:
@@ -362,31 +322,9 @@ class SmartYardianManager:
                 except WeatherUnavailableError as err:
                     idokep_day_error = str(err)
 
-            if decision is None:
-                if not openweather_loaded:
-                    openweather_loaded = True
-                    try:
-                        openweather_forecast = await self.weather.async_fetch()
-                    except WeatherUnavailableError as err:
-                        openweather_error = str(err)
-                openweather_day_error = openweather_error
-                if openweather_forecast is not None:
-                    try:
-                        decision = evaluate_calendar_day(
-                            openweather_forecast,
-                            "OpenWeather 4.0",
-                            scheduled_at,
-                            settings=self.store.settings,
-                        )
-                    except WeatherUnavailableError as err:
-                        openweather_day_error = str(err)
-
             day_decisions[day_key] = decision
             if decision is None:
-                day_errors[day_key] = (
-                    f"Időkép: {idokep_day_error} "
-                    f"OpenWeather: {openweather_day_error}"
-                )
+                day_errors[day_key] = f"Időkép: {idokep_day_error}"
 
         skip_next_consumed: set[str] = set()
 
@@ -477,7 +415,9 @@ class SmartYardianManager:
         """Calculate one zone without starting hardware."""
         state = self.hass.states.get(zone.entity_id)
         duration: int | None
-        if zone.duration_mode == "reference":
+        if apply_weather and decision is not None and decision.factor == 0:
+            duration = 0
+        elif zone.duration_mode == "reference":
             duration = (
                 reference_duration_minutes(
                     self.zone_profile(zone.entity_id),
@@ -758,6 +698,7 @@ class SmartYardianManager:
             "started_at": started.isoformat(),
             "factor": decision.factor,
             "weather_source": decision.source,
+            "weather": decision.as_dict(),
             "zones": zone_results,
             "total_minutes": total_minutes,
             "completed_minutes": 0,
@@ -823,6 +764,7 @@ class SmartYardianManager:
                 factor=decision.factor,
                 weather_source=decision.source,
                 zones=zone_results,
+                weather=decision.as_dict(),
             )
             self.store.runtime.pop("active_run", None)
             await self.store.async_add_history(record.as_dict())
@@ -1004,6 +946,7 @@ class SmartYardianManager:
             factor=decision.factor if decision else 0,
             weather_source=decision.source if decision else "nem elérhető",
             zones=[],
+            weather=decision.as_dict() if decision else None,
         )
         await self.store.async_add_history(record.as_dict())
         await self.async_notify(reason, f"{program.name} kihagyva")
@@ -1138,11 +1081,6 @@ class SmartYardianManager:
             "last_error": self.last_error,
             "next_run": next_run.isoformat() if next_run else None,
             "seasonal_target": target,
-            "openweather_quota": (
-                self.openweather_quota.as_dict()
-                if self.openweather_quota
-                else None
-            ),
         }
 
     @staticmethod

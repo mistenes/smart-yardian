@@ -177,6 +177,18 @@ const history: RunRecord[] = [
     reason: "Eső miatt kihagyva.",
     factor: 0,
     weather_source: "Időkép",
+    weather: {
+      factor: 0,
+      percent: 0,
+      source: "Időkép",
+      precipitation_mm: 5.8,
+      max_probability: 88,
+      max_temperature: 31,
+      sunny_hours: 3.2,
+      rainy_hours: 4,
+      reason: "A várható csapadék elegendő, ezért a program kimarad.",
+      evaluated_at: new Date(Date.now() - 86400000).toISOString(),
+    },
     zones: [],
   },
 ];
@@ -325,12 +337,6 @@ const summary = (): Summary => ({
     depth_mm: 5.5,
     cadence: "kétnaponta",
     label: "Nyár",
-  },
-  openweather_quota: {
-    date: new Date().toISOString().slice(0, 10),
-    count: 4,
-    limit: 200,
-    remaining: 196,
   },
 });
 

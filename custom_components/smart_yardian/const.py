@@ -9,9 +9,6 @@ NAME: Final = "Smart Yardian"
 
 CONF_WEATHER_ENTITY: Final = "weather_entity"
 CONF_ZONE_ENTITIES: Final = "zone_entities"
-CONF_OPENWEATHER_API_KEY: Final = "openweather_api_key"
-CONF_LATITUDE: Final = "latitude"
-CONF_LONGITUDE: Final = "longitude"
 CONF_NOTIFY_SERVICE: Final = "notify_service"
 
 PANEL_URL: Final = "smart-yardian"
@@ -30,11 +27,6 @@ SERVICE_PAUSE_UNTIL: Final = "pause_until"
 
 WS_PREFIX: Final = "smart_yardian"
 
-OPENWEATHER_URL: Final = (
-    "https://api.openweathermap.org/data/4.0/onecall/timeline/1h"
-)
-OPENWEATHER_CACHE_SECONDS: Final = 30 * 60
-OPENWEATHER_DAILY_LIMIT: Final = 200
 WEATHER_MAX_AGE_SECONDS: Final = 90 * 60
 MIN_FORECAST_HOURS: Final = 12
 FORECAST_HORIZON_HOURS: Final = 24

@@ -6,20 +6,15 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.const import CONF_LATITUDE, CONF_LONGITUDE
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import (
     CONF_NOTIFY_SERVICE,
-    CONF_OPENWEATHER_API_KEY,
     CONF_WEATHER_ENTITY,
     CONF_ZONE_ENTITIES,
     DOMAIN,
 )
-from .quota import async_get_openweather_quota
-from .weather import OpenWeatherClient, WeatherUnavailableError
 
 
 class SmartYardianConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -59,18 +54,6 @@ class SmartYardianConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_ZONE_ENTITIES,
                     default=defaults.get(CONF_ZONE_ENTITIES, list(zones)),
                 ): cv.multi_select(zones),
-                vol.Required(
-                    CONF_OPENWEATHER_API_KEY,
-                    default=defaults.get(CONF_OPENWEATHER_API_KEY, ""),
-                ): str,
-                vol.Required(
-                    CONF_LATITUDE,
-                    default=defaults.get(CONF_LATITUDE, self.hass.config.latitude),
-                ): vol.Coerce(float),
-                vol.Required(
-                    CONF_LONGITUDE,
-                    default=defaults.get(CONF_LONGITUDE, self.hass.config.longitude),
-                ): vol.Coerce(float),
                 vol.Optional(
                     CONF_NOTIFY_SERVICE,
                     default=defaults.get(CONF_NOTIFY_SERVICE, ""),
@@ -84,26 +67,11 @@ class SmartYardianConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle initial setup."""
         await self.async_set_unique_id(DOMAIN)
         self._abort_if_unique_id_configured()
-        errors: dict[str, str] = {}
         if user_input is not None:
-            try:
-                quota = await async_get_openweather_quota(self.hass)
-                client = OpenWeatherClient(
-                    async_get_clientsession(self.hass),
-                    user_input[CONF_OPENWEATHER_API_KEY],
-                    user_input[CONF_LATITUDE],
-                    user_input[CONF_LONGITUDE],
-                    before_request=quota.async_reserve,
-                )
-                await client.async_validate()
-            except WeatherUnavailableError:
-                errors["base"] = "cannot_connect"
-            else:
-                return self.async_create_entry(title="Smart Yardian", data=user_input)
+            return self.async_create_entry(title="Smart Yardian", data=user_input)
         return self.async_show_form(
             step_id="user",
             data_schema=self._schema(user_input),
-            errors=errors,
         )
 
     async def async_step_reconfigure(
@@ -111,24 +79,9 @@ class SmartYardianConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> config_entries.ConfigFlowResult:
         """Update controller, weather and credentials."""
         entry = self._get_reconfigure_entry()
-        errors: dict[str, str] = {}
         if user_input is not None:
-            try:
-                quota = await async_get_openweather_quota(self.hass)
-                client = OpenWeatherClient(
-                    async_get_clientsession(self.hass),
-                    user_input[CONF_OPENWEATHER_API_KEY],
-                    user_input[CONF_LATITUDE],
-                    user_input[CONF_LONGITUDE],
-                    before_request=quota.async_reserve,
-                )
-                await client.async_validate()
-            except WeatherUnavailableError:
-                errors["base"] = "cannot_connect"
-            else:
-                return self.async_update_reload_and_abort(entry, data=user_input)
+            return self.async_update_reload_and_abort(entry, data=user_input)
         return self.async_show_form(
             step_id="reconfigure",
             data_schema=self._schema(user_input or dict(entry.data)),
-            errors=errors,
         )

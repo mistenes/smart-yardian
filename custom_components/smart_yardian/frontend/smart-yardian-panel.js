@@ -1,4 +1,4 @@
-const C = globalThis, L = C.ShadowRoot && (C.ShadyCSS === void 0 || C.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype, I = /* @__PURE__ */ Symbol(), F = /* @__PURE__ */ new WeakMap();
+const C = globalThis, L = C.ShadowRoot && (C.ShadyCSS === void 0 || C.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype, I = /* @__PURE__ */ Symbol(), q = /* @__PURE__ */ new WeakMap();
 let re = class {
   constructor(e, t, s) {
     if (this._$cssResult$ = !0, s !== I) throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");
@@ -9,7 +9,7 @@ let re = class {
     const t = this.t;
     if (L && e === void 0) {
       const s = t !== void 0 && t.length === 1;
-      s && (e = F.get(t)), e === void 0 && ((this.o = e = new CSSStyleSheet()).replaceSync(this.cssText), s && F.set(t, e));
+      s && (e = q.get(t)), e === void 0 && ((this.o = e = new CSSStyleSheet()).replaceSync(this.cssText), s && q.set(t, e));
     }
     return e;
   }
@@ -472,7 +472,7 @@ const Ce = (r, e, t) => {
   }
   return a._$AI(r), a;
 };
-const q = globalThis;
+const F = globalThis;
 class z extends y {
   constructor() {
     super(...arguments), this.renderOptions = { host: this }, this._$Do = void 0;
@@ -495,10 +495,10 @@ class z extends y {
     return x;
   }
 }
-z._$litElement$ = !0, z.finalized = !0, q.litElementHydrateSupport?.({ LitElement: z });
-const je = q.litElementPolyfillSupport;
+z._$litElement$ = !0, z.finalized = !0, F.litElementHydrateSupport?.({ LitElement: z });
+const je = F.litElementPolyfillSupport;
 je?.({ LitElement: z });
-(q.litElementVersions ??= []).push("4.2.2");
+(F.litElementVersions ??= []).push("4.2.2");
 const Ne = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary" }), Te = (r) => r.connection.sendMessagePromise({
   type: "smart_yardian/weather/preview"
 }), He = (r) => r.connection.sendMessagePromise({
@@ -533,7 +533,7 @@ const Ne = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
   type: "smart_yardian/run/zone",
   entity_id: e,
   duration_minutes: t
-}), qe = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/run/stop" }), Fe = (r) => r.connection.sendMessagePromise({
+}), Fe = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/run/stop" }), qe = (r) => r.connection.sendMessagePromise({
   type: "smart_yardian/run/skip_current_zone"
 }), ae = (r, e) => r.connection.sendMessagePromise({
   type: "smart_yardian/pause_until",
@@ -1800,6 +1800,13 @@ const Ne = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
     white-space: normal;
   }
 
+  .history-weather {
+    margin-top: 5px;
+    color: var(--sy-muted);
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
   .outcome {
     font-weight: 600;
   }
@@ -2463,14 +2470,14 @@ class Ge extends z {
     }, this._stopAll = async () => {
       if (this.hass)
         try {
-          await qe(this.hass), await this._load(!1);
+          await Fe(this.hass), await this._load(!1);
         } catch (e) {
           this._error = this._errorMessage(e);
         }
     }, this._skipCurrentZone = async (e) => {
       if (e.stopPropagation(), !!this.hass)
         try {
-          await Fe(this.hass), await this._load(!1);
+          await qe(this.hass), await this._load(!1);
         } catch (t) {
           this._error = this._errorMessage(t);
         }
@@ -2884,8 +2891,8 @@ class Ge extends z {
           <h2>Következő 3 nap</h2>
           <div class="subtle">
             Egy napon belül minden program ugyanazt a napi előrejelzést
-            használja. Elsődleges az Időkép; ha az egész naphoz nem elég
-            megbízható, az adott nap minden programja OpenWeatherre vált.
+            használja. Ha az Időkép nem ad legalább 12 megbízható órát,
+            az adott nap időjárásfüggő programjai biztonságosan nem indulnak el.
           </div>
         </div>
         <button
@@ -3388,7 +3395,21 @@ class Ge extends z {
                         </td>
                         <td>${Math.round(t.factor * 100)}%</td>
                         <td>${t.weather_source}</td>
-                        <td class="reason-cell">${t.reason}</td>
+                        <td class="reason-cell">
+                          <div>${t.reason}</div>
+                          ${t.weather ? o`
+                                <div class="history-weather">
+                                  Döntéskor:
+                                  ${t.weather.precipitation_mm ?? 0} mm ·
+                                  ${t.weather.max_probability ?? 0}% ·
+                                  ${t.weather.rainy_hours ?? 0} esős óra ·
+                                  ${t.weather.max_temperature ?? "–"} °C
+                                  ${t.weather.evaluated_at ? o` · ${this._formatDateTime(
+        t.weather.evaluated_at
+      )}` : d}
+                                </div>
+                              ` : d}
+                        </td>
                       </tr>
                     `
     )}
@@ -3471,12 +3492,6 @@ class Ge extends z {
           <div class="setting-row">
             <span>Legutóbbi aktuális számítás forrása</span>
             <strong>${this._summary.weather?.source ?? "Nincs értékelés"}</strong>
-          </div>
-          <div class="setting-row">
-            <span>OpenWeather API-hívások ma</span>
-            <strong>
-              ${this._summary.openweather_quota ? `${this._summary.openweather_quota.count} / ${this._summary.openweather_quota.limit}` : "Nincs adat"}
-            </strong>
           </div>
         </section>
       </div>

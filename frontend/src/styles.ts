@@ -1262,6 +1262,13 @@ export const panelStyles = css`
     white-space: normal;
   }
 
+  .history-weather {
+    margin-top: 5px;
+    color: var(--sy-muted);
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
   .outcome {
     font-weight: 600;
   }

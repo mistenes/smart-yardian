@@ -189,6 +189,7 @@ class RunRecord:
     factor: float
     weather_source: str
     zones: list[dict[str, Any]]
+    weather: dict[str, Any] | None = None
 
     def as_dict(self) -> dict[str, Any]:
         """Return a JSON-safe representation."""

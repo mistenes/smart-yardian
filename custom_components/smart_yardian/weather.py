@@ -2,19 +2,12 @@
 
 from __future__ import annotations
 
-import asyncio
-from collections.abc import Awaitable, Callable, Iterable
+from collections.abc import Iterable
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from .const import (
-    FORECAST_HORIZON_HOURS,
-    MIN_FORECAST_HOURS,
-    OPENWEATHER_CACHE_SECONDS,
-    OPENWEATHER_DAILY_LIMIT,
-    OPENWEATHER_URL,
-)
+from .const import FORECAST_HORIZON_HOURS, MIN_FORECAST_HOURS
 from .models import ForecastHour, WeatherDecision
 
 RAINY_CONDITIONS = {
@@ -36,28 +29,6 @@ class WeatherUnavailableError(RuntimeError):
     """Raised when a provider has no trustworthy forecast."""
 
 
-class OpenWeatherAuthenticationError(WeatherUnavailableError):
-    """Raised for invalid or unauthorized OpenWeather credentials."""
-
-
-class OpenWeatherRateLimitError(WeatherUnavailableError):
-    """Raised when the OpenWeather quota is exhausted."""
-
-
-def reserve_daily_request(
-    state: dict[str, Any],
-    today: str,
-    limit: int = OPENWEATHER_DAILY_LIMIT,
-) -> dict[str, Any]:
-    """Return the state after reserving one request or raise at the limit."""
-    count = int(state.get("count") or 0) if state.get("date") == today else 0
-    if count >= limit:
-        raise OpenWeatherRateLimitError(
-            f"A Smart Yardian elérte a napi {limit} OpenWeather-hívás korlátot."
-        )
-    return {"date": today, "count": count + 1}
-
-
 def _as_float(value: Any, default: float = 0.0) -> float:
     try:
         return float(value)
@@ -76,18 +47,6 @@ def _ha_celsius_temperature(value: Any) -> float:
     if not is_plausible_celsius(temperature):
         raise WeatherUnavailableError(
             f"Az Időkép érvénytelen hőmérsékletet adott: {temperature:g} °C."
-        )
-    return temperature
-
-
-def _openweather_celsius_temperature(value: Any) -> float:
-    """Normalize OpenWeather metric output and defensive Kelvin fallback."""
-    temperature = _as_float(value)
-    if temperature > 100:
-        temperature -= 273.15
-    if not is_plausible_celsius(temperature):
-        raise WeatherUnavailableError(
-            f"Az OpenWeather érvénytelen hőmérsékletet adott: {temperature:g} °C."
         )
     return temperature
 
@@ -123,36 +82,6 @@ def normalize_ha_forecast(items: Iterable[dict[str, Any]]) -> list[ForecastHour]
                         else None
                     ),
                     is_daylight=condition != "clear-night" and 6 <= local_hour < 20,
-                )
-            )
-        except (KeyError, TypeError, ValueError):
-            continue
-    return normalized
-
-
-def normalize_openweather(items: Iterable[dict[str, Any]]) -> list[ForecastHour]:
-    """Normalize One Call API 4.0 hourly timeline output."""
-    normalized: list[ForecastHour] = []
-    for item in items:
-        try:
-            weather = (item.get("weather") or [{}])[0]
-            icon = str(weather.get("icon") or "")
-            rain = item.get("rain") or {}
-            snow = item.get("snow") or {}
-            normalized.append(
-                ForecastHour(
-                    timestamp=_parse_timestamp(item["dt"]),
-                    temperature=_openweather_celsius_temperature(item.get("temp")),
-                    precipitation_mm=max(
-                        0.0,
-                        _as_float(rain.get("1h")) + _as_float(snow.get("1h")),
-                    ),
-                    precipitation_probability=max(
-                        0.0, min(100.0, _as_float(item.get("pop")) * 100)
-                    ),
-                    condition=str(weather.get("main") or "unknown").lower(),
-                    cloud_cover=max(0.0, min(100.0, _as_float(item.get("clouds")))),
-                    is_daylight=icon.endswith("d") if icon else None,
                 )
             )
         except (KeyError, TypeError, ValueError):
@@ -268,7 +197,7 @@ def evaluate_green_lawn(
     skip = (
         precipitation >= skip_mm
         or (probability >= skip_probability and precipitation >= skip_probability_mm)
-        or rainy_hours >= rainy_hours_skip
+        or (rainy_hours >= rainy_hours_skip and precipitation > 0)
     )
     if skip:
         factor = 0.0
@@ -322,112 +251,3 @@ def evaluate_green_lawn(
         rain_factor=round(rain_factor, 3),
         climate_factor=round(climate_factor, 3),
     )
-
-
-class OpenWeatherClient:
-    """Small cached client for the One Call API 4.0 hourly timeline."""
-
-    def __init__(
-        self,
-        session: Any,
-        api_key: str,
-        latitude: float,
-        longitude: float,
-        before_request: Callable[[], Awaitable[None]] | None = None,
-    ) -> None:
-        self._session = session
-        self._api_key = api_key
-        self._latitude = latitude
-        self._longitude = longitude
-        self._before_request = before_request
-        self._cache: list[ForecastHour] | None = None
-        self._cache_at: datetime | None = None
-        self._lock = asyncio.Lock()
-
-    async def async_validate(self) -> None:
-        """Validate credentials with a real forecast request."""
-        await self.async_fetch(force=True)
-
-    def set_before_request(
-        self, callback: Callable[[], Awaitable[None]]
-    ) -> None:
-        """Set a guard called only before a real HTTP request."""
-        self._before_request = callback
-
-    async def async_fetch(self, force: bool = False) -> list[ForecastHour]:
-        """Fetch and cache the hourly timeline."""
-        async with self._lock:
-            now = datetime.now(UTC)
-            if (
-                not force
-                and self._cache is not None
-                and self._cache_at is not None
-                and (now - self._cache_at).total_seconds() < OPENWEATHER_CACHE_SECONDS
-            ):
-                return self._cache
-
-            params = {
-                "lat": self._latitude,
-                "lon": self._longitude,
-                "appid": self._api_key,
-                "units": "metric",
-                "lang": "hu",
-            }
-            payload = await self._async_get_payload(OPENWEATHER_URL, params)
-            items = list(payload.get("data") or [])
-            next_url = payload.get("next")
-            if next_url:
-                next_payload = await self._async_get_payload(
-                    str(next_url),
-                    {
-                        "appid": self._api_key,
-                        "units": "metric",
-                        "lang": "hu",
-                    },
-                )
-                items.extend(next_payload.get("data") or [])
-
-            forecast = normalize_openweather(items)
-            if len(forecast) < MIN_FORECAST_HOURS:
-                raise WeatherUnavailableError(
-                    "Az OpenWeather nem adott elegendő órás előrejelzést."
-                )
-            self._cache = forecast
-            self._cache_at = now
-            return forecast
-
-    async def _async_get_payload(
-        self,
-        url: str,
-        params: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """Fetch one quota-counted OpenWeather timeline page."""
-        if self._before_request is not None:
-            await self._before_request()
-        try:
-            async with self._session.get(
-                url,
-                params=params,
-                timeout=15,
-            ) as response:
-                if response.status in (401, 403):
-                    raise OpenWeatherAuthenticationError(
-                        "Az OpenWeather API-kulcs nem érvényes vagy nincs 4.0 hozzáférése."
-                    )
-                if response.status == 429:
-                    raise OpenWeatherRateLimitError(
-                        "Az OpenWeather napi hívási kerete elfogyott."
-                    )
-                if response.status >= 500:
-                    raise WeatherUnavailableError(
-                        f"Az OpenWeather átmenetileg nem elérhető ({response.status})."
-                    )
-                if response.status >= 400:
-                    raise WeatherUnavailableError(
-                        f"Az OpenWeather hibás választ adott ({response.status})."
-                    )
-                return await response.json(content_type=None)
-        except TimeoutError as err:
-            raise WeatherUnavailableError(
-                "Az OpenWeather kérés időtúllépés miatt leállt."
-            ) from err
