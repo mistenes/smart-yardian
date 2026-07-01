@@ -410,7 +410,7 @@ const schedulePreview = (): SchedulePreview => {
             scheduled_at: occurrence(1, 5, 30),
             status: "condition_skip",
             reason:
-              "A következő 24 óra maximuma 24 °C, ami nem magasabb 26 °C-nál.",
+              "A program napjának maximuma 24 °C, ami nem magasabb 26 °C-nál.",
             total_minutes: 70,
             zones: plannedZones(morning),
             weather: { ...weather, max_temperature: 24, factor: 0.9, percent: 90 },
@@ -425,7 +425,7 @@ const schedulePreview = (): SchedulePreview => {
             program_name: evening.name,
             scheduled_at: occurrence(2, 20, 0),
             status: "weather_unavailable",
-            reason: "Nincs legalább 12 órányi használható előrejelzés.",
+            reason: "Nincs használható Időkép-előrejelzés erre a napra.",
             total_minutes: null,
             zones: plannedZones(evening).map((zone) => ({
               ...zone,

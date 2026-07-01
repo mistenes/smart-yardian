@@ -134,50 +134,30 @@ def evaluate_calendar_day(
     source: str,
     scheduled_at: datetime,
     settings: dict[str, Any] | None = None,
-    now: datetime | None = None,
 ) -> WeatherDecision:
     """Evaluate one shared weather decision for a local calendar day."""
     if scheduled_at.tzinfo is None:
         scheduled_at = scheduled_at.replace(tzinfo=UTC)
     timezone = scheduled_at.tzinfo
     target_date = scheduled_at.date()
-    forecast_hours = sorted(forecast, key=lambda item: item.timestamp)
-
-    if now is not None:
-        if now.tzinfo is None:
-            now = now.replace(tzinfo=UTC)
-        if now.astimezone(timezone).date() == target_date:
-            decision = evaluate_green_lawn(
-                forecast_hours,
-                source,
-                now=now,
-                settings=settings,
-            )
-            return replace(
-                decision,
-                max_temperature=forecast_day_max_temperature(
-                    forecast_hours,
-                    scheduled_at,
-                ),
-            )
-
     hours = sorted(
         (
             hour
-            for hour in forecast_hours
+            for hour in forecast
             if hour.timestamp.astimezone(timezone).date() == target_date
         ),
         key=lambda item: item.timestamp,
     )
-    if len(hours) < MIN_FORECAST_HOURS:
+    if not hours:
         raise WeatherUnavailableError(
-            "Nincs legalább 12 órányi használható előrejelzés erre a napra."
+            "Nincs használható Időkép-előrejelzés erre a napra."
         )
     decision = evaluate_green_lawn(
         hours,
         source,
         now=hours[0].timestamp,
         settings=settings,
+        minimum_hours=1,
     )
     return replace(
         decision,
@@ -190,6 +170,7 @@ def evaluate_green_lawn(
     source: str,
     now: datetime | None = None,
     settings: dict[str, Any] | None = None,
+    minimum_hours: int = MIN_FORECAST_HOURS,
 ) -> WeatherDecision:
     """Evaluate the explainable green-lawn watering preset."""
     now = now or datetime.now(UTC)
@@ -201,8 +182,10 @@ def evaluate_green_lawn(
         (hour for hour in forecast if now <= hour.timestamp <= horizon),
         key=lambda item: item.timestamp,
     )
-    if len(hours) < MIN_FORECAST_HOURS:
-        raise WeatherUnavailableError("Nincs legalább 12 órányi használható előrejelzés.")
+    if len(hours) < minimum_hours:
+        raise WeatherUnavailableError(
+            f"Nincs legalább {minimum_hours} órányi használható előrejelzés."
+        )
 
     precipitation = sum(hour.precipitation_mm for hour in hours)
     probability = max(hour.precipitation_probability for hour in hours)

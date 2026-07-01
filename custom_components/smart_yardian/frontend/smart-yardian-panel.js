@@ -2891,8 +2891,8 @@ class Ge extends z {
           <h2>Következő 3 nap</h2>
           <div class="subtle">
             Egy napon belül minden program ugyanazt a napi előrejelzést
-            használja. Ha az Időkép nem ad legalább 12 megbízható órát,
-            az adott nap időjárásfüggő programjai biztonságosan nem indulnak el.
+            használja. A számítás kizárólag az adott naptári naphoz tartozó
+            Időkép-órákat veszi figyelembe.
           </div>
         </div>
         <button

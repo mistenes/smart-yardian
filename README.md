@@ -96,14 +96,13 @@ időjárásforrást, a maximum-hőmérsékletet, a csapadékot, a zónánkénti 
 a szüneteltetést, a `skip next` jelölést, az esőkorrekciót és a
 hőmérséklet-feltételt. A számítás csak előnézet, nem indít Yardian zónát.
 
-Egy naptári nap minden programja közös napi időjárási döntést használ. Ha az
-Időkép nem ad legalább 12 használható órát az adott nap egészéhez, akkor az
-adott nap időjárásfüggő programjai biztonsági okból nem indulnak el. Emiatt
-ugyanazon a napon nem jelenhet meg eltérő csapadék, maximum vagy
-időjárásforrás programonként.
+Egy naptári nap minden programja közös napi időjárási döntést használ. A
+számítás kizárólag az adott helyi naptári naphoz tartozó Időkép-órákat veszi
+figyelembe, a következő nap adatait nem. Ha az adott naphoz egyetlen használható
+órás rekord sincs, az időjárásfüggő program biztonsági okból nem indul el.
 
 Távolabbi napnál csak akkor jelenik meg konkrét futási idő, ha az Időkép
-legalább 12 használható órát ad az adott naptári naphoz.
+ad használható órás előrejelzést az adott naptári naphoz.
 
 ## Ha a Yardian zóna „Nem elérhető”
 

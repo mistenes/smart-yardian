@@ -38,8 +38,6 @@ from .storage import SmartYardianStore
 from .weather import (
     WeatherUnavailableError,
     evaluate_calendar_day,
-    evaluate_green_lawn,
-    forecast_day_max_temperature,
     is_plausible_celsius,
     normalize_ha_forecast,
 )
@@ -203,23 +201,16 @@ class SmartYardianManager:
         scheduled_at: datetime | None = None,
     ) -> WeatherDecision:
         """Evaluate the configured Időkép hourly forecast."""
-        now = dt_util.utcnow()
+        target = scheduled_at or dt_util.as_local(dt_util.now())
 
         try:
             forecast = await self._async_idokep_forecast()
-            decision = evaluate_green_lawn(
+            decision = evaluate_calendar_day(
                 forecast,
                 "Időkép",
-                now=now,
+                target,
                 settings=self.store.settings,
             )
-            if scheduled_at is not None:
-                decision = replace(
-                    decision,
-                    max_temperature=forecast_day_max_temperature(
-                        forecast, scheduled_at
-                    ),
-                )
             self.last_decision = decision
             self.last_error = None
             self._notify_listeners()
@@ -249,9 +240,9 @@ class SmartYardianManager:
         )
         items = (response or {}).get(weather_entity, {}).get("forecast", [])
         forecast = normalize_ha_forecast(items)
-        if len(forecast) < 12:
+        if not forecast:
             raise WeatherUnavailableError(
-                "Az Időkép nem adott legalább 12 órányi előrejelzést."
+                "Az Időkép nem adott használható órás előrejelzést."
             )
         return forecast
 
@@ -318,7 +309,6 @@ class SmartYardianManager:
                         "Időkép",
                         scheduled_at,
                         settings=self.store.settings,
-                        now=now,
                     )
                 except WeatherUnavailableError as err:
                     idokep_day_error = str(err)
