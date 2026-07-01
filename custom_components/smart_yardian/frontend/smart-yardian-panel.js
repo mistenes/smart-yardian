@@ -1,200 +1,200 @@
 const C = globalThis, U = C.ShadowRoot && (C.ShadyCSS === void 0 || C.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype, O = /* @__PURE__ */ Symbol(), q = /* @__PURE__ */ new WeakMap();
-let re = class {
-  constructor(e, t, s) {
-    if (this._$cssResult$ = !0, s !== O) throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");
-    this.cssText = e, this.t = t;
+let rt = class {
+  constructor(t, e, a) {
+    if (this._$cssResult$ = !0, a !== O) throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");
+    this.cssText = t, this.t = e;
   }
   get styleSheet() {
-    let e = this.o;
-    const t = this.t;
-    if (U && e === void 0) {
-      const s = t !== void 0 && t.length === 1;
-      s && (e = q.get(t)), e === void 0 && ((this.o = e = new CSSStyleSheet()).replaceSync(this.cssText), s && q.set(t, e));
+    let t = this.o;
+    const e = this.t;
+    if (U && t === void 0) {
+      const a = e !== void 0 && e.length === 1;
+      a && (t = q.get(e)), t === void 0 && ((this.o = t = new CSSStyleSheet()).replaceSync(this.cssText), a && q.set(e, t));
     }
-    return e;
+    return t;
   }
   toString() {
     return this.cssText;
   }
 };
-const pe = (r) => new re(typeof r == "string" ? r : r + "", void 0, O), ue = (r, ...e) => {
-  const t = r.length === 1 ? r[0] : e.reduce((s, a, i) => s + ((n) => {
-    if (n._$cssResult$ === !0) return n.cssText;
-    if (typeof n == "number") return n;
-    throw Error("Value passed to 'css' function must be a 'css' function result: " + n + ". Use 'unsafeCSS' to pass non-literal values, but take care to ensure page security.");
-  })(a) + r[i + 1], r[0]);
-  return new re(t, r, O);
-}, he = (r, e) => {
-  if (U) r.adoptedStyleSheets = e.map((t) => t instanceof CSSStyleSheet ? t : t.styleSheet);
-  else for (const t of e) {
-    const s = document.createElement("style"), a = C.litNonce;
-    a !== void 0 && s.setAttribute("nonce", a), s.textContent = t.cssText, r.appendChild(s);
+const pt = (r) => new rt(typeof r == "string" ? r : r + "", void 0, O), ht = (r, ...t) => {
+  const e = r.length === 1 ? r[0] : t.reduce((a, s, i) => a + ((o) => {
+    if (o._$cssResult$ === !0) return o.cssText;
+    if (typeof o == "number") return o;
+    throw Error("Value passed to 'css' function must be a 'css' function result: " + o + ". Use 'unsafeCSS' to pass non-literal values, but take care to ensure page security.");
+  })(s) + r[i + 1], r[0]);
+  return new rt(e, r, O);
+}, ut = (r, t) => {
+  if (U) r.adoptedStyleSheets = t.map((e) => e instanceof CSSStyleSheet ? e : e.styleSheet);
+  else for (const e of t) {
+    const a = document.createElement("style"), s = C.litNonce;
+    s !== void 0 && a.setAttribute("nonce", s), a.textContent = e.cssText, r.appendChild(a);
   }
-}, V = U ? (r) => r : (r) => r instanceof CSSStyleSheet ? ((e) => {
-  let t = "";
-  for (const s of e.cssRules) t += s.cssText;
-  return pe(t);
+}, V = U ? (r) => r : (r) => r instanceof CSSStyleSheet ? ((t) => {
+  let e = "";
+  for (const a of t.cssRules) e += a.cssText;
+  return pt(e);
 })(r) : r;
-const { is: me, defineProperty: ge, getOwnPropertyDescriptor: _e, getOwnPropertyNames: ve, getOwnPropertySymbols: be, getPrototypeOf: fe } = Object, N = globalThis, W = N.trustedTypes, ye = W ? W.emptyScript : "", xe = N.reactiveElementPolyfillSupport, k = (r, e) => r, L = { toAttribute(r, e) {
-  switch (e) {
+const { is: mt, defineProperty: gt, getOwnPropertyDescriptor: _t, getOwnPropertyNames: vt, getOwnPropertySymbols: bt, getPrototypeOf: yt } = Object, N = globalThis, W = N.trustedTypes, ft = W ? W.emptyScript : "", xt = N.reactiveElementPolyfillSupport, k = (r, t) => r, L = { toAttribute(r, t) {
+  switch (t) {
     case Boolean:
-      r = r ? ye : null;
+      r = r ? ft : null;
       break;
     case Object:
     case Array:
       r = r == null ? r : JSON.stringify(r);
   }
   return r;
-}, fromAttribute(r, e) {
-  let t = r;
-  switch (e) {
+}, fromAttribute(r, t) {
+  let e = r;
+  switch (t) {
     case Boolean:
-      t = r !== null;
+      e = r !== null;
       break;
     case Number:
-      t = r === null ? null : Number(r);
+      e = r === null ? null : Number(r);
       break;
     case Object:
     case Array:
       try {
-        t = JSON.parse(r);
+        e = JSON.parse(r);
       } catch {
-        t = null;
+        e = null;
       }
   }
-  return t;
-} }, ie = (r, e) => !me(r, e), Y = { attribute: !0, type: String, converter: L, reflect: !1, useDefault: !1, hasChanged: ie };
+  return e;
+} }, it = (r, t) => !mt(r, t), Y = { attribute: !0, type: String, converter: L, reflect: !1, useDefault: !1, hasChanged: it };
 Symbol.metadata ??= /* @__PURE__ */ Symbol("metadata"), N.litPropertyMetadata ??= /* @__PURE__ */ new WeakMap();
-let y = class extends HTMLElement {
-  static addInitializer(e) {
-    this._$Ei(), (this.l ??= []).push(e);
+let f = class extends HTMLElement {
+  static addInitializer(t) {
+    this._$Ei(), (this.l ??= []).push(t);
   }
   static get observedAttributes() {
     return this.finalize(), this._$Eh && [...this._$Eh.keys()];
   }
-  static createProperty(e, t = Y) {
-    if (t.state && (t.attribute = !1), this._$Ei(), this.prototype.hasOwnProperty(e) && ((t = Object.create(t)).wrapped = !0), this.elementProperties.set(e, t), !t.noAccessor) {
-      const s = /* @__PURE__ */ Symbol(), a = this.getPropertyDescriptor(e, s, t);
-      a !== void 0 && ge(this.prototype, e, a);
+  static createProperty(t, e = Y) {
+    if (e.state && (e.attribute = !1), this._$Ei(), this.prototype.hasOwnProperty(t) && ((e = Object.create(e)).wrapped = !0), this.elementProperties.set(t, e), !e.noAccessor) {
+      const a = /* @__PURE__ */ Symbol(), s = this.getPropertyDescriptor(t, a, e);
+      s !== void 0 && gt(this.prototype, t, s);
     }
   }
-  static getPropertyDescriptor(e, t, s) {
-    const { get: a, set: i } = _e(this.prototype, e) ?? { get() {
-      return this[t];
-    }, set(n) {
-      this[t] = n;
+  static getPropertyDescriptor(t, e, a) {
+    const { get: s, set: i } = _t(this.prototype, t) ?? { get() {
+      return this[e];
+    }, set(o) {
+      this[e] = o;
     } };
-    return { get: a, set(n) {
-      const c = a?.call(this);
-      i?.call(this, n), this.requestUpdate(e, c, s);
+    return { get: s, set(o) {
+      const c = s?.call(this);
+      i?.call(this, o), this.requestUpdate(t, c, a);
     }, configurable: !0, enumerable: !0 };
   }
-  static getPropertyOptions(e) {
-    return this.elementProperties.get(e) ?? Y;
+  static getPropertyOptions(t) {
+    return this.elementProperties.get(t) ?? Y;
   }
   static _$Ei() {
     if (this.hasOwnProperty(k("elementProperties"))) return;
-    const e = fe(this);
-    e.finalize(), e.l !== void 0 && (this.l = [...e.l]), this.elementProperties = new Map(e.elementProperties);
+    const t = yt(this);
+    t.finalize(), t.l !== void 0 && (this.l = [...t.l]), this.elementProperties = new Map(t.elementProperties);
   }
   static finalize() {
     if (this.hasOwnProperty(k("finalized"))) return;
     if (this.finalized = !0, this._$Ei(), this.hasOwnProperty(k("properties"))) {
-      const t = this.properties, s = [...ve(t), ...be(t)];
-      for (const a of s) this.createProperty(a, t[a]);
+      const e = this.properties, a = [...vt(e), ...bt(e)];
+      for (const s of a) this.createProperty(s, e[s]);
     }
-    const e = this[Symbol.metadata];
-    if (e !== null) {
-      const t = litPropertyMetadata.get(e);
-      if (t !== void 0) for (const [s, a] of t) this.elementProperties.set(s, a);
+    const t = this[Symbol.metadata];
+    if (t !== null) {
+      const e = litPropertyMetadata.get(t);
+      if (e !== void 0) for (const [a, s] of e) this.elementProperties.set(a, s);
     }
     this._$Eh = /* @__PURE__ */ new Map();
-    for (const [t, s] of this.elementProperties) {
-      const a = this._$Eu(t, s);
-      a !== void 0 && this._$Eh.set(a, t);
+    for (const [e, a] of this.elementProperties) {
+      const s = this._$Eu(e, a);
+      s !== void 0 && this._$Eh.set(s, e);
     }
     this.elementStyles = this.finalizeStyles(this.styles);
   }
-  static finalizeStyles(e) {
-    const t = [];
-    if (Array.isArray(e)) {
-      const s = new Set(e.flat(1 / 0).reverse());
-      for (const a of s) t.unshift(V(a));
-    } else e !== void 0 && t.push(V(e));
-    return t;
+  static finalizeStyles(t) {
+    const e = [];
+    if (Array.isArray(t)) {
+      const a = new Set(t.flat(1 / 0).reverse());
+      for (const s of a) e.unshift(V(s));
+    } else t !== void 0 && e.push(V(t));
+    return e;
   }
-  static _$Eu(e, t) {
-    const s = t.attribute;
-    return s === !1 ? void 0 : typeof s == "string" ? s : typeof e == "string" ? e.toLowerCase() : void 0;
+  static _$Eu(t, e) {
+    const a = e.attribute;
+    return a === !1 ? void 0 : typeof a == "string" ? a : typeof t == "string" ? t.toLowerCase() : void 0;
   }
   constructor() {
     super(), this._$Ep = void 0, this.isUpdatePending = !1, this.hasUpdated = !1, this._$Em = null, this._$Ev();
   }
   _$Ev() {
-    this._$ES = new Promise((e) => this.enableUpdating = e), this._$AL = /* @__PURE__ */ new Map(), this._$E_(), this.requestUpdate(), this.constructor.l?.forEach((e) => e(this));
+    this._$ES = new Promise((t) => this.enableUpdating = t), this._$AL = /* @__PURE__ */ new Map(), this._$E_(), this.requestUpdate(), this.constructor.l?.forEach((t) => t(this));
   }
-  addController(e) {
-    (this._$EO ??= /* @__PURE__ */ new Set()).add(e), this.renderRoot !== void 0 && this.isConnected && e.hostConnected?.();
+  addController(t) {
+    (this._$EO ??= /* @__PURE__ */ new Set()).add(t), this.renderRoot !== void 0 && this.isConnected && t.hostConnected?.();
   }
-  removeController(e) {
-    this._$EO?.delete(e);
+  removeController(t) {
+    this._$EO?.delete(t);
   }
   _$E_() {
-    const e = /* @__PURE__ */ new Map(), t = this.constructor.elementProperties;
-    for (const s of t.keys()) this.hasOwnProperty(s) && (e.set(s, this[s]), delete this[s]);
-    e.size > 0 && (this._$Ep = e);
+    const t = /* @__PURE__ */ new Map(), e = this.constructor.elementProperties;
+    for (const a of e.keys()) this.hasOwnProperty(a) && (t.set(a, this[a]), delete this[a]);
+    t.size > 0 && (this._$Ep = t);
   }
   createRenderRoot() {
-    const e = this.shadowRoot ?? this.attachShadow(this.constructor.shadowRootOptions);
-    return he(e, this.constructor.elementStyles), e;
+    const t = this.shadowRoot ?? this.attachShadow(this.constructor.shadowRootOptions);
+    return ut(t, this.constructor.elementStyles), t;
   }
   connectedCallback() {
-    this.renderRoot ??= this.createRenderRoot(), this.enableUpdating(!0), this._$EO?.forEach((e) => e.hostConnected?.());
+    this.renderRoot ??= this.createRenderRoot(), this.enableUpdating(!0), this._$EO?.forEach((t) => t.hostConnected?.());
   }
-  enableUpdating(e) {
+  enableUpdating(t) {
   }
   disconnectedCallback() {
-    this._$EO?.forEach((e) => e.hostDisconnected?.());
+    this._$EO?.forEach((t) => t.hostDisconnected?.());
   }
-  attributeChangedCallback(e, t, s) {
-    this._$AK(e, s);
+  attributeChangedCallback(t, e, a) {
+    this._$AK(t, a);
   }
-  _$ET(e, t) {
-    const s = this.constructor.elementProperties.get(e), a = this.constructor._$Eu(e, s);
-    if (a !== void 0 && s.reflect === !0) {
-      const i = (s.converter?.toAttribute !== void 0 ? s.converter : L).toAttribute(t, s.type);
-      this._$Em = e, i == null ? this.removeAttribute(a) : this.setAttribute(a, i), this._$Em = null;
+  _$ET(t, e) {
+    const a = this.constructor.elementProperties.get(t), s = this.constructor._$Eu(t, a);
+    if (s !== void 0 && a.reflect === !0) {
+      const i = (a.converter?.toAttribute !== void 0 ? a.converter : L).toAttribute(e, a.type);
+      this._$Em = t, i == null ? this.removeAttribute(s) : this.setAttribute(s, i), this._$Em = null;
     }
   }
-  _$AK(e, t) {
-    const s = this.constructor, a = s._$Eh.get(e);
-    if (a !== void 0 && this._$Em !== a) {
-      const i = s.getPropertyOptions(a), n = typeof i.converter == "function" ? { fromAttribute: i.converter } : i.converter?.fromAttribute !== void 0 ? i.converter : L;
-      this._$Em = a;
-      const c = n.fromAttribute(t, i.type);
-      this[a] = c ?? this._$Ej?.get(a) ?? c, this._$Em = null;
+  _$AK(t, e) {
+    const a = this.constructor, s = a._$Eh.get(t);
+    if (s !== void 0 && this._$Em !== s) {
+      const i = a.getPropertyOptions(s), o = typeof i.converter == "function" ? { fromAttribute: i.converter } : i.converter?.fromAttribute !== void 0 ? i.converter : L;
+      this._$Em = s;
+      const c = o.fromAttribute(e, i.type);
+      this[s] = c ?? this._$Ej?.get(s) ?? c, this._$Em = null;
     }
   }
-  requestUpdate(e, t, s, a = !1, i) {
-    if (e !== void 0) {
-      const n = this.constructor;
-      if (a === !1 && (i = this[e]), s ??= n.getPropertyOptions(e), !((s.hasChanged ?? ie)(i, t) || s.useDefault && s.reflect && i === this._$Ej?.get(e) && !this.hasAttribute(n._$Eu(e, s)))) return;
-      this.C(e, t, s);
+  requestUpdate(t, e, a, s = !1, i) {
+    if (t !== void 0) {
+      const o = this.constructor;
+      if (s === !1 && (i = this[t]), a ??= o.getPropertyOptions(t), !((a.hasChanged ?? it)(i, e) || a.useDefault && a.reflect && i === this._$Ej?.get(t) && !this.hasAttribute(o._$Eu(t, a)))) return;
+      this.C(t, e, a);
     }
     this.isUpdatePending === !1 && (this._$ES = this._$EP());
   }
-  C(e, t, { useDefault: s, reflect: a, wrapped: i }, n) {
-    s && !(this._$Ej ??= /* @__PURE__ */ new Map()).has(e) && (this._$Ej.set(e, n ?? t ?? this[e]), i !== !0 || n !== void 0) || (this._$AL.has(e) || (this.hasUpdated || s || (t = void 0), this._$AL.set(e, t)), a === !0 && this._$Em !== e && (this._$Eq ??= /* @__PURE__ */ new Set()).add(e));
+  C(t, e, { useDefault: a, reflect: s, wrapped: i }, o) {
+    a && !(this._$Ej ??= /* @__PURE__ */ new Map()).has(t) && (this._$Ej.set(t, o ?? e ?? this[t]), i !== !0 || o !== void 0) || (this._$AL.has(t) || (this.hasUpdated || a || (e = void 0), this._$AL.set(t, e)), s === !0 && this._$Em !== t && (this._$Eq ??= /* @__PURE__ */ new Set()).add(t));
   }
   async _$EP() {
     this.isUpdatePending = !0;
     try {
       await this._$ES;
-    } catch (t) {
-      Promise.reject(t);
+    } catch (e) {
+      Promise.reject(e);
     }
-    const e = this.scheduleUpdate();
-    return e != null && await e, !this.isUpdatePending;
+    const t = this.scheduleUpdate();
+    return t != null && await t, !this.isUpdatePending;
   }
   scheduleUpdate() {
     return this.performUpdate();
@@ -203,28 +203,28 @@ let y = class extends HTMLElement {
     if (!this.isUpdatePending) return;
     if (!this.hasUpdated) {
       if (this.renderRoot ??= this.createRenderRoot(), this._$Ep) {
-        for (const [a, i] of this._$Ep) this[a] = i;
+        for (const [s, i] of this._$Ep) this[s] = i;
         this._$Ep = void 0;
       }
-      const s = this.constructor.elementProperties;
-      if (s.size > 0) for (const [a, i] of s) {
-        const { wrapped: n } = i, c = this[a];
-        n !== !0 || this._$AL.has(a) || c === void 0 || this.C(a, void 0, i, c);
+      const a = this.constructor.elementProperties;
+      if (a.size > 0) for (const [s, i] of a) {
+        const { wrapped: o } = i, c = this[s];
+        o !== !0 || this._$AL.has(s) || c === void 0 || this.C(s, void 0, i, c);
       }
     }
-    let e = !1;
-    const t = this._$AL;
+    let t = !1;
+    const e = this._$AL;
     try {
-      e = this.shouldUpdate(t), e ? (this.willUpdate(t), this._$EO?.forEach((s) => s.hostUpdate?.()), this.update(t)) : this._$EM();
-    } catch (s) {
-      throw e = !1, this._$EM(), s;
+      t = this.shouldUpdate(e), t ? (this.willUpdate(e), this._$EO?.forEach((a) => a.hostUpdate?.()), this.update(e)) : this._$EM();
+    } catch (a) {
+      throw t = !1, this._$EM(), a;
     }
-    e && this._$AE(t);
+    t && this._$AE(e);
   }
-  willUpdate(e) {
+  willUpdate(t) {
   }
-  _$AE(e) {
-    this._$EO?.forEach((t) => t.hostUpdated?.()), this.hasUpdated || (this.hasUpdated = !0, this.firstUpdated(e)), this.updated(e);
+  _$AE(t) {
+    this._$EO?.forEach((e) => e.hostUpdated?.()), this.hasUpdated || (this.hasUpdated = !0, this.firstUpdated(t)), this.updated(t);
   }
   _$EM() {
     this._$AL = /* @__PURE__ */ new Map(), this.isUpdatePending = !1;
@@ -235,83 +235,83 @@ let y = class extends HTMLElement {
   getUpdateComplete() {
     return this._$ES;
   }
-  shouldUpdate(e) {
+  shouldUpdate(t) {
     return !0;
   }
-  update(e) {
-    this._$Eq &&= this._$Eq.forEach((t) => this._$ET(t, this[t])), this._$EM();
+  update(t) {
+    this._$Eq &&= this._$Eq.forEach((e) => this._$ET(e, this[e])), this._$EM();
   }
-  updated(e) {
+  updated(t) {
   }
-  firstUpdated(e) {
+  firstUpdated(t) {
   }
 };
-y.elementStyles = [], y.shadowRootOptions = { mode: "open" }, y[k("elementProperties")] = /* @__PURE__ */ new Map(), y[k("finalized")] = /* @__PURE__ */ new Map(), xe?.({ ReactiveElement: y }), (N.reactiveElementVersions ??= []).push("2.1.2");
-const I = globalThis, J = (r) => r, j = I.trustedTypes, G = j ? j.createPolicy("lit-html", { createHTML: (r) => r }) : void 0, ne = "$lit$", _ = `lit$${Math.random().toFixed(9).slice(2)}$`, oe = "?" + _, $e = `<${oe}>`, f = document, A = () => f.createComment(""), S = (r) => r === null || typeof r != "object" && typeof r != "function", B = Array.isArray, we = (r) => B(r) || typeof r?.[Symbol.iterator] == "function", T = `[ 	
+f.elementStyles = [], f.shadowRootOptions = { mode: "open" }, f[k("elementProperties")] = /* @__PURE__ */ new Map(), f[k("finalized")] = /* @__PURE__ */ new Map(), xt?.({ ReactiveElement: f }), (N.reactiveElementVersions ??= []).push("2.1.2");
+const I = globalThis, J = (r) => r, j = I.trustedTypes, G = j ? j.createPolicy("lit-html", { createHTML: (r) => r }) : void 0, nt = "$lit$", _ = `lit$${Math.random().toFixed(9).slice(2)}$`, ot = "?" + _, $t = `<${ot}>`, y = document, S = () => y.createComment(""), A = (r) => r === null || typeof r != "object" && typeof r != "function", K = Array.isArray, wt = (r) => K(r) || typeof r?.[Symbol.iterator] == "function", T = `[ 	
 \f\r]`, w = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g, Q = /-->/g, X = />/g, v = RegExp(`>|${T}(?:([^\\s"'>=/]+)(${T}*=${T}*(?:[^ 	
-\f\r"'\`<>=]|("|')|))|$)`, "g"), ee = /'/g, te = /"/g, le = /^(?:script|style|textarea|title)$/i, ke = (r) => (e, ...t) => ({ _$litType$: r, strings: e, values: t }), o = ke(1), x = /* @__PURE__ */ Symbol.for("lit-noChange"), d = /* @__PURE__ */ Symbol.for("lit-nothing"), se = /* @__PURE__ */ new WeakMap(), b = f.createTreeWalker(f, 129);
-function de(r, e) {
-  if (!B(r) || !r.hasOwnProperty("raw")) throw Error("invalid template strings array");
-  return G !== void 0 ? G.createHTML(e) : e;
+\f\r"'\`<>=]|("|')|))|$)`, "g"), tt = /'/g, et = /"/g, lt = /^(?:script|style|textarea|title)$/i, kt = (r) => (t, ...e) => ({ _$litType$: r, strings: t, values: e }), n = kt(1), x = /* @__PURE__ */ Symbol.for("lit-noChange"), d = /* @__PURE__ */ Symbol.for("lit-nothing"), at = /* @__PURE__ */ new WeakMap(), b = y.createTreeWalker(y, 129);
+function dt(r, t) {
+  if (!K(r) || !r.hasOwnProperty("raw")) throw Error("invalid template strings array");
+  return G !== void 0 ? G.createHTML(t) : t;
 }
-const ze = (r, e) => {
-  const t = r.length - 1, s = [];
-  let a, i = e === 2 ? "<svg>" : e === 3 ? "<math>" : "", n = w;
-  for (let c = 0; c < t; c++) {
+const zt = (r, t) => {
+  const e = r.length - 1, a = [];
+  let s, i = t === 2 ? "<svg>" : t === 3 ? "<math>" : "", o = w;
+  for (let c = 0; c < e; c++) {
     const l = r[c];
-    let u, h, p = -1, m = 0;
-    for (; m < l.length && (n.lastIndex = m, h = n.exec(l), h !== null); ) m = n.lastIndex, n === w ? h[1] === "!--" ? n = Q : h[1] !== void 0 ? n = X : h[2] !== void 0 ? (le.test(h[2]) && (a = RegExp("</" + h[2], "g")), n = v) : h[3] !== void 0 && (n = v) : n === v ? h[0] === ">" ? (n = a ?? w, p = -1) : h[1] === void 0 ? p = -2 : (p = n.lastIndex - h[2].length, u = h[1], n = h[3] === void 0 ? v : h[3] === '"' ? te : ee) : n === te || n === ee ? n = v : n === Q || n === X ? n = w : (n = v, a = void 0);
-    const g = n === v && r[c + 1].startsWith("/>") ? " " : "";
-    i += n === w ? l + $e : p >= 0 ? (s.push(u), l.slice(0, p) + ne + l.slice(p) + _ + g) : l + _ + (p === -2 ? c : g);
+    let h, u, p = -1, m = 0;
+    for (; m < l.length && (o.lastIndex = m, u = o.exec(l), u !== null); ) m = o.lastIndex, o === w ? u[1] === "!--" ? o = Q : u[1] !== void 0 ? o = X : u[2] !== void 0 ? (lt.test(u[2]) && (s = RegExp("</" + u[2], "g")), o = v) : u[3] !== void 0 && (o = v) : o === v ? u[0] === ">" ? (o = s ?? w, p = -1) : u[1] === void 0 ? p = -2 : (p = o.lastIndex - u[2].length, h = u[1], o = u[3] === void 0 ? v : u[3] === '"' ? et : tt) : o === et || o === tt ? o = v : o === Q || o === X ? o = w : (o = v, s = void 0);
+    const g = o === v && r[c + 1].startsWith("/>") ? " " : "";
+    i += o === w ? l + $t : p >= 0 ? (a.push(h), l.slice(0, p) + nt + l.slice(p) + _ + g) : l + _ + (p === -2 ? c : g);
   }
-  return [de(r, i + (r[t] || "<?>") + (e === 2 ? "</svg>" : e === 3 ? "</math>" : "")), s];
+  return [dt(r, i + (r[e] || "<?>") + (t === 2 ? "</svg>" : t === 3 ? "</math>" : "")), a];
 };
 class M {
-  constructor({ strings: e, _$litType$: t }, s) {
-    let a;
+  constructor({ strings: t, _$litType$: e }, a) {
+    let s;
     this.parts = [];
-    let i = 0, n = 0;
-    const c = e.length - 1, l = this.parts, [u, h] = ze(e, t);
-    if (this.el = M.createElement(u, s), b.currentNode = this.el.content, t === 2 || t === 3) {
+    let i = 0, o = 0;
+    const c = t.length - 1, l = this.parts, [h, u] = zt(t, e);
+    if (this.el = M.createElement(h, a), b.currentNode = this.el.content, e === 2 || e === 3) {
       const p = this.el.content.firstChild;
       p.replaceWith(...p.childNodes);
     }
-    for (; (a = b.nextNode()) !== null && l.length < c; ) {
-      if (a.nodeType === 1) {
-        if (a.hasAttributes()) for (const p of a.getAttributeNames()) if (p.endsWith(ne)) {
-          const m = h[n++], g = a.getAttribute(p).split(_), D = /([.?@])?(.*)/.exec(m);
-          l.push({ type: 1, index: i, name: D[2], strings: g, ctor: D[1] === "." ? Se : D[1] === "?" ? Me : D[1] === "@" ? Pe : H }), a.removeAttribute(p);
-        } else p.startsWith(_) && (l.push({ type: 6, index: i }), a.removeAttribute(p));
-        if (le.test(a.tagName)) {
-          const p = a.textContent.split(_), m = p.length - 1;
+    for (; (s = b.nextNode()) !== null && l.length < c; ) {
+      if (s.nodeType === 1) {
+        if (s.hasAttributes()) for (const p of s.getAttributeNames()) if (p.endsWith(nt)) {
+          const m = u[o++], g = s.getAttribute(p).split(_), D = /([.?@])?(.*)/.exec(m);
+          l.push({ type: 1, index: i, name: D[2], strings: g, ctor: D[1] === "." ? At : D[1] === "?" ? Mt : D[1] === "@" ? Pt : H }), s.removeAttribute(p);
+        } else p.startsWith(_) && (l.push({ type: 6, index: i }), s.removeAttribute(p));
+        if (lt.test(s.tagName)) {
+          const p = s.textContent.split(_), m = p.length - 1;
           if (m > 0) {
-            a.textContent = j ? j.emptyScript : "";
-            for (let g = 0; g < m; g++) a.append(p[g], A()), b.nextNode(), l.push({ type: 2, index: ++i });
-            a.append(p[m], A());
+            s.textContent = j ? j.emptyScript : "";
+            for (let g = 0; g < m; g++) s.append(p[g], S()), b.nextNode(), l.push({ type: 2, index: ++i });
+            s.append(p[m], S());
           }
         }
-      } else if (a.nodeType === 8) if (a.data === oe) l.push({ type: 2, index: i });
+      } else if (s.nodeType === 8) if (s.data === ot) l.push({ type: 2, index: i });
       else {
         let p = -1;
-        for (; (p = a.data.indexOf(_, p + 1)) !== -1; ) l.push({ type: 7, index: i }), p += _.length - 1;
+        for (; (p = s.data.indexOf(_, p + 1)) !== -1; ) l.push({ type: 7, index: i }), p += _.length - 1;
       }
       i++;
     }
   }
-  static createElement(e, t) {
-    const s = f.createElement("template");
-    return s.innerHTML = e, s;
+  static createElement(t, e) {
+    const a = y.createElement("template");
+    return a.innerHTML = t, a;
   }
 }
-function $(r, e, t = r, s) {
-  if (e === x) return e;
-  let a = s !== void 0 ? t._$Co?.[s] : t._$Cl;
-  const i = S(e) ? void 0 : e._$litDirective$;
-  return a?.constructor !== i && (a?._$AO?.(!1), i === void 0 ? a = void 0 : (a = new i(r), a._$AT(r, t, s)), s !== void 0 ? (t._$Co ??= [])[s] = a : t._$Cl = a), a !== void 0 && (e = $(r, a._$AS(r, e.values), a, s)), e;
+function $(r, t, e = r, a) {
+  if (t === x) return t;
+  let s = a !== void 0 ? e._$Co?.[a] : e._$Cl;
+  const i = A(t) ? void 0 : t._$litDirective$;
+  return s?.constructor !== i && (s?._$AO?.(!1), i === void 0 ? s = void 0 : (s = new i(r), s._$AT(r, e, a)), a !== void 0 ? (e._$Co ??= [])[a] = s : e._$Cl = s), s !== void 0 && (t = $(r, s._$AS(r, t.values), s, a)), t;
 }
-class Ae {
-  constructor(e, t) {
-    this._$AV = [], this._$AN = void 0, this._$AD = e, this._$AM = t;
+class St {
+  constructor(t, e) {
+    this._$AV = [], this._$AN = void 0, this._$AD = t, this._$AM = e;
   }
   get parentNode() {
     return this._$AM.parentNode;
@@ -319,35 +319,35 @@ class Ae {
   get _$AU() {
     return this._$AM._$AU;
   }
-  u(e) {
-    const { el: { content: t }, parts: s } = this._$AD, a = (e?.creationScope ?? f).importNode(t, !0);
-    b.currentNode = a;
-    let i = b.nextNode(), n = 0, c = 0, l = s[0];
+  u(t) {
+    const { el: { content: e }, parts: a } = this._$AD, s = (t?.creationScope ?? y).importNode(e, !0);
+    b.currentNode = s;
+    let i = b.nextNode(), o = 0, c = 0, l = a[0];
     for (; l !== void 0; ) {
-      if (n === l.index) {
-        let u;
-        l.type === 2 ? u = new P(i, i.nextSibling, this, e) : l.type === 1 ? u = new l.ctor(i, l.name, l.strings, this, e) : l.type === 6 && (u = new De(i, this, e)), this._$AV.push(u), l = s[++c];
+      if (o === l.index) {
+        let h;
+        l.type === 2 ? h = new P(i, i.nextSibling, this, t) : l.type === 1 ? h = new l.ctor(i, l.name, l.strings, this, t) : l.type === 6 && (h = new Dt(i, this, t)), this._$AV.push(h), l = a[++c];
       }
-      n !== l?.index && (i = b.nextNode(), n++);
+      o !== l?.index && (i = b.nextNode(), o++);
     }
-    return b.currentNode = f, a;
+    return b.currentNode = y, s;
   }
-  p(e) {
-    let t = 0;
-    for (const s of this._$AV) s !== void 0 && (s.strings !== void 0 ? (s._$AI(e, s, t), t += s.strings.length - 2) : s._$AI(e[t])), t++;
+  p(t) {
+    let e = 0;
+    for (const a of this._$AV) a !== void 0 && (a.strings !== void 0 ? (a._$AI(t, a, e), e += a.strings.length - 2) : a._$AI(t[e])), e++;
   }
 }
 class P {
   get _$AU() {
     return this._$AM?._$AU ?? this._$Cv;
   }
-  constructor(e, t, s, a) {
-    this.type = 2, this._$AH = d, this._$AN = void 0, this._$AA = e, this._$AB = t, this._$AM = s, this.options = a, this._$Cv = a?.isConnected ?? !0;
+  constructor(t, e, a, s) {
+    this.type = 2, this._$AH = d, this._$AN = void 0, this._$AA = t, this._$AB = e, this._$AM = a, this.options = s, this._$Cv = s?.isConnected ?? !0;
   }
   get parentNode() {
-    let e = this._$AA.parentNode;
-    const t = this._$AM;
-    return t !== void 0 && e?.nodeType === 11 && (e = t.parentNode), e;
+    let t = this._$AA.parentNode;
+    const e = this._$AM;
+    return e !== void 0 && t?.nodeType === 11 && (t = e.parentNode), t;
   }
   get startNode() {
     return this._$AA;
@@ -355,45 +355,45 @@ class P {
   get endNode() {
     return this._$AB;
   }
-  _$AI(e, t = this) {
-    e = $(this, e, t), S(e) ? e === d || e == null || e === "" ? (this._$AH !== d && this._$AR(), this._$AH = d) : e !== this._$AH && e !== x && this._(e) : e._$litType$ !== void 0 ? this.$(e) : e.nodeType !== void 0 ? this.T(e) : we(e) ? this.k(e) : this._(e);
+  _$AI(t, e = this) {
+    t = $(this, t, e), A(t) ? t === d || t == null || t === "" ? (this._$AH !== d && this._$AR(), this._$AH = d) : t !== this._$AH && t !== x && this._(t) : t._$litType$ !== void 0 ? this.$(t) : t.nodeType !== void 0 ? this.T(t) : wt(t) ? this.k(t) : this._(t);
   }
-  O(e) {
-    return this._$AA.parentNode.insertBefore(e, this._$AB);
+  O(t) {
+    return this._$AA.parentNode.insertBefore(t, this._$AB);
   }
-  T(e) {
-    this._$AH !== e && (this._$AR(), this._$AH = this.O(e));
+  T(t) {
+    this._$AH !== t && (this._$AR(), this._$AH = this.O(t));
   }
-  _(e) {
-    this._$AH !== d && S(this._$AH) ? this._$AA.nextSibling.data = e : this.T(f.createTextNode(e)), this._$AH = e;
+  _(t) {
+    this._$AH !== d && A(this._$AH) ? this._$AA.nextSibling.data = t : this.T(y.createTextNode(t)), this._$AH = t;
   }
-  $(e) {
-    const { values: t, _$litType$: s } = e, a = typeof s == "number" ? this._$AC(e) : (s.el === void 0 && (s.el = M.createElement(de(s.h, s.h[0]), this.options)), s);
-    if (this._$AH?._$AD === a) this._$AH.p(t);
+  $(t) {
+    const { values: e, _$litType$: a } = t, s = typeof a == "number" ? this._$AC(t) : (a.el === void 0 && (a.el = M.createElement(dt(a.h, a.h[0]), this.options)), a);
+    if (this._$AH?._$AD === s) this._$AH.p(e);
     else {
-      const i = new Ae(a, this), n = i.u(this.options);
-      i.p(t), this.T(n), this._$AH = i;
+      const i = new St(s, this), o = i.u(this.options);
+      i.p(e), this.T(o), this._$AH = i;
     }
   }
-  _$AC(e) {
-    let t = se.get(e.strings);
-    return t === void 0 && se.set(e.strings, t = new M(e)), t;
+  _$AC(t) {
+    let e = at.get(t.strings);
+    return e === void 0 && at.set(t.strings, e = new M(t)), e;
   }
-  k(e) {
-    B(this._$AH) || (this._$AH = [], this._$AR());
-    const t = this._$AH;
-    let s, a = 0;
-    for (const i of e) a === t.length ? t.push(s = new P(this.O(A()), this.O(A()), this, this.options)) : s = t[a], s._$AI(i), a++;
-    a < t.length && (this._$AR(s && s._$AB.nextSibling, a), t.length = a);
+  k(t) {
+    K(this._$AH) || (this._$AH = [], this._$AR());
+    const e = this._$AH;
+    let a, s = 0;
+    for (const i of t) s === e.length ? e.push(a = new P(this.O(S()), this.O(S()), this, this.options)) : a = e[s], a._$AI(i), s++;
+    s < e.length && (this._$AR(a && a._$AB.nextSibling, s), e.length = s);
   }
-  _$AR(e = this._$AA.nextSibling, t) {
-    for (this._$AP?.(!1, !0, t); e !== this._$AB; ) {
-      const s = J(e).nextSibling;
-      J(e).remove(), e = s;
+  _$AR(t = this._$AA.nextSibling, e) {
+    for (this._$AP?.(!1, !0, e); t !== this._$AB; ) {
+      const a = J(t).nextSibling;
+      J(t).remove(), t = a;
     }
   }
-  setConnected(e) {
-    this._$AM === void 0 && (this._$Cv = e, this._$AP?.(e));
+  setConnected(t) {
+    this._$AM === void 0 && (this._$Cv = t, this._$AP?.(t));
   }
 }
 class H {
@@ -403,87 +403,87 @@ class H {
   get _$AU() {
     return this._$AM._$AU;
   }
-  constructor(e, t, s, a, i) {
-    this.type = 1, this._$AH = d, this._$AN = void 0, this.element = e, this.name = t, this._$AM = a, this.options = i, s.length > 2 || s[0] !== "" || s[1] !== "" ? (this._$AH = Array(s.length - 1).fill(new String()), this.strings = s) : this._$AH = d;
+  constructor(t, e, a, s, i) {
+    this.type = 1, this._$AH = d, this._$AN = void 0, this.element = t, this.name = e, this._$AM = s, this.options = i, a.length > 2 || a[0] !== "" || a[1] !== "" ? (this._$AH = Array(a.length - 1).fill(new String()), this.strings = a) : this._$AH = d;
   }
-  _$AI(e, t = this, s, a) {
+  _$AI(t, e = this, a, s) {
     const i = this.strings;
-    let n = !1;
-    if (i === void 0) e = $(this, e, t, 0), n = !S(e) || e !== this._$AH && e !== x, n && (this._$AH = e);
+    let o = !1;
+    if (i === void 0) t = $(this, t, e, 0), o = !A(t) || t !== this._$AH && t !== x, o && (this._$AH = t);
     else {
-      const c = e;
-      let l, u;
-      for (e = i[0], l = 0; l < i.length - 1; l++) u = $(this, c[s + l], t, l), u === x && (u = this._$AH[l]), n ||= !S(u) || u !== this._$AH[l], u === d ? e = d : e !== d && (e += (u ?? "") + i[l + 1]), this._$AH[l] = u;
+      const c = t;
+      let l, h;
+      for (t = i[0], l = 0; l < i.length - 1; l++) h = $(this, c[a + l], e, l), h === x && (h = this._$AH[l]), o ||= !A(h) || h !== this._$AH[l], h === d ? t = d : t !== d && (t += (h ?? "") + i[l + 1]), this._$AH[l] = h;
     }
-    n && !a && this.j(e);
+    o && !s && this.j(t);
   }
-  j(e) {
-    e === d ? this.element.removeAttribute(this.name) : this.element.setAttribute(this.name, e ?? "");
+  j(t) {
+    t === d ? this.element.removeAttribute(this.name) : this.element.setAttribute(this.name, t ?? "");
   }
 }
-class Se extends H {
+class At extends H {
   constructor() {
     super(...arguments), this.type = 3;
   }
-  j(e) {
-    this.element[this.name] = e === d ? void 0 : e;
+  j(t) {
+    this.element[this.name] = t === d ? void 0 : t;
   }
 }
-class Me extends H {
+class Mt extends H {
   constructor() {
     super(...arguments), this.type = 4;
   }
-  j(e) {
-    this.element.toggleAttribute(this.name, !!e && e !== d);
+  j(t) {
+    this.element.toggleAttribute(this.name, !!t && t !== d);
   }
 }
-class Pe extends H {
-  constructor(e, t, s, a, i) {
-    super(e, t, s, a, i), this.type = 5;
+class Pt extends H {
+  constructor(t, e, a, s, i) {
+    super(t, e, a, s, i), this.type = 5;
   }
-  _$AI(e, t = this) {
-    if ((e = $(this, e, t, 0) ?? d) === x) return;
-    const s = this._$AH, a = e === d && s !== d || e.capture !== s.capture || e.once !== s.once || e.passive !== s.passive, i = e !== d && (s === d || a);
-    a && this.element.removeEventListener(this.name, this, s), i && this.element.addEventListener(this.name, this, e), this._$AH = e;
+  _$AI(t, e = this) {
+    if ((t = $(this, t, e, 0) ?? d) === x) return;
+    const a = this._$AH, s = t === d && a !== d || t.capture !== a.capture || t.once !== a.once || t.passive !== a.passive, i = t !== d && (a === d || s);
+    s && this.element.removeEventListener(this.name, this, a), i && this.element.addEventListener(this.name, this, t), this._$AH = t;
   }
-  handleEvent(e) {
-    typeof this._$AH == "function" ? this._$AH.call(this.options?.host ?? this.element, e) : this._$AH.handleEvent(e);
+  handleEvent(t) {
+    typeof this._$AH == "function" ? this._$AH.call(this.options?.host ?? this.element, t) : this._$AH.handleEvent(t);
   }
 }
-class De {
-  constructor(e, t, s) {
-    this.element = e, this.type = 6, this._$AN = void 0, this._$AM = t, this.options = s;
+class Dt {
+  constructor(t, e, a) {
+    this.element = t, this.type = 6, this._$AN = void 0, this._$AM = e, this.options = a;
   }
   get _$AU() {
     return this._$AM._$AU;
   }
-  _$AI(e) {
-    $(this, e);
+  _$AI(t) {
+    $(this, t);
   }
 }
-const Ee = I.litHtmlPolyfillSupport;
-Ee?.(M, P), (I.litHtmlVersions ??= []).push("3.3.3");
-const Ce = (r, e, t) => {
-  const s = t?.renderBefore ?? e;
-  let a = s._$litPart$;
-  if (a === void 0) {
-    const i = t?.renderBefore ?? null;
-    s._$litPart$ = a = new P(e.insertBefore(A(), i), i, void 0, t ?? {});
+const Et = I.litHtmlPolyfillSupport;
+Et?.(M, P), (I.litHtmlVersions ??= []).push("3.3.3");
+const Ct = (r, t, e) => {
+  const a = e?.renderBefore ?? t;
+  let s = a._$litPart$;
+  if (s === void 0) {
+    const i = e?.renderBefore ?? null;
+    a._$litPart$ = s = new P(t.insertBefore(S(), i), i, void 0, e ?? {});
   }
-  return a._$AI(r), a;
+  return s._$AI(r), s;
 };
-const K = globalThis;
-class z extends y {
+const B = globalThis;
+class z extends f {
   constructor() {
     super(...arguments), this.renderOptions = { host: this }, this._$Do = void 0;
   }
   createRenderRoot() {
-    const e = super.createRenderRoot();
-    return this.renderOptions.renderBefore ??= e.firstChild, e;
+    const t = super.createRenderRoot();
+    return this.renderOptions.renderBefore ??= t.firstChild, t;
   }
-  update(e) {
-    const t = this.render();
-    this.hasUpdated || (this.renderOptions.isConnected = this.isConnected), super.update(e), this._$Do = Ce(t, this.renderRoot, this.renderOptions);
+  update(t) {
+    const e = this.render();
+    this.hasUpdated || (this.renderOptions.isConnected = this.isConnected), super.update(t), this._$Do = Ct(e, this.renderRoot, this.renderOptions);
   }
   connectedCallback() {
     super.connectedCallback(), this._$Do?.setConnected(!0);
@@ -495,52 +495,55 @@ class z extends y {
     return x;
   }
 }
-z._$litElement$ = !0, z.finalized = !0, K.litElementHydrateSupport?.({ LitElement: z });
-const je = K.litElementPolyfillSupport;
-je?.({ LitElement: z });
-(K.litElementVersions ??= []).push("4.2.2");
-const Ne = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary" }), He = (r) => r.connection.sendMessagePromise({
+z._$litElement$ = !0, z.finalized = !0, B.litElementHydrateSupport?.({ LitElement: z });
+const jt = B.litElementPolyfillSupport;
+jt?.({ LitElement: z });
+(B.litElementVersions ??= []).push("4.2.2");
+const Nt = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary" }), Ht = (r) => r.connection.sendMessagePromise({
   type: "smart_yardian/weather/preview"
-}), Te = (r) => r.connection.sendMessagePromise({
+}), Tt = (r) => r.connection.sendMessagePromise({
   type: "smart_yardian/weather/hourly"
-}), Ze = (r) => r.connection.sendMessagePromise({
+}), Rt = (r) => r.connection.sendMessagePromise({
   type: "smart_yardian/schedule/preview"
-}), F = (r, e) => r.connection.sendMessagePromise({
+}), F = (r, t) => r.connection.sendMessagePromise({
   type: "smart_yardian/program/save",
-  program: e
-}), Re = (r, e) => r.connection.sendMessagePromise({
+  program: t
+}), Zt = (r, t) => r.connection.sendMessagePromise({
   type: "smart_yardian/program/delete",
-  program_id: e
-}), Le = (r, e) => r.connection.sendMessagePromise({
+  program_id: t
+}), Lt = (r, t) => r.connection.sendMessagePromise({
   type: "smart_yardian/settings/update",
-  settings: e
-}), Fe = (r, e) => r.connection.sendMessagePromise({
+  settings: t
+}), Ft = (r, t) => r.connection.sendMessagePromise({
+  type: "smart_yardian/rain/stations",
+  city: t
+}), Ut = (r, t) => r.connection.sendMessagePromise({
   type: "smart_yardian/zone_profiles/update",
-  profiles: e
-}), Ue = (r, e) => r.connection.sendMessagePromise({
+  profiles: t
+}), Ot = (r, t) => r.connection.sendMessagePromise({
   type: "smart_yardian/automation/set",
-  enabled: e
-}), Oe = (r, e) => r.connection.sendMessagePromise({
+  enabled: t
+}), It = (r, t) => r.connection.sendMessagePromise({
   type: "smart_yardian/run/program",
-  program_id: e,
+  program_id: t,
   apply_weather: !0
-}), Ie = async (r, e) => {
-  const t = await F(r, e);
-  return await Oe(r, t.program_id), t;
-}, Be = (r, e, t) => r.connection.sendMessagePromise({
+}), Kt = async (r, t) => {
+  const e = await F(r, t);
+  return await It(r, e.program_id), e;
+}, Bt = (r, t, e) => r.connection.sendMessagePromise({
   type: "smart_yardian/run/manual_program",
-  program: e,
-  apply_weather: t
-}), Ke = (r, e, t) => r.connection.sendMessagePromise({
+  program: t,
+  apply_weather: e
+}), qt = (r, t, e) => r.connection.sendMessagePromise({
   type: "smart_yardian/run/zone",
-  entity_id: e,
-  duration_minutes: t
-}), qe = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/run/stop" }), Ve = (r) => r.connection.sendMessagePromise({
+  entity_id: t,
+  duration_minutes: e
+}), Vt = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/run/stop" }), Wt = (r) => r.connection.sendMessagePromise({
   type: "smart_yardian/run/skip_current_zone"
-}), ae = (r, e) => r.connection.sendMessagePromise({
+}), st = (r, t) => r.connection.sendMessagePromise({
   type: "smart_yardian/pause_until",
-  until: e
-}), We = (r = Date.now(), e = Math.random()) => `program-${r.toString(36)}-${Math.floor(e * 4294967296).toString(36).padStart(7, "0")}`, Ye = ue`
+  until: t
+}), Yt = (r = Date.now(), t = Math.random()) => `program-${r.toString(36)}-${Math.floor(t * 4294967296).toString(36).padStart(7, "0")}`, Jt = ht`
   :host {
     --sy-blue: var(--primary-color, #1688e8);
     --sy-green: var(--success-color, #2e9637);
@@ -788,7 +791,7 @@ const Ne = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
   .weather-band {
     min-height: 92px;
     display: grid;
-    grid-template-columns: minmax(270px, 1fr) repeat(4, minmax(100px, auto));
+    grid-template-columns: minmax(270px, 1fr) repeat(5, minmax(96px, auto));
     align-items: center;
     border: 1px solid color-mix(in srgb, var(--sy-amber) 72%, var(--sy-border));
     border-radius: 8px;
@@ -1974,6 +1977,57 @@ const Ne = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
     border-radius: 6px;
   }
 
+  .rain-station-settings {
+    grid-column: 1 / -1;
+  }
+
+  .rain-station-city,
+  .rain-station-result {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    align-items: center;
+    gap: 16px;
+    min-height: 49px;
+    border-bottom: 1px solid var(--sy-border);
+  }
+
+  .rain-station-city > div {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) auto;
+    gap: 8px;
+  }
+
+  .rain-station-city input,
+  .rain-station-result select {
+    width: 100%;
+    min-width: 0;
+    height: 36px;
+    padding: 5px 8px;
+    color: var(--sy-text);
+    background: var(--sy-control);
+    border: 1px solid var(--sy-border);
+    border-radius: 6px;
+  }
+
+  .rain-station-status,
+  .rain-station-reading {
+    min-height: 49px;
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 1px solid var(--sy-border);
+  }
+
+  .rain-station-reading > span:last-child {
+    color: var(--sy-muted);
+  }
+
+  .rain-station-error {
+    padding: 10px 0;
+    color: var(--sy-red);
+  }
+
   .zone-profiles {
     margin-top: 6px;
   }
@@ -2146,7 +2200,7 @@ const Ne = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
     }
 
     .weather-band {
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(2, 1fr);
     }
 
     .weather-summary {
@@ -2157,6 +2211,23 @@ const Ne = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
     .metric {
       min-height: 59px;
       padding: 5px 9px;
+    }
+
+    .rain-station-city,
+    .rain-station-result,
+    .rain-station-status,
+    .rain-station-reading {
+      grid-template-columns: 1fr;
+      gap: 7px;
+      padding: 10px 0;
+    }
+
+    .rain-station-city > div {
+      grid-template-columns: 1fr;
+    }
+
+    .rain-station-reading > span:last-child {
+      justify-self: start;
     }
 
     .overview-grid {
@@ -2472,14 +2543,14 @@ const Ne = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
       padding-bottom: 12px;
     }
   }
-`, Je = ["H", "K", "Sze", "Cs", "P", "Szo", "V"], Ge = ["Hé", "Ke", "Sze", "Csü", "Pén", "Szo", "Vas"], Z = [
+`, Gt = ["H", "K", "Sze", "Cs", "P", "Szo", "V"], Qt = ["Hé", "Ke", "Sze", "Csü", "Pén", "Szo", "Vas"], R = [
   { value: "rotator", label: "Rotátor (MP)", rate: 10 },
   { value: "mp800", label: "Rotátor MP800", rate: 20 },
   { value: "spray", label: "Spray / esőztető", rate: 40 },
   { value: "rotor", label: "Rotoros", rate: 12 },
   { value: "drip", label: "Csepegtető", rate: 12 }
-], ce = () => ({
-  program_id: We(),
+], ct = () => ({
+  program_id: Yt(),
   name: "Új program",
   enabled: !0,
   weekdays: [0, 2, 4],
@@ -2491,10 +2562,10 @@ const Ne = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
   soil_moisture_enabled: !1,
   zones: [],
   skip_next: !1
-}), E = (r) => JSON.parse(JSON.stringify(r)), R = () => {
+}), E = (r) => JSON.parse(JSON.stringify(r)), Z = () => {
   const r = /* @__PURE__ */ new Date();
   return {
-    ...ce(),
+    ...ct(),
     name: "Kézi öntözés",
     weekdays: [r.getDay() === 0 ? 6 : r.getDay() - 1],
     start_time: `${String(r.getHours()).padStart(2, "0")}:${String(
@@ -2504,15 +2575,15 @@ const Ne = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
     weather_adjustment: !1
   };
 };
-class Qe extends z {
+class Xt extends z {
   constructor() {
-    super(...arguments), this.narrow = !1, this._summary = null, this._tab = "overview", this._loading = !0, this._error = "", this._draft = null, this._saving = !1, this._zoneDurations = {}, this._expandedControllers = [], this._schedulePreview = null, this._scheduleLoading = !1, this._hourlyForecast = null, this._forecastLoading = !1, this._bulkMoistureSensor = "", this._settingsSaving = !1, this._settingsSaved = !1, this._runExpanded = !1, this._now = Date.now(), this._manualDraft = R(), this._manualRunning = !1, this._loadSchedule = async () => {
+    super(...arguments), this.narrow = !1, this._summary = null, this._tab = "overview", this._loading = !0, this._error = "", this._draft = null, this._saving = !1, this._zoneDurations = {}, this._expandedControllers = [], this._schedulePreview = null, this._scheduleLoading = !1, this._hourlyForecast = null, this._forecastLoading = !1, this._bulkMoistureSensor = "", this._settingsSaving = !1, this._settingsSaved = !1, this._rainStationSearching = !1, this._rainStationMatches = [], this._runExpanded = !1, this._now = Date.now(), this._manualDraft = Z(), this._manualRunning = !1, this._loadSchedule = async () => {
       if (!(!this.hass || this._scheduleLoading)) {
         this._scheduleLoading = !0;
         try {
-          this._schedulePreview = await Ze(this.hass), this._error = "";
-        } catch (e) {
-          this._error = this._errorMessage(e);
+          this._schedulePreview = await Rt(this.hass), this._error = "";
+        } catch (t) {
+          this._error = this._errorMessage(t);
         } finally {
           this._scheduleLoading = !1;
         }
@@ -2521,72 +2592,72 @@ class Qe extends z {
       if (!(!this.hass || this._forecastLoading)) {
         this._forecastLoading = !0;
         try {
-          this._hourlyForecast = await Te(this.hass), this._error = "";
-        } catch (e) {
-          this._error = this._errorMessage(e);
+          this._hourlyForecast = await Tt(this.hass), this._error = "";
+        } catch (t) {
+          this._error = this._errorMessage(t);
         } finally {
           this._forecastLoading = !1;
         }
       }
     }, this._newProgram = () => {
-      this._draft = ce(), this._tab = "programs", this._error = "";
+      this._draft = ct(), this._tab = "programs", this._error = "";
     }, this._resetManualProgram = () => {
-      this._manualDraft = R(), this._error = "";
-    }, this._importManualProgram = (e) => {
-      const t = e.target, s = this._summary?.programs.find(
-        (i) => i.program_id === t.value
+      this._manualDraft = Z(), this._error = "";
+    }, this._importManualProgram = (t) => {
+      const e = t.target, a = this._summary?.programs.find(
+        (i) => i.program_id === e.value
       );
-      if (!s) return;
-      const a = R();
+      if (!a) return;
+      const s = Z();
       this._manualDraft = {
-        ...a,
-        name: `Kézi – ${s.name}`,
-        weather_adjustment: s.weather_adjustment,
-        soil_moisture_enabled: s.soil_moisture_enabled,
-        zones: s.zones.map((i) => ({ ...i }))
-      }, t.value = "";
-    }, this._addManualZone = (e) => {
-      const t = e.target;
-      t.value && (this._patchManual({
+        ...s,
+        name: `Kézi – ${a.name}`,
+        weather_adjustment: a.weather_adjustment,
+        soil_moisture_enabled: a.soil_moisture_enabled,
+        zones: a.zones.map((i) => ({ ...i }))
+      }, e.value = "";
+    }, this._addManualZone = (t) => {
+      const e = t.target;
+      e.value && (this._patchManual({
         zones: [
           ...this._manualDraft.zones,
           {
-            entity_id: t.value,
+            entity_id: e.value,
             duration_minutes: 15,
             duration_mode: "manual"
           }
         ]
-      }), t.value = "");
+      }), e.value = "");
     }, this._runManualDraft = async () => {
       if (!(!this.hass || !this._manualDraft.zones.length || this._manualRunning)) {
         this._manualRunning = !0;
         try {
-          await Be(
+          await Bt(
             this.hass,
             this._manualDraft,
             this._manualDraft.weather_adjustment
           ), this._error = "", await this._load(!1);
-        } catch (e) {
-          this._error = this._errorMessage(e);
+        } catch (t) {
+          this._error = this._errorMessage(t);
         } finally {
           this._manualRunning = !1;
         }
       }
-    }, this._addDraftZone = (e) => {
+    }, this._addDraftZone = (t) => {
       if (!this._draft) return;
-      const t = e.target;
-      t.value && (this._patchDraft({
+      const e = t.target;
+      e.value && (this._patchDraft({
         zones: [
           ...this._draft.zones,
           {
-            entity_id: t.value,
+            entity_id: e.value,
             duration_minutes: 15,
             duration_mode: "reference"
           }
         ]
-      }), t.value = "");
-    }, this._saveDraft = async (e) => {
-      if (e.preventDefault(), !(!this.hass || !this._draft)) {
+      }), e.value = "");
+    }, this._saveDraft = async (t) => {
+      if (t.preventDefault(), !(!this.hass || !this._draft)) {
         if (!this._draft.weekdays.length) {
           this._error = "Legalább egy napot válassz ki.";
           return;
@@ -2597,10 +2668,10 @@ class Qe extends z {
         }
         this._saving = !0, this._error = "";
         try {
-          const t = await F(this.hass, this._draft);
-          await this._load(!1), this._draft = E(t);
-        } catch (t) {
-          this._error = this._errorMessage(t);
+          const e = await F(this.hass, this._draft);
+          await this._load(!1), this._draft = E(e);
+        } catch (e) {
+          this._error = this._errorMessage(e);
         } finally {
           this._saving = !1;
         }
@@ -2608,87 +2679,112 @@ class Qe extends z {
     }, this._deleteDraft = async () => {
       if (!this.hass || !this._draft) return;
       if (!this._summary?.programs.some(
-        (t) => t.program_id === this._draft.program_id
+        (e) => e.program_id === this._draft.program_id
       )) {
         this._draft = null;
         return;
       }
       try {
-        await Re(this.hass, this._draft.program_id), this._draft = null, await this._load(!1), this._selectFirstProgram();
-      } catch (t) {
-        this._error = this._errorMessage(t);
+        await Zt(this.hass, this._draft.program_id), this._draft = null, await this._load(!1), this._selectFirstProgram();
+      } catch (e) {
+        this._error = this._errorMessage(e);
       }
-    }, this._runDraft = async (e) => {
+    }, this._runDraft = async (t) => {
       if (this.hass) {
         this._saving = !0, this._error = "";
         try {
-          const t = await Ie(this.hass, e);
-          this._draft = E(t), await this._load(!1);
-        } catch (t) {
-          this._error = this._errorMessage(t);
+          const e = await Kt(this.hass, t);
+          this._draft = E(e), await this._load(!1);
+        } catch (e) {
+          this._error = this._errorMessage(e);
         } finally {
           this._saving = !1;
         }
       }
-    }, this._quickToggleProgram = async (e) => {
+    }, this._quickToggleProgram = async (t) => {
       if (this.hass)
         try {
-          await F(this.hass, { ...e, enabled: !e.enabled }), await this._load(!1);
-        } catch (t) {
-          this._error = this._errorMessage(t);
+          await F(this.hass, { ...t, enabled: !t.enabled }), await this._load(!1);
+        } catch (e) {
+          this._error = this._errorMessage(e);
         }
-    }, this._startZone = async (e) => {
+    }, this._startZone = async (t) => {
       if (this.hass)
         try {
-          await Ke(
+          await qt(
             this.hass,
-            e.entity_id,
-            this._zoneDurations[e.entity_id] ?? 15
+            t.entity_id,
+            this._zoneDurations[t.entity_id] ?? 15
           ), await this._load(!1);
-        } catch (t) {
-          this._error = this._errorMessage(t);
+        } catch (e) {
+          this._error = this._errorMessage(e);
         }
     }, this._stopAll = async () => {
       if (this.hass)
         try {
-          await qe(this.hass), await this._load(!1);
-        } catch (e) {
-          this._error = this._errorMessage(e);
-        }
-    }, this._skipCurrentZone = async (e) => {
-      if (e.stopPropagation(), !!this.hass)
-        try {
-          await Ve(this.hass), await this._load(!1);
+          await Vt(this.hass), await this._load(!1);
         } catch (t) {
           this._error = this._errorMessage(t);
+        }
+    }, this._skipCurrentZone = async (t) => {
+      if (t.stopPropagation(), !!this.hass)
+        try {
+          await Wt(this.hass), await this._load(!1);
+        } catch (e) {
+          this._error = this._errorMessage(e);
         }
     }, this._toggleAutomation = async () => {
       if (!(!this.hass || !this._summary))
         try {
-          await Ue(this.hass, !this._summary.automation_enabled), await this._load(!1);
-        } catch (e) {
-          this._error = this._errorMessage(e);
+          await Ot(this.hass, !this._summary.automation_enabled), await this._load(!1);
+        } catch (t) {
+          this._error = this._errorMessage(t);
         }
     }, this._saveSettings = async () => {
       if (!(!this.hass || !this._summary || this._settingsSaving)) {
         this._settingsSaving = !0, this._settingsSaved = !1;
         try {
-          await Le(this.hass, this._summary.settings), await Fe(
+          await Lt(this.hass, this._summary.settings), await Ut(
             this.hass,
-            this._allZones().map((e) => e.profile)
+            this._allZones().map((t) => t.profile)
           ), await this._load(!1), this._settingsSaved = !0, this._error = "";
-        } catch (e) {
-          this._error = this._errorMessage(e);
+        } catch (t) {
+          this._error = this._errorMessage(t);
         } finally {
           this._settingsSaving = !1;
         }
       }
+    }, this._searchRainStations = async () => {
+      if (!this.hass || !this._summary || this._rainStationSearching) return;
+      const t = this._summary.settings.rain_station_city.trim();
+      if (!(t.length < 2)) {
+        this._rainStationSearching = !0;
+        try {
+          const e = await Ft(this.hass, t);
+          if (this._rainStationMatches = e.stations, !e.stations.length) {
+            this._error = `Nem található Időkép automata „${t}” közelében.`;
+            return;
+          }
+          const a = e.stations.find(
+            (s) => s.station_id === this._summary?.settings.rain_station_id
+          ) ?? e.stations[0];
+          if (!a) return;
+          this._patchSettings({
+            rain_station_id: a.station_id,
+            rain_station_name: a.location
+          }), this._error = "";
+        } catch (e) {
+          this._error = this._errorMessage(e);
+        } finally {
+          this._rainStationSearching = !1;
+        }
+      }
     }, this._pauseDay = async () => {
       if (!this.hass) return;
-      const e = new Date(Date.now() + 1440 * 60 * 1e3).toISOString();
-      await ae(this.hass, e), await this._load(!1);
+      const t = new Date(Date.now() + 1440 * 60 * 1e3).toISOString();
+      await st(this.hass, t), await this._load(!1);
     }, this._resume = async () => {
-      this.hass && (await ae(this.hass, null), await this._load(!1));
+      this.hass && (await st(this.hass, null), await this._load(!1));
     };
   }
   static {
@@ -2711,6 +2807,8 @@ class Qe extends z {
       _bulkMoistureSensor: { state: !0 },
       _settingsSaving: { state: !0 },
       _settingsSaved: { state: !0 },
+      _rainStationSearching: { state: !0 },
+      _rainStationMatches: { state: !0 },
       _runExpanded: { state: !0 },
       _now: { state: !0 },
       _manualDraft: { state: !0 },
@@ -2718,7 +2816,7 @@ class Qe extends z {
     };
   }
   static {
-    this.styles = Ye;
+    this.styles = Jt;
   }
   connectedCallback() {
     super.connectedCallback(), this._load(!0), this._timer = window.setInterval(() => {
@@ -2731,7 +2829,7 @@ class Qe extends z {
     this._timer && window.clearInterval(this._timer), this._clockTimer && window.clearInterval(this._clockTimer), super.disconnectedCallback();
   }
   render() {
-    return o`
+    return n`
       <div class="shell" ?dark=${this.hass?.themes?.darkMode}>
         <header class="topbar">
           <ha-icon icon="mdi:water"></ha-icon>
@@ -2747,28 +2845,28 @@ class Qe extends z {
           ${this._tabButton("settings", "Beállítások")}
         </nav>
         <main class="content">
-          ${this._loading && !this._summary ? o`<div class="loading">Az öntözésvezérlő betöltése…</div>` : this._error && !this._summary ? o`<div class="error">${this._error}</div>` : this._renderTab()}
+          ${this._loading && !this._summary ? n`<div class="loading">Az öntözésvezérlő betöltése…</div>` : this._error && !this._summary ? n`<div class="error">${this._error}</div>` : this._renderTab()}
         </main>
         ${this._summary?.active_run ? this._renderActiveRun() : d}
       </div>
     `;
   }
-  _tabButton(e, t) {
-    return o`
+  _tabButton(t, e) {
+    return n`
       <button
         class="tab"
-        ?selected=${this._tab === e}
-        aria-current=${this._tab === e ? "page" : d}
+        ?selected=${this._tab === t}
+        aria-current=${this._tab === t ? "page" : d}
         @click=${() => {
-      this._tab = e, e === "programs" && !this._draft && this._selectFirstProgram(), e === "schedule" && this._loadSchedule(), e === "forecast" && this._loadHourlyForecast();
+      this._tab = t, t === "programs" && !this._draft && this._selectFirstProgram(), t === "schedule" && this._loadSchedule(), t === "forecast" && this._loadHourlyForecast();
     }}
       >
-        ${t}
+        ${e}
       </button>
     `;
   }
   _renderTab() {
-    if (!this._summary) return o``;
+    if (!this._summary) return n``;
     switch (this._tab) {
       case "programs":
         return this._renderPrograms();
@@ -2787,42 +2885,42 @@ class Qe extends z {
     }
   }
   _renderOverview() {
-    const e = this._summary, t = e.weather, s = e.automation_enabled;
-    return o`
+    const t = this._summary, e = t.weather, a = t.automation_enabled;
+    return n`
       <section class="automation">
-        <div class="automation-icon" ?off=${!s}>
-          <ha-icon icon=${s ? "mdi:check" : "mdi:pause"}></ha-icon>
+        <div class="automation-icon" ?off=${!a}>
+          <ha-icon icon=${a ? "mdi:check" : "mdi:pause"}></ha-icon>
         </div>
         <div class="automation-copy">
-          <div class="automation-title" ?off=${!s}>
-            ${s ? "Automatika aktív" : "Automatika kikapcsolva"}
+          <div class="automation-title" ?off=${!a}>
+            ${a ? "Automatika aktív" : "Automatika kikapcsolva"}
           </div>
           <div class="subtle">
-            ${s ? "Az öntözés az időjárás figyelembevételével történik." : "Az ütemezett programok nem indulnak el."}
+            ${a ? "Az öntözés az időjárás figyelembevételével történik." : "Az ütemezett programok nem indulnak el."}
           </div>
         </div>
         <button
           class="toggle"
-          ?on=${s}
-          aria-label=${s ? "Automatika kikapcsolása" : "Automatika bekapcsolása"}
+          ?on=${a}
+          aria-label=${a ? "Automatika kikapcsolása" : "Automatika bekapcsolása"}
           @click=${this._toggleAutomation}
         ></button>
       </section>
 
-      ${this._renderWeather(t)}
+      ${this._renderWeather(e)}
 
       <div class="next-run">
         <ha-icon icon="mdi:clock-outline"></ha-icon>
-        ${e.next_run ? o`
+        ${t.next_run ? n`
               <span>Következő:</span>
               <span class="linklike">${this._nextProgramName()}</span>
-              <span>· ${this._formatRelative(e.next_run)}</span>
-            ` : o`<span>Nincs következő engedélyezett program</span>`}
+              <span>· ${this._formatRelative(t.next_run)}</span>
+            ` : n`<span>Nincs következő engedélyezett program</span>`}
       </div>
 
       <div class="overview-grid">
         <div class="controllers">
-          ${e.controllers.length ? e.controllers.map((a) => this._renderController(a)) : o`<div class="empty">Nincs konfigurált Yardian zóna.</div>`}
+          ${t.controllers.length ? t.controllers.map((s) => this._renderController(s)) : n`<div class="empty">Nincs konfigurált Yardian zóna.</div>`}
         </div>
         <aside class="rail">
           <div class="rail-title">
@@ -2831,12 +2929,12 @@ class Qe extends z {
               + Hozzáadás
             </button>
           </div>
-          ${e.programs.length ? e.programs.slice(0, 3).map((a) => this._renderRailProgram(a)) : o`<div class="empty">Még nincs program.</div>`}
-          ${this._renderCompactHistory(e.history[0])}
+          ${t.programs.length ? t.programs.slice(0, 3).map((s) => this._renderRailProgram(s)) : n`<div class="empty">Még nincs program.</div>`}
+          ${this._renderCompactHistory(t.history[0])}
         </aside>
       </div>
 
-      ${e.active_run ? d : o`
+      ${t.active_run ? d : n`
             <button class="button danger stop-all" @click=${this._stopAll}>
               <ha-icon icon="mdi:stop"></ha-icon>
               Minden leállítása
@@ -2845,18 +2943,18 @@ class Qe extends z {
     `;
   }
   _renderActiveRun() {
-    const e = this._summary.active_run, t = Math.max(0, e.current_index ?? 0), s = e.zones[t - 1], a = e.zones[t], i = e.zones[t + 1], n = this._remainingSeconds(e.zone_ends_at), c = e.zones.slice(t + 1).reduce((p, m) => p + m.planned_minutes * 60, 0), l = n + c, u = Math.max(1, e.total_minutes * 60), h = Math.max(
+    const t = this._summary.active_run, e = Math.max(0, t.current_index ?? 0), a = t.zones[e - 1], s = t.zones[e], i = t.zones[e + 1], o = this._remainingSeconds(t.zone_ends_at), c = t.zones.slice(e + 1).reduce((p, m) => p + m.planned_minutes * 60, 0), l = o + c, h = Math.max(1, t.total_minutes * 60), u = Math.max(
       0,
-      Math.min(100, (u - l) / u * 100)
+      Math.min(100, (h - l) / h * 100)
     );
-    return o`
+    return n`
       <aside class="active-run" ?expanded=${this._runExpanded}>
-        ${this._runExpanded ? o`
+        ${this._runExpanded ? n`
               <div class="active-run-detail">
                 <div class="active-run-detail-head">
                   <div>
                     <span>Aktuális program</span>
-                    <strong>${e.program_name}</strong>
+                    <strong>${t.program_name}</strong>
                   </div>
                   <button
                     class="icon-button"
@@ -2867,12 +2965,12 @@ class Qe extends z {
                   </button>
                 </div>
                 <div class="run-countdowns">
-                  <div><span>Aktuális kör</span><strong>${this._clock(n)}</strong></div>
+                  <div><span>Aktuális kör</span><strong>${this._clock(o)}</strong></div>
                   <div><span>Program vége</span><strong>${this._clock(l)}</strong></div>
                 </div>
                 <div class="run-sequence">
-                  ${this._runStep("Előző", s)}
-                  ${this._runStep("Aktuális", a, !0)}
+                  ${this._runStep("Előző", a)}
+                  ${this._runStep("Aktuális", s, !0)}
                   ${this._runStep("Következő", i)}
                 </div>
               </div>
@@ -2884,13 +2982,13 @@ class Qe extends z {
         >
           <span class="run-pulse"></span>
           <span>
-            <strong>${e.program_name}</strong>
-            <small>${a?.name ?? "Indítás…"} · ${this._clock(n)}</small>
+            <strong>${t.program_name}</strong>
+            <small>${s?.name ?? "Indítás…"} · ${this._clock(o)}</small>
           </span>
-          <span class="run-progress-label">${Math.round(h)}%</span>
+          <span class="run-progress-label">${Math.round(u)}%</span>
           <ha-icon icon=${this._runExpanded ? "mdi:chevron-down" : "mdi:chevron-up"}></ha-icon>
         </button>
-        <div class="active-run-progress"><span style=${`width:${h}%`}></span></div>
+        <div class="active-run-progress"><span style=${`width:${u}%`}></span></div>
         <div class="active-run-actions">
           <button class="button quiet" @click=${this._skipCurrentZone}>
             Aktuális kör kihagyása
@@ -2903,25 +3001,25 @@ class Qe extends z {
       </aside>
     `;
   }
-  _runStep(e, t, s = !1) {
-    return o`
-      <div class="run-step" ?active=${s} ?empty=${!t}>
-        <span>${e}</span>
-        <strong>${t?.name ?? "—"}</strong>
-        <small>${t ? `${t.planned_minutes} perc` : ""}</small>
+  _runStep(t, e, a = !1) {
+    return n`
+      <div class="run-step" ?active=${a} ?empty=${!e}>
+        <span>${t}</span>
+        <strong>${e?.name ?? "—"}</strong>
+        <small>${e ? `${e.planned_minutes} perc` : ""}</small>
       </div>
     `;
   }
-  _remainingSeconds(e) {
-    return e ? Math.max(0, Math.ceil((new Date(e).getTime() - this._now) / 1e3)) : 0;
+  _remainingSeconds(t) {
+    return t ? Math.max(0, Math.ceil((new Date(t).getTime() - this._now) / 1e3)) : 0;
   }
-  _clock(e) {
-    const t = Math.floor(e / 60);
-    return `${String(t).padStart(2, "0")}:${String(e % 60).padStart(2, "0")}`;
+  _clock(t) {
+    const e = Math.floor(t / 60);
+    return `${String(e).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
   }
-  _renderWeather(e) {
-    if (!e)
-      return o`
+  _renderWeather(t) {
+    if (!t)
+      return n`
         <section class="weather-band">
           <div class="weather-summary">
             <ha-icon icon="mdi:weather-partly-cloudy"></ha-icon>
@@ -2932,86 +3030,91 @@ class Qe extends z {
           </div>
         </section>
       `;
-    const t = e.percent ?? 0, s = t === 0 ? "kihagyás" : t < 80 ? "csökkentett öntözés" : t > 120 ? "emelt öntözés" : "mérsékelt öntözés";
-    return o`
+    const e = t.percent ?? 0, a = e === 0 ? "kihagyás" : e < 80 ? "csökkentett öntözés" : e > 120 ? "emelt öntözés" : "mérsékelt öntözés";
+    return n`
       <section class="weather-band">
         <div class="weather-summary">
-          <ha-icon icon=${t === 0 ? "mdi:weather-rainy" : "mdi:weather-partly-cloudy"}></ha-icon>
+          <ha-icon icon=${e === 0 ? "mdi:weather-rainy" : "mdi:weather-partly-cloudy"}></ha-icon>
           <div>
-            <div class="decision">Ma ${t}% · ${s}</div>
-            <div class="weather-reason">${e.reason}</div>
+            <div class="decision">Ma ${e}% · ${a}</div>
+            <div class="weather-reason">${t.reason}</div>
           </div>
         </div>
-        ${this._metric("mdi:weather-rainy", "Várható eső", `${e.precipitation_mm ?? 0} mm`)}
-        ${this._metric("mdi:water-percent", "Esély", `${e.max_probability ?? 0}%`)}
-        ${this._metric("mdi:white-balance-sunny", "Napos órák", `${e.sunny_hours ?? 0}`, "sun")}
-        ${this._metric("mdi:thermometer", "Maximum", `${e.max_temperature ?? 0} °C`, "temp")}
+        ${this._metric(
+      "mdi:cup-water",
+      "Elmúlt 24 óra",
+      t.rain_station ? `${t.observed_precipitation_mm ?? 0} mm` : "Nincs állomás"
+    )}
+        ${this._metric("mdi:weather-rainy", "Várható eső", `${t.precipitation_mm ?? 0} mm`)}
+        ${this._metric("mdi:water-percent", "Esély", `${t.max_probability ?? 0}%`)}
+        ${this._metric("mdi:white-balance-sunny", "Napos órák", `${t.sunny_hours ?? 0}`, "sun")}
+        ${this._metric("mdi:thermometer", "Maximum", `${t.max_temperature ?? 0} °C`, "temp")}
       </section>
     `;
   }
-  _metric(e, t, s, a = "") {
-    return o`
-      <div class="metric ${a}">
-        <ha-icon icon=${e}></ha-icon>
-        <span class="metric-label">${t}</span>
-        <span class="metric-value">${s}</span>
+  _metric(t, e, a, s = "") {
+    return n`
+      <div class="metric ${s}">
+        <ha-icon icon=${t}></ha-icon>
+        <span class="metric-label">${e}</span>
+        <span class="metric-value">${a}</span>
       </div>
     `;
   }
-  _renderController(e) {
-    const s = !window.matchMedia("(max-width: 600px)").matches || this._expandedControllers.includes(e.id), a = this._controllerStatus(e);
-    return o`
-      <section class="controller" ?collapsed=${!s}>
+  _renderController(t) {
+    const a = !window.matchMedia("(max-width: 600px)").matches || this._expandedControllers.includes(t.id), s = this._controllerStatus(t);
+    return n`
+      <section class="controller" ?collapsed=${!a}>
         <button
           class="controller-head"
-          aria-expanded=${s}
-          @click=${() => this._toggleController(e.id)}
+          aria-expanded=${a}
+          @click=${() => this._toggleController(t.id)}
         >
           <div class="controller-mark"><ha-icon icon="mdi:sprinkler-variant"></ha-icon></div>
           <div>
-            <div class="controller-name">${e.name}</div>
+            <div class="controller-name">${t.name}</div>
             <div class="controller-meta">
-              ${e.model} ·
-              <span class=${a.className}>
-                ${a.label}
+              ${t.model} ·
+              <span class=${s.className}>
+                ${s.label}
               </span>
             </div>
           </div>
           <ha-icon
             class="controller-chevron"
-            icon=${s ? "mdi:chevron-up" : "mdi:chevron-down"}
+            icon=${a ? "mdi:chevron-up" : "mdi:chevron-down"}
           ></ha-icon>
         </button>
-        ${e.zones.map((i) => this._renderZone(i))}
+        ${t.zones.map((i) => this._renderZone(i))}
       </section>
     `;
   }
-  _renderZone(e) {
-    const t = this._zoneDurations[e.entity_id] ?? 15, s = e.state === "on", a = this._summary?.active_run?.current_zone === e.entity_id, i = Number(this._summary?.active_run?.current_duration ?? t), n = this._headLabel(e.profile.head_type), c = this._zoneIssueLabel(e);
-    return o`
+  _renderZone(t) {
+    const e = this._zoneDurations[t.entity_id] ?? 15, a = t.state === "on", s = this._summary?.active_run?.current_zone === t.entity_id, i = Number(this._summary?.active_run?.current_duration ?? e), o = this._headLabel(t.profile.head_type), c = this._zoneIssueLabel(t);
+    return n`
       <div class="zone-row">
         <ha-icon icon="mdi:water"></ha-icon>
-        <span class="zone-name">${e.name}</span>
+        <span class="zone-name">${t.name}</span>
         <span
           class="zone-state"
-          ?running=${s}
-          ?unavailable=${!e.available}
-          title=${e.availability_issue ?? e.entity_id}
+          ?running=${a}
+          ?unavailable=${!t.available}
+          title=${t.availability_issue ?? t.entity_id}
         >
-          ${s ? a ? `Fut · ${i} perc` : "Fut" : e.available ? `Tétlen · ${n}` : o`Nem elérhető <small>${c}</small>`}
+          ${a ? s ? `Fut · ${i} perc` : "Fut" : t.available ? `Tétlen · ${o}` : n`Nem elérhető <small>${c}</small>`}
         </span>
         <label class="duration">
           <input
             type="number"
             min="1"
             max="180"
-            .value=${String(t)}
-            aria-label="${e.name} időtartama percben"
+            .value=${String(e)}
+            aria-label="${t.name} időtartama percben"
             @change=${(l) => {
-      const u = l.target;
+      const h = l.target;
       this._zoneDurations = {
         ...this._zoneDurations,
-        [e.entity_id]: this._clampDuration(u.valueAsNumber)
+        [t.entity_id]: this._clampDuration(h.valueAsNumber)
       };
     }}
           />
@@ -3019,8 +3122,8 @@ class Qe extends z {
         </label>
         <button
           class="button"
-          ?disabled=${!e.available || s}
-          @click=${() => this._startZone(e)}
+          ?disabled=${!t.available || a}
+          @click=${() => this._startZone(t)}
         >
           <ha-icon icon="mdi:play"></ha-icon>
           Indítás
@@ -3028,50 +3131,50 @@ class Qe extends z {
       </div>
     `;
   }
-  _controllerStatus(e) {
-    const t = e.zone_count ?? e.zones.length, s = e.available_zone_count ?? e.zones.filter((a) => a.available).length;
-    return t === 0 ? { label: "Nincs zóna", className: "offline" } : s === t ? { label: "Online", className: "online" } : s === 0 ? { label: "Nincs elérhető zóna", className: "offline" } : { label: `${s}/${t} zóna elérhető`, className: "partial" };
+  _controllerStatus(t) {
+    const e = t.zone_count ?? t.zones.length, a = t.available_zone_count ?? t.zones.filter((s) => s.available).length;
+    return e === 0 ? { label: "Nincs zóna", className: "offline" } : a === e ? { label: "Online", className: "online" } : a === 0 ? { label: "Nincs elérhető zóna", className: "offline" } : { label: `${a}/${e} zóna elérhető`, className: "partial" };
   }
-  _zoneIssueLabel(e) {
-    return e.state === "missing" ? "HA state hiányzik" : e.state === "unavailable" ? "HA: unavailable" : e.availability_issue ?? `HA: ${e.state}`;
+  _zoneIssueLabel(t) {
+    return t.state === "missing" ? "HA state hiányzik" : t.state === "unavailable" ? "HA: unavailable" : t.availability_issue ?? `HA: ${t.state}`;
   }
-  _renderRailProgram(e) {
-    const t = this._programMinutes(e);
-    return o`
+  _renderRailProgram(t) {
+    const e = this._programMinutes(t);
+    return n`
       <div class="program-rail-item">
         <div class="program-line">
-          <ha-icon icon=${e.start_time < "12:00" ? "mdi:weather-sunset-up" : "mdi:weather-night"}></ha-icon>
-          <strong>${e.name}</strong>
+          <ha-icon icon=${t.start_time < "12:00" ? "mdi:weather-sunset-up" : "mdi:weather-night"}></ha-icon>
+          <strong>${t.name}</strong>
           <button
             class="toggle"
-            ?on=${e.enabled}
-            aria-label="${e.name} engedélyezése"
-            @click=${() => this._quickToggleProgram(e)}
+            ?on=${t.enabled}
+            aria-label="${t.name} engedélyezése"
+            @click=${() => this._quickToggleProgram(t)}
           ></button>
         </div>
         <div class="program-details">
-          <div>Napok: ${this._formatDays(e.weekdays)}</div>
-          <div>Kezdés: ${e.start_time}</div>
-          ${e.temperature_condition_enabled ? o`<div>${this._temperatureConditionText(e)}</div>` : d}
-          <div>Számított öntözési idő: ${t} perc</div>
+          <div>Napok: ${this._formatDays(t.weekdays)}</div>
+          <div>Kezdés: ${t.start_time}</div>
+          ${t.temperature_condition_enabled ? n`<div>${this._temperatureConditionText(t)}</div>` : d}
+          <div>Számított öntözési idő: ${e} perc</div>
         </div>
       </div>
     `;
   }
-  _renderCompactHistory(e) {
-    return o`
+  _renderCompactHistory(t) {
+    return n`
       <div class="history-compact">
         <div class="history-compact-title">Legutóbbi események</div>
-        ${e ? o`
-              <div>${this._formatDateTime(e.scheduled_at)} · ${e.program_name}</div>
-              <div class="history-reason">${e.reason}</div>
-            ` : o`<div class="subtle">Még nincs futási előzmény.</div>`}
+        ${t ? n`
+              <div>${this._formatDateTime(t.scheduled_at)} · ${t.program_name}</div>
+              <div class="history-reason">${t.reason}</div>
+            ` : n`<div class="subtle">Még nincs futási előzmény.</div>`}
       </div>
     `;
   }
   _renderHourlyForecast() {
-    const e = this._hourlyForecast, t = e ? this._groupForecastDays(e.hours) : [];
-    return o`
+    const t = this._hourlyForecast, e = t ? this._groupForecastDays(t.hours) : [];
+    return n`
       <div class="page-head">
         <div>
           <h2>Órás előrejelzés</h2>
@@ -3087,18 +3190,18 @@ class Qe extends z {
           ${this._forecastLoading ? "Frissítés…" : "Frissítés"}
         </button>
       </div>
-      ${this._forecastLoading && !e ? o`<div class="loading">Időkép-előrejelzés betöltése…</div>` : e ? o`
+      ${this._forecastLoading && !t ? n`<div class="loading">Időkép-előrejelzés betöltése…</div>` : t ? n`
               <div class="forecast-source">
-                <span>Forrás: ${e.source}</span>
-                <span>Frissítve: ${this._formatDateTime(e.generated_at)}</span>
+                <span>Forrás: ${t.source}</span>
+                <span>Frissítve: ${this._formatDateTime(t.generated_at)}</span>
               </div>
               <div class="forecast-days">
-                ${t.map(
-      (s, a) => o`
+                ${e.map(
+      (a, s) => n`
                     <section class="forecast-day">
                       <div class="forecast-day-head">
-                        <strong>${this._formatForecastDate(s.date, a)}</strong>
-                        <span>${s.hours.length} óra</span>
+                        <strong>${this._formatForecastDate(a.date, s)}</strong>
+                        <span>${a.hours.length} óra</span>
                       </div>
                       <div class="forecast-table-head" aria-hidden="true">
                         <span>Idő</span>
@@ -3107,42 +3210,42 @@ class Qe extends z {
                         <span>Csapadék</span>
                         <span>Esély</span>
                       </div>
-                      ${s.hours.map((i) => this._renderForecastHour(i))}
+                      ${a.hours.map((i) => this._renderForecastHour(i))}
                     </section>
                   `
     )}
               </div>
-            ` : o`<div class="empty">Az órás Időkép-előrejelzés nem érhető el.</div>`}
-      ${this._error ? o`<div class="error">${this._error}</div>` : d}
+            ` : n`<div class="empty">Az órás Időkép-előrejelzés nem érhető el.</div>`}
+      ${this._error ? n`<div class="error">${this._error}</div>` : d}
     `;
   }
-  _renderForecastHour(e) {
-    const t = e.precipitation_mm > 0 || e.precipitation_probability >= 50;
-    return o`
-      <article class="forecast-hour" ?raining=${t}>
-        <time>${this._formatTime(e.timestamp)}</time>
+  _renderForecastHour(t) {
+    const e = t.precipitation_mm > 0 || t.precipitation_probability >= 50;
+    return n`
+      <article class="forecast-hour" ?raining=${e}>
+        <time>${this._formatTime(t.timestamp)}</time>
         <div class="forecast-condition">
-          <ha-icon icon=${this._forecastConditionIcon(e.condition)}></ha-icon>
-          <span>${this._forecastConditionLabel(e.condition)}</span>
+          <ha-icon icon=${this._forecastConditionIcon(t.condition)}></ha-icon>
+          <span>${this._forecastConditionLabel(t.condition)}</span>
         </div>
         <div class="forecast-metric temperature">
           <span>Hőmérséklet</span>
-          <strong>${this._formatForecastNumber(e.temperature)} °C</strong>
+          <strong>${this._formatForecastNumber(t.temperature)} °C</strong>
         </div>
         <div class="forecast-metric precipitation">
           <span>Csapadék</span>
-          <strong>${this._formatForecastNumber(e.precipitation_mm)} mm</strong>
+          <strong>${this._formatForecastNumber(t.precipitation_mm)} mm</strong>
         </div>
         <div class="forecast-metric probability">
           <span>Esély</span>
-          <strong>${e.precipitation_probability}%</strong>
+          <strong>${t.precipitation_probability}%</strong>
         </div>
       </article>
     `;
   }
   _renderSchedule() {
-    const e = this._schedulePreview;
-    return o`
+    const t = this._schedulePreview;
+    return n`
       <div class="page-head">
         <div>
           <h2>Következő 3 nap</h2>
@@ -3160,17 +3263,17 @@ class Qe extends z {
           ${this._scheduleLoading ? "Frissítés…" : "Újraszámítás"}
         </button>
       </div>
-      ${this._scheduleLoading && !e ? o`<div class="loading">Háromnapos programterv számítása…</div>` : e ? o`
+      ${this._scheduleLoading && !t ? n`<div class="loading">Háromnapos programterv számítása…</div>` : t ? n`
               <div class="schedule-days">
-                ${e.days.map((t, s) => o`
+                ${t.days.map((e, a) => n`
                   <section class="schedule-day">
                     <div class="schedule-day-head">
-                      <strong>${this._formatScheduleDate(t.date, s)}</strong>
-                      <span>${t.programs.length} program</span>
+                      <strong>${this._formatScheduleDate(e.date, a)}</strong>
+                      <span>${e.programs.length} program</span>
                     </div>
-                    ${t.programs.length ? t.programs.map(
-      (a) => this._renderScheduleProgram(a)
-    ) : o`
+                    ${e.programs.length ? e.programs.map(
+      (s) => this._renderScheduleProgram(s)
+    ) : n`
                           <div class="schedule-empty">
                             Nincs hátralévő engedélyezett program.
                           </div>
@@ -3179,38 +3282,43 @@ class Qe extends z {
                 `)}
               </div>
               <div class="schedule-generated">
-                Utolsó számítás: ${this._formatDateTime(e.generated_at)}
+                Utolsó számítás: ${this._formatDateTime(t.generated_at)}
               </div>
-            ` : o`<div class="empty">A háromnapos előnézet nem érhető el.</div>`}
-      ${this._error ? o`<div class="error">${this._error}</div>` : d}
+            ` : n`<div class="empty">A háromnapos előnézet nem érhető el.</div>`}
+      ${this._error ? n`<div class="error">${this._error}</div>` : d}
     `;
   }
-  _renderScheduleProgram(e) {
-    const t = e.status === "will_run";
-    return o`
-      <article class="schedule-program" ?runnable=${t}>
+  _renderScheduleProgram(t) {
+    const e = t.status === "will_run";
+    return n`
+      <article class="schedule-program" ?runnable=${e}>
         <div class="schedule-program-head">
-          <time>${this._formatTime(e.scheduled_at)}</time>
-          <strong>${e.program_name}</strong>
-          <span class="schedule-status ${e.status}">
-            ${this._scheduleStatusLabel(e.status)}
+          <time>${this._formatTime(t.scheduled_at)}</time>
+          <strong>${t.program_name}</strong>
+          <span class="schedule-status ${t.status}">
+            ${this._scheduleStatusLabel(t.status)}
           </span>
         </div>
-        <div class="schedule-reason">${e.reason}</div>
-        ${e.weather ? o`
+        <div class="schedule-reason">${t.reason}</div>
+        ${t.weather ? n`
               <div class="schedule-weather">
-                <span>${e.weather.max_temperature ?? "–"} °C max.</span>
-                <span>${e.weather.precipitation_mm ?? 0} mm eső</span>
-                <span>Forrás: ${e.weather.source}</span>
+                <span>${t.weather.max_temperature ?? "–"} °C max.</span>
+                <span>${t.weather.precipitation_mm ?? 0} mm várható</span>
+                ${t.weather.observed_precipitation_mm ? n`
+                      <span>
+                        ${t.weather.observed_precipitation_mm} mm mért / 24 óra
+                      </span>
+                    ` : d}
+                <span>Forrás: ${t.weather.source}</span>
               </div>
             ` : d}
         <div class="schedule-zones">
-          ${e.zones.map(
-      (s) => o`
+          ${t.zones.map(
+      (a) => n`
               <div>
-                <span>${s.name}</span>
+                <span>${a.name}</span>
                 <strong>
-                  ${s.planned_minutes === null ? "nincs adat" : `${s.planned_minutes} perc`}
+                  ${a.planned_minutes === null ? "nincs adat" : `${a.planned_minutes} perc`}
                 </strong>
               </div>
             `
@@ -3219,15 +3327,15 @@ class Qe extends z {
         <div class="schedule-total">
           <span>Összesen</span>
           <strong>
-            ${e.total_minutes === null ? "nem számítható" : `${e.total_minutes} perc`}
+            ${t.total_minutes === null ? "nem számítható" : `${t.total_minutes} perc`}
           </strong>
         </div>
       </article>
     `;
   }
   _renderManualProgram() {
-    const e = this._manualDraft, t = this._allZones();
-    return o`
+    const t = this._manualDraft, e = this._allZones();
+    return n`
       <div class="page-head">
         <div>
           <h2>Kézi program</h2>
@@ -3246,7 +3354,7 @@ class Qe extends z {
             <select @change=${this._importManualProgram}>
               <option value="">Válassz programot…</option>
               ${this._summary.programs.map(
-      (s) => o`<option value=${s.program_id}>${s.name}</option>`
+      (a) => n`<option value=${a.program_id}>${a.name}</option>`
     )}
             </select>
           </label>
@@ -3255,38 +3363,38 @@ class Qe extends z {
             <input
               type="text"
               maxlength="64"
-              .value=${e.name}
-              @input=${(s) => this._patchManual({
-      name: s.target.value
+              .value=${t.name}
+              @input=${(a) => this._patchManual({
+      name: a.target.value
     })}
             />
           </label>
           <label class="manual-weather">
             <input
               type="checkbox"
-              .checked=${e.weather_adjustment}
-              @change=${(s) => this._patchManual({
-      weather_adjustment: s.target.checked
+              .checked=${t.weather_adjustment}
+              @change=${(a) => this._patchManual({
+      weather_adjustment: a.target.checked
     })}
             />
             Időjárás-korrekció
           </label>
         </div>
         <div class="manual-zone-list">
-          ${e.zones.map((s, a) => {
-      const i = t.find(
-        (n) => n.entity_id === s.entity_id
+          ${t.zones.map((a, s) => {
+      const i = e.find(
+        (o) => o.entity_id === a.entity_id
       );
-      return o`
+      return n`
               <div class="manual-zone">
-                <span class="manual-zone-order">${a + 1}</span>
-                <strong>${i?.name ?? s.entity_id}</strong>
+                <span class="manual-zone-order">${s + 1}</span>
+                <strong>${i?.name ?? a.entity_id}</strong>
                 <select
-                  aria-label="${i?.name ?? s.entity_id} számítási módja"
-                  .value=${s.duration_mode}
-                  @change=${(n) => this._updateManualZone(a, {
-        ...s,
-        duration_mode: n.target.value
+                  aria-label="${i?.name ?? a.entity_id} számítási módja"
+                  .value=${a.duration_mode}
+                  @change=${(o) => this._updateManualZone(s, {
+        ...a,
+        duration_mode: o.target.value
       })}
                 >
                   <option value="manual">Manuális perc</option>
@@ -3297,41 +3405,41 @@ class Qe extends z {
                     type="number"
                     min="1"
                     max="180"
-                    ?disabled=${s.duration_mode === "reference"}
-                    .value=${String(s.duration_minutes)}
-                    @change=${(n) => this._updateManualZone(a, {
-        ...s,
+                    ?disabled=${a.duration_mode === "reference"}
+                    .value=${String(a.duration_minutes)}
+                    @change=${(o) => this._updateManualZone(s, {
+        ...a,
         duration_minutes: this._clampDuration(
-          n.target.valueAsNumber
+          o.target.valueAsNumber
         )
       })}
                   />
                   <span>perc</span>
                 </label>
                 <span class="manual-calculated">
-                  ${this._programZoneMinutes(e, s)} perc
+                  ${this._programZoneMinutes(t, a)} perc
                 </span>
                 <div class="manual-zone-actions">
                   <button
                     class="icon-button"
                     aria-label="Kör feljebb"
-                    ?disabled=${a === 0}
-                    @click=${() => this._moveManualZone(a, -1)}
+                    ?disabled=${s === 0}
+                    @click=${() => this._moveManualZone(s, -1)}
                   >
                     <ha-icon icon="mdi:chevron-up"></ha-icon>
                   </button>
                   <button
                     class="icon-button"
                     aria-label="Kör lejjebb"
-                    ?disabled=${a === e.zones.length - 1}
-                    @click=${() => this._moveManualZone(a, 1)}
+                    ?disabled=${s === t.zones.length - 1}
+                    @click=${() => this._moveManualZone(s, 1)}
                   >
                     <ha-icon icon="mdi:chevron-down"></ha-icon>
                   </button>
                   <button
                     class="icon-button"
                     aria-label="Kör eltávolítása"
-                    @click=${() => this._removeManualZone(a)}
+                    @click=${() => this._removeManualZone(s)}
                   >
                     <ha-icon icon="mdi:close"></ha-icon>
                   </button>
@@ -3339,42 +3447,42 @@ class Qe extends z {
               </div>
             `;
     })}
-          ${e.zones.length ? d : o`<div class="empty">Adj hozzá legalább egy öntözési kört.</div>`}
+          ${t.zones.length ? d : n`<div class="empty">Adj hozzá legalább egy öntözési kört.</div>`}
         </div>
         <div class="manual-add">
           <label class="field">
             <span class="field-label">Kör hozzáadása</span>
             <select @change=${this._addManualZone}>
               <option value="">Válassz zónát…</option>
-              ${t.filter(
-      (s) => !e.zones.some(
-        (a) => a.entity_id === s.entity_id
+              ${e.filter(
+      (a) => !t.zones.some(
+        (s) => s.entity_id === a.entity_id
       )
     ).map(
-      (s) => o`<option value=${s.entity_id}>${s.name}</option>`
+      (a) => n`<option value=${a.entity_id}>${a.name}</option>`
     )}
             </select>
           </label>
           <div class="manual-total">
             <span>Várható teljes idő</span>
-            <strong>${this._programMinutes(e)} perc</strong>
+            <strong>${this._programMinutes(t)} perc</strong>
           </div>
           <button
             class="button primary manual-start"
-            ?disabled=${this._manualRunning || !e.zones.length || !!this._summary.active_run}
+            ?disabled=${this._manualRunning || !t.zones.length || !!this._summary.active_run}
             @click=${this._runManualDraft}
           >
             <ha-icon icon="mdi:play"></ha-icon>
             ${this._summary.active_run ? "Már fut egy program" : this._manualRunning ? "Indítás…" : "Kézi program indítása"}
           </button>
         </div>
-        ${this._error ? o`<div class="error">${this._error}</div>` : d}
+        ${this._error ? n`<div class="error">${this._error}</div>` : d}
       </section>
     `;
   }
   _renderPrograms() {
-    const e = this._summary.programs, t = this._draft;
-    return o`
+    const t = this._summary.programs, e = this._draft;
+    return n`
       <div class="page-head">
         <h2>Programok</h2>
         <button class="button primary" type="button" @click=${this._newProgram}>
@@ -3384,30 +3492,30 @@ class Qe extends z {
       </div>
       <div class="program-workspace">
         <div class="program-list">
-          ${e.length ? e.map(
-      (s) => o`
+          ${t.length ? t.map(
+      (a) => n`
                   <button
                     class="program-list-item"
-                    ?selected=${t?.program_id === s.program_id}
+                    ?selected=${e?.program_id === a.program_id}
                     @click=${() => {
-        this._draft = E(s);
+        this._draft = E(a);
       }}
                   >
-                    <strong>${s.name}</strong>
-                    <span>${s.enabled ? "Aktív" : "Kikapcsolva"}</span>
-                    <span>${this._formatDays(s.weekdays)} · ${s.start_time}</span>
-                    <span>${this._programMinutes(s)} perc</span>
+                    <strong>${a.name}</strong>
+                    <span>${a.enabled ? "Aktív" : "Kikapcsolva"}</span>
+                    <span>${this._formatDays(a.weekdays)} · ${a.start_time}</span>
+                    <span>${this._programMinutes(a)} perc</span>
                   </button>
                 `
-    ) : o`<div class="empty">Hozd létre az első öntözési programot.</div>`}
+    ) : n`<div class="empty">Hozd létre az első öntözési programot.</div>`}
         </div>
-        ${t ? this._renderProgramEditor(t) : o`<div class="empty">Válassz egy programot.</div>`}
+        ${e ? this._renderProgramEditor(e) : n`<div class="empty">Válassz egy programot.</div>`}
       </div>
     `;
   }
-  _renderProgramEditor(e) {
-    const t = this._allZones();
-    return o`
+  _renderProgramEditor(t) {
+    const e = this._allZones();
+    return n`
       <form class="editor" @submit=${this._saveDraft}>
         <div class="field">
           <label for="program-name">Program neve</label>
@@ -3416,23 +3524,23 @@ class Qe extends z {
             type="text"
             maxlength="64"
             required
-            .value=${e.name}
-            @input=${(s) => this._patchDraft({ name: s.target.value })}
+            .value=${t.name}
+            @input=${(a) => this._patchDraft({ name: a.target.value })}
           />
         </div>
         <div class="field">
           <span class="field-label">Napok</span>
           <div class="days">
-            ${Je.map(
-      (s, a) => o`
+            ${Gt.map(
+      (a, s) => n`
                 <button
                   class="day"
                   type="button"
-                  ?selected=${e.weekdays.includes(a)}
-                  aria-pressed=${e.weekdays.includes(a)}
-                  @click=${() => this._toggleDay(a)}
+                  ?selected=${t.weekdays.includes(s)}
+                  aria-pressed=${t.weekdays.includes(s)}
+                  @click=${() => this._toggleDay(s)}
                 >
-                  ${s}
+                  ${a}
                 </button>
               `
     )}
@@ -3444,16 +3552,16 @@ class Qe extends z {
             id="program-start"
             type="time"
             required
-            .value=${e.start_time}
-            @input=${(s) => this._patchDraft({ start_time: s.target.value })}
+            .value=${t.start_time}
+            @input=${(a) => this._patchDraft({ start_time: a.target.value })}
           />
         </div>
         <div class="checkline">
           <input
             id="program-enabled"
             type="checkbox"
-            .checked=${e.enabled}
-            @change=${(s) => this._patchDraft({ enabled: s.target.checked })}
+            .checked=${t.enabled}
+            @change=${(a) => this._patchDraft({ enabled: a.target.checked })}
           />
           <label for="program-enabled">Program engedélyezve</label>
         </div>
@@ -3461,9 +3569,9 @@ class Qe extends z {
           <input
             id="program-weather"
             type="checkbox"
-            .checked=${e.weather_adjustment}
-            @change=${(s) => this._patchDraft({
-      weather_adjustment: s.target.checked
+            .checked=${t.weather_adjustment}
+            @change=${(a) => this._patchDraft({
+      weather_adjustment: a.target.checked
     })}
           />
           <label for="program-weather">Időjárás-korrekció használata</label>
@@ -3472,23 +3580,23 @@ class Qe extends z {
           <input
             id="program-temperature-condition"
             type="checkbox"
-            .checked=${e.temperature_condition_enabled}
-            @change=${(s) => this._patchDraft({
-      temperature_condition_enabled: s.target.checked
+            .checked=${t.temperature_condition_enabled}
+            @change=${(a) => this._patchDraft({
+      temperature_condition_enabled: a.target.checked
     })}
           />
           <label for="program-temperature-condition">
             Hőmérséklet-feltétel használata
           </label>
         </div>
-        ${e.temperature_condition_enabled ? o`
+        ${t.temperature_condition_enabled ? n`
               <div class="temperature-condition">
                 <span>A program napjának maximuma</span>
                 <select
                   aria-label="Hőmérséklet összehasonlítása"
-                  .value=${e.temperature_condition_operator}
-                  @change=${(s) => this._patchDraft({
-      temperature_condition_operator: s.target.value
+                  .value=${t.temperature_condition_operator}
+                  @change=${(a) => this._patchDraft({
+      temperature_condition_operator: a.target.value
     })}
                 >
                   <option value="above">magasabb mint</option>
@@ -3501,13 +3609,13 @@ class Qe extends z {
                     max="60"
                     step="0.5"
                     aria-label="Hőmérsékleti küszöb"
-                    .value=${String(e.temperature_condition_value)}
-                    @change=${(s) => this._patchDraft({
+                    .value=${String(t.temperature_condition_value)}
+                    @change=${(a) => this._patchDraft({
       temperature_condition_value: Math.max(
         -30,
         Math.min(
           60,
-          s.target.valueAsNumber
+          a.target.valueAsNumber
         )
       )
     })}
@@ -3520,19 +3628,19 @@ class Qe extends z {
           <input
             id="program-soil-moisture"
             type="checkbox"
-            .checked=${e.soil_moisture_enabled}
-            @change=${(s) => this._patchDraft({
-      soil_moisture_enabled: s.target.checked
+            .checked=${t.soil_moisture_enabled}
+            @change=${(a) => this._patchDraft({
+      soil_moisture_enabled: a.target.checked
     })}
           />
           <label for="program-soil-moisture">
             A zónák talajnedvességmérőinek használata
           </label>
         </div>
-        ${e.soil_moisture_enabled ? o`
+        ${t.soil_moisture_enabled ? n`
               <div class="subtle">
-                ${e.zones.filter(
-      (s) => this._zoneProfile(s.entity_id)?.moisture_sensor_entity_id
+                ${t.zones.filter(
+      (a) => this._zoneProfile(a.entity_id)?.moisture_sensor_entity_id
     ).length}
                 programzónához van érzékelő rendelve. A kihagyási küszöböt a
                 következő fejlesztési lépésben lehet majd megadni.
@@ -3541,38 +3649,38 @@ class Qe extends z {
         <div class="field">
           <span class="field-label">Zónák sorrendben</span>
           <div class="editor-zones">
-            ${e.zones.map((s, a) => {
-      const i = t.find((n) => n.entity_id === s.entity_id);
-      return o`
+            ${t.zones.map((a, s) => {
+      const i = e.find((o) => o.entity_id === a.entity_id);
+      return n`
                 <div class="editor-zone">
-                  <span>${i?.name ?? s.entity_id}</span>
+                  <span>${i?.name ?? a.entity_id}</span>
                   <select
-                    aria-label="${i?.name ?? s.entity_id} időtartam módja"
-                    .value=${s.duration_mode}
-                    @change=${(n) => this._updateDraftZone(a, {
-        ...s,
-        duration_mode: n.target.value
+                    aria-label="${i?.name ?? a.entity_id} időtartam módja"
+                    .value=${a.duration_mode}
+                    @change=${(o) => this._updateDraftZone(s, {
+        ...a,
+        duration_mode: o.target.value
       })}
                   >
                     <option value="manual">Manuális perc</option>
                     <option value="reference">Referencia alapján</option>
                   </select>
-                  ${s.duration_mode === "reference" ? o`
+                  ${a.duration_mode === "reference" ? n`
                         <span class="calculated-duration">
-                          ≈ ${this._programZoneMinutes(e, s)} perc
+                          ≈ ${this._programZoneMinutes(t, a)} perc
                         </span>
-                      ` : o`
+                      ` : n`
                         <label class="editor-duration">
                           <input
                             type="number"
                             min="1"
                             max="180"
-                            aria-label="${i?.name ?? s.entity_id} időtartama"
-                            .value=${String(s.duration_minutes)}
-                            @change=${(n) => this._updateDraftZone(a, {
-        ...s,
+                            aria-label="${i?.name ?? a.entity_id} időtartama"
+                            .value=${String(a.duration_minutes)}
+                            @change=${(o) => this._updateDraftZone(s, {
+        ...a,
         duration_minutes: this._clampDuration(
-          n.target.valueAsNumber
+          o.target.valueAsNumber
         )
       })}
                           />
@@ -3583,24 +3691,24 @@ class Qe extends z {
                     class="icon-button"
                     type="button"
                     aria-label="Zóna eltávolítása"
-                    @click=${() => this._removeDraftZone(a)}
+                    @click=${() => this._removeDraftZone(s)}
                   >
                     <ha-icon icon="mdi:close"></ha-icon>
                   </button>
                 </div>
               `;
     })}
-            ${e.zones.length === 0 ? o`<div class="empty">Adj legalább egy zónát a programhoz.</div>` : d}
+            ${t.zones.length === 0 ? n`<div class="empty">Adj legalább egy zónát a programhoz.</div>` : d}
           </div>
         </div>
         <div class="field">
           <label for="zone-add">Zóna hozzáadása</label>
           <select id="zone-add" @change=${this._addDraftZone}>
             <option value="">Válassz zónát…</option>
-            ${t.filter((s) => !e.zones.some((a) => a.entity_id === s.entity_id)).map((s) => o`<option value=${s.entity_id}>${s.name}</option>`)}
+            ${e.filter((a) => !t.zones.some((s) => s.entity_id === a.entity_id)).map((a) => n`<option value=${a.entity_id}>${a.name}</option>`)}
           </select>
         </div>
-        ${this._error ? o`<div class="error">${this._error}</div>` : d}
+        ${this._error ? n`<div class="error">${this._error}</div>` : d}
         <div class="editor-actions">
           <button class="button danger" type="button" @click=${this._deleteDraft}>
             Törlés
@@ -3609,7 +3717,7 @@ class Qe extends z {
             <button
               class="button quiet"
               type="button"
-              @click=${() => this._runDraft(e)}
+              @click=${() => this._runDraft(t)}
               ?disabled=${this._saving}
             >
               Futtatás most
@@ -3623,10 +3731,10 @@ class Qe extends z {
     `;
   }
   _renderHistory() {
-    const e = this._summary.history;
-    return o`
+    const t = this._summary.history;
+    return n`
       <div class="page-head"><h2>Előzmények</h2></div>
-      ${e.length ? o`
+      ${t.length ? n`
             <div class="table-wrap">
               <table>
                 <thead>
@@ -3640,29 +3748,33 @@ class Qe extends z {
                   </tr>
                 </thead>
                 <tbody>
-                  ${e.map(
-      (t) => o`
+                  ${t.map(
+      (e) => n`
                       <tr>
-                        <td>${this._formatDateTime(t.scheduled_at)}</td>
-                        <td>${t.program_name}</td>
+                        <td>${this._formatDateTime(e.scheduled_at)}</td>
+                        <td>${e.program_name}</td>
                         <td>
-                          <span class="outcome ${t.outcome}">
-                            ${this._outcomeLabel(t.outcome)}
+                          <span class="outcome ${e.outcome}">
+                            ${this._outcomeLabel(e.outcome)}
                           </span>
                         </td>
-                        <td>${Math.round(t.factor * 100)}%</td>
-                        <td>${t.weather_source}</td>
+                        <td>${Math.round(e.factor * 100)}%</td>
+                        <td>${e.weather_source}</td>
                         <td class="reason-cell">
-                          <div>${t.reason}</div>
-                          ${t.weather ? o`
+                          <div>${e.reason}</div>
+                          ${e.weather ? n`
                                 <div class="history-weather">
                                   Döntéskor:
-                                  ${t.weather.precipitation_mm ?? 0} mm ·
-                                  ${t.weather.max_probability ?? 0}% ·
-                                  ${t.weather.rainy_hours ?? 0} esős óra ·
-                                  ${t.weather.max_temperature ?? "–"} °C
-                                  ${t.weather.evaluated_at ? o` · ${this._formatDateTime(
-        t.weather.evaluated_at
+                                  ${e.weather.precipitation_mm ?? 0} mm ·
+                                  ${e.weather.observed_precipitation_mm ? n`
+                                        ${e.weather.observed_precipitation_mm}
+                                        mm mért / 24 óra ·
+                                      ` : d}
+                                  ${e.weather.max_probability ?? 0}% ·
+                                  ${e.weather.rainy_hours ?? 0} esős óra ·
+                                  ${e.weather.max_temperature ?? "–"} °C
+                                  ${e.weather.evaluated_at ? n` · ${this._formatDateTime(
+        e.weather.evaluated_at
       )}` : d}
                                 </div>
                               ` : d}
@@ -3673,12 +3785,12 @@ class Qe extends z {
                 </tbody>
               </table>
             </div>
-          ` : o`<div class="empty">Még nincs futási előzmény.</div>`}
+          ` : n`<div class="empty">Még nincs futási előzmény.</div>`}
     `;
   }
   _renderSettings() {
-    const e = this._summary.settings;
-    return o`
+    const t = this._summary.settings;
+    return n`
       <div class="page-head">
         <div>
           <h2>Beállítások</h2>
@@ -3695,27 +3807,27 @@ class Qe extends z {
       <div class="settings-grid">
         <section class="settings-section">
           <h3>Eső miatti korrekció</h3>
-          ${this._settingNumber("Kihagyás ennyi csapadéktól (mm)", "rain_skip_mm", e)}
+          ${this._settingNumber("Kihagyás ennyi csapadéktól (mm)", "rain_skip_mm", t)}
           ${this._settingNumber(
       "Kihagyási valószínűség (%)",
       "rain_skip_probability",
-      e
+      t
     )}
           ${this._settingNumber(
       "Valószínűséghez tartozó minimum eső (mm)",
       "rain_skip_probability_mm",
-      e
+      t
     )}
-          ${this._settingNumber("Esős órák száma kihagyáshoz", "rainy_hours_skip", e)}
+          ${this._settingNumber("Esős órák száma kihagyáshoz", "rainy_hours_skip", t)}
           ${this._settingNumber(
       "Erős csökkentés küszöbe (mm)",
       "rain_reduce_high_mm",
-      e
+      t
     )}
           ${this._settingNumber(
       "Enyhe csökkentés küszöbe (mm)",
       "rain_reduce_low_mm",
-      e
+      t
     )}
         </section>
         <section class="settings-section">
@@ -3733,9 +3845,9 @@ class Qe extends z {
             <span>Mobilértesítések</span>
             <button
               class="toggle"
-              ?on=${e.notify_mobile}
+              ?on=${t.notify_mobile}
               aria-label="Mobilértesítések kapcsolása"
-              @click=${() => this._patchSettings({ notify_mobile: !e.notify_mobile })}
+              @click=${() => this._patchSettings({ notify_mobile: !t.notify_mobile })}
             ></button>
           </div>
           <div class="setting-row">
@@ -3750,6 +3862,80 @@ class Qe extends z {
             <span>Legutóbbi aktuális számítás forrása</span>
             <strong>${this._summary.weather?.source ?? "Nincs értékelés"}</strong>
           </div>
+        </section>
+        <section class="settings-section rain-station-settings">
+          <h3>Lehullott csapadék · Időkép automata</h3>
+          <p class="settings-help">
+            A településhez tartozó Időkép automaták elmúlt 24 órás mérése
+            beleszámít az eső miatti csökkentésbe és kihagyásba. Ez közeli
+            állomásadat, nem a kertben végzett mérés.
+          </p>
+          <label class="rain-station-city">
+            <span>Település</span>
+            <div>
+              <input
+                type="text"
+                placeholder="például Csömör"
+                .value=${t.rain_station_city}
+                @input=${(e) => this._patchSettings({
+      rain_station_city: e.target.value
+    })}
+              />
+              <button
+                class="button quiet"
+                type="button"
+                ?disabled=${this._rainStationSearching || t.rain_station_city.trim().length < 2}
+                @click=${this._searchRainStations}
+              >
+                ${this._rainStationSearching ? "Keresés…" : "Automaták keresése"}
+              </button>
+            </div>
+          </label>
+          ${this._rainStationMatches.length ? n`
+                <label class="rain-station-result">
+                  <span>Használt automata</span>
+                  <select
+                    .value=${t.rain_station_id}
+                    @change=${(e) => {
+      const a = this._rainStationMatches.find(
+        (s) => s.station_id === e.target.value
+      );
+      a && this._patchSettings({
+        rain_station_id: a.station_id,
+        rain_station_name: a.location
+      });
+    }}
+                  >
+                    ${this._rainStationMatches.map(
+      (e) => n`
+                        <option value=${e.station_id}>
+                          ${e.location} · ${e.station_id} ·
+                          ${e.measured_mm} mm
+                        </option>
+                      `
+    )}
+                  </select>
+                </label>
+              ` : d}
+          <div class="rain-station-status">
+            <span>Kiválasztva</span>
+            <strong>
+              ${t.rain_station_id ? `${t.rain_station_name} (${t.rain_station_id})` : "Nincs automata kiválasztva"}
+            </strong>
+          </div>
+          ${this._summary.rain_observation ? n`
+                <div class="rain-station-reading">
+                  <span>Elmúlt 24 óra</span>
+                  <strong>${this._summary.rain_observation.measured_mm} mm</strong>
+                  <span>
+                    Radarbecslés: ${this._summary.rain_observation.radar_mm} mm
+                  </span>
+                </div>
+              ` : this._summary.rain_observation_error ? n`
+                  <div class="rain-station-error">
+                    ${this._summary.rain_observation_error}
+                  </div>
+                ` : d}
         </section>
       </div>
       <section class="settings-section zone-profiles">
@@ -3767,13 +3953,13 @@ class Qe extends z {
             <span>Talajnedvességmérő minden zónához</span>
             <select
               .value=${this._bulkMoistureSensor}
-              @change=${(t) => {
-      this._bulkMoistureSensor = t.target.value;
+              @change=${(e) => {
+      this._bulkMoistureSensor = e.target.value;
     }}
             >
               <option value="">Válassz érzékelőt…</option>
               ${this._moistureSensors().map(
-      (t) => o`<option value=${t.entity_id}>${t.name}</option>`
+      (e) => n`<option value=${e.entity_id}>${e.name}</option>`
     )}
             </select>
           </label>
@@ -3796,9 +3982,9 @@ class Qe extends z {
           <span>Talajnedvesség</span>
           <span>Aktív érték</span>
         </div>
-        ${this._allZones().map((t) => this._renderZoneProfile(t))}
+        ${this._allZones().map((e) => this._renderZoneProfile(e))}
         <div class="zone-profile-actions">
-          ${this._settingsSaved ? o`<span class="save-success">A zónabeállítások elmentve.</span>` : o`<span>A módosítások mentés után lépnek életbe.</span>`}
+          ${this._settingsSaved ? n`<span class="save-success">A zónabeállítások elmentve.</span>` : n`<span>A módosítások mentés után lépnek életbe.</span>`}
           <button
             class="button primary"
             type="button"
@@ -3809,33 +3995,33 @@ class Qe extends z {
           </button>
         </div>
       </section>
-      ${this._error ? o`<div class="error">${this._error}</div>` : d}
+      ${this._error ? n`<div class="error">${this._error}</div>` : d}
     `;
   }
-  _renderZoneProfile(e) {
-    const t = e.profile, s = t.flow_l_min !== null && t.area_m2 !== null;
-    return o`
+  _renderZoneProfile(t) {
+    const e = t.profile, a = e.flow_l_min !== null && e.area_m2 !== null;
+    return n`
       <div class="zone-profile-row">
-        <strong>${e.name}</strong>
+        <strong>${t.name}</strong>
         <label>
           <span class="mobile-label">Fejtípus</span>
           <select
-            .value=${t.head_type}
-            @change=${(a) => {
-      const i = a.target.value, n = Z.find((c) => c.value === i);
-      this._patchZoneProfile(e.entity_id, {
+            .value=${e.head_type}
+            @change=${(s) => {
+      const i = s.target.value, o = R.find((c) => c.value === i);
+      this._patchZoneProfile(t.entity_id, {
         head_type: i,
-        reference_rate_mm_h: n?.rate ?? t.reference_rate_mm_h
+        reference_rate_mm_h: o?.rate ?? e.reference_rate_mm_h
       });
     }}
           >
-            ${Z.map(
-      (a) => o`
+            ${R.map(
+      (s) => n`
                   <option
-                    value=${a.value}
-                    ?selected=${a.value === t.head_type}
+                    value=${s.value}
+                    ?selected=${s.value === e.head_type}
                   >
-                    ${a.label}
+                    ${s.label}
                   </option>
                 `
     )}
@@ -3844,281 +4030,281 @@ class Qe extends z {
         <label>
           <span class="mobile-label">Terület jellege</span>
           <select
-            .value=${t.exposure}
-            @change=${(a) => this._patchZoneProfile(e.entity_id, {
-      exposure: a.target.value,
-      exposure_factor: a.target.value === "shady" ? 0.8 : 1
+            .value=${e.exposure}
+            @change=${(s) => this._patchZoneProfile(t.entity_id, {
+      exposure: s.target.value,
+      exposure_factor: s.target.value === "shady" ? 0.8 : 1
     })}
           >
-            <option value="sunny" ?selected=${t.exposure === "sunny"}>
+            <option value="sunny" ?selected=${e.exposure === "sunny"}>
               Napos
             </option>
-            <option value="shady" ?selected=${t.exposure === "shady"}>
+            <option value="shady" ?selected=${e.exposure === "shady"}>
               Árnyékos
             </option>
           </select>
         </label>
-        ${this._profileNumber(e, "reference_rate_mm_h", "mm/óra", 0.1)}
-        ${this._profileNumber(e, "flow_l_min", "l/perc", 0.1, !0)}
-        ${this._profileNumber(e, "area_m2", "m²", 0.1, !0)}
+        ${this._profileNumber(t, "reference_rate_mm_h", "mm/óra", 0.1)}
+        ${this._profileNumber(t, "flow_l_min", "l/perc", 0.1, !0)}
+        ${this._profileNumber(t, "area_m2", "m²", 0.1, !0)}
         <label class="moisture-select">
           <span class="mobile-label">Talajnedvességmérő</span>
           <select
-            .value=${t.moisture_sensor_entity_id ?? ""}
-            @change=${(a) => this._patchZoneProfile(e.entity_id, {
-      moisture_sensor_entity_id: a.target.value || null
+            .value=${e.moisture_sensor_entity_id ?? ""}
+            @change=${(s) => this._patchZoneProfile(t.entity_id, {
+      moisture_sensor_entity_id: s.target.value || null
     })}
           >
             <option value="">Nincs hozzárendelve</option>
             ${this._moistureSensors().map(
-      (a) => o`
+      (s) => n`
                 <option
-                  value=${a.entity_id}
-                  ?selected=${a.entity_id === t.moisture_sensor_entity_id}
+                  value=${s.entity_id}
+                  ?selected=${s.entity_id === e.moisture_sensor_entity_id}
                 >
-                  ${a.name}
+                  ${s.name}
                 </option>
               `
     )}
           </select>
-          ${t.moisture_sensor_entity_id ? o`
+          ${e.moisture_sensor_entity_id ? n`
                 <span class="sensor-reading">
-                  ${t.moisture_sensor_state ?? "–"}${t.moisture_sensor_unit ?? ""}
+                  ${e.moisture_sensor_state ?? "–"}${e.moisture_sensor_unit ?? ""}
                 </span>
               ` : d}
         </label>
         <span class="effective-rate">
-          <strong>${this._effectiveRate(t).toFixed(1)} mm/óra</strong>
+          <strong>${this._effectiveRate(e).toFixed(1)} mm/óra</strong>
           <span>
-            ${s ? "mért adatokból" : "referencia"} ·
-            ${t.exposure === "shady" ? "80% árnyék" : "100% napos"}
+            ${a ? "mért adatokból" : "referencia"} ·
+            ${e.exposure === "shady" ? "80% árnyék" : "100% napos"}
           </span>
         </span>
       </div>
     `;
   }
-  _profileNumber(e, t, s, a, i = !1) {
-    const n = e.profile[t];
-    return o`
+  _profileNumber(t, e, a, s, i = !1) {
+    const o = t.profile[e];
+    return n`
       <label class="profile-number">
-        <span class="mobile-label">${s}</span>
+        <span class="mobile-label">${a}</span>
         <input
           type="number"
           min="0.1"
-          step=${a}
+          step=${s}
           placeholder=${i ? "opcionális" : ""}
-          .value=${n === null ? "" : String(n)}
+          .value=${o === null ? "" : String(o)}
           @change=${(c) => {
       const l = c.target;
-      this._patchZoneProfile(e.entity_id, {
-        [t]: l.value === "" ? null : l.valueAsNumber
+      this._patchZoneProfile(t.entity_id, {
+        [e]: l.value === "" ? null : l.valueAsNumber
       });
     }}
         />
-        <span>${s}</span>
+        <span>${a}</span>
       </label>
     `;
   }
-  _settingNumber(e, t, s) {
-    return o`
+  _settingNumber(t, e, a) {
+    return n`
       <label class="setting-row">
-        <span>${e}</span>
+        <span>${t}</span>
         <input
           type="number"
           step="0.1"
-          .value=${String(s[t])}
-          @change=${(a) => this._patchSettings({
-      [t]: a.target.valueAsNumber
+          .value=${String(a[e])}
+          @change=${(s) => this._patchSettings({
+      [e]: s.target.valueAsNumber
     })}
         />
       </label>
     `;
   }
-  async _load(e) {
+  async _load(t) {
     if (!this.hass) {
-      e && (this._loading = !0);
+      t && (this._loading = !0);
       return;
     }
     try {
-      const t = await Ne(this.hass);
-      this._summary = t, !this._expandedControllers.length && t.controllers[0] && (this._expandedControllers = [t.controllers[0].id]), this._error = "", (e || !t.weather) && (t.weather = await He(this.hass), this._summary = { ...t }), this._tab === "programs" && !this._draft && this._selectFirstProgram();
-    } catch (t) {
-      this._error = this._errorMessage(t);
+      const e = await Nt(this.hass);
+      this._summary = e, !this._expandedControllers.length && e.controllers[0] && (this._expandedControllers = [e.controllers[0].id]), this._error = "", (t || !e.weather) && (e.weather = await Ht(this.hass), this._summary = { ...e }), this._tab === "programs" && !this._draft && this._selectFirstProgram();
+    } catch (e) {
+      this._error = this._errorMessage(e);
     } finally {
       this._loading = !1;
     }
   }
   _selectFirstProgram() {
-    const e = this._summary?.programs[0];
-    this._draft = e ? E(e) : null;
+    const t = this._summary?.programs[0];
+    this._draft = t ? E(t) : null;
   }
   _nextProgramName() {
     if (!this._summary?.next_run) return "";
-    const e = new Date(this._summary.next_run);
-    return this._summary.programs.find((t) => {
-      const [s, a] = t.start_time.split(":").map(Number);
-      return s === e.getHours() && a === e.getMinutes();
+    const t = new Date(this._summary.next_run);
+    return this._summary.programs.find((e) => {
+      const [a, s] = e.start_time.split(":").map(Number);
+      return a === t.getHours() && s === t.getMinutes();
     })?.name ?? "Program";
   }
-  _programMinutes(e) {
-    return e.zones.reduce(
-      (t, s) => t + this._programZoneMinutes(e, s),
+  _programMinutes(t) {
+    return t.zones.reduce(
+      (e, a) => e + this._programZoneMinutes(t, a),
       0
     );
   }
-  _programZoneMinutes(e, t) {
-    const s = this._summary?.weather;
-    if (t.duration_mode !== "reference") {
-      const u = e.weather_adjustment ? s?.factor ?? 1 : 1;
-      return Math.max(1, Math.round(t.duration_minutes * u));
+  _programZoneMinutes(t, e) {
+    const a = this._summary?.weather;
+    if (e.duration_mode !== "reference") {
+      const h = t.weather_adjustment ? a?.factor ?? 1 : 1;
+      return Math.max(1, Math.round(e.duration_minutes * h));
     }
-    const a = this._zoneProfile(t.entity_id);
-    if (!a) return t.duration_minutes;
-    const i = s?.max_temperature ?? 20, n = i >= 35 ? 9 : i >= 25 ? 5.5 : i >= 20 ? 4.5 : 2.5, c = e.weather_adjustment ? s?.rain_factor ?? s?.factor ?? 1 : 1, l = a.exposure === "shady" ? 0.8 : 1;
+    const s = this._zoneProfile(e.entity_id);
+    if (!s) return e.duration_minutes;
+    const i = a?.max_temperature ?? 20, o = i >= 35 ? 9 : i >= 25 ? 5.5 : i >= 20 ? 4.5 : 2.5, c = t.weather_adjustment ? a?.rain_factor ?? a?.factor ?? 1 : 1, l = s.exposure === "shady" ? 0.8 : 1;
     return Math.max(
       1,
       Math.min(
         180,
         Math.round(
-          n * c * l * 60 / this._effectiveRate(a)
+          o * c * l * 60 / this._effectiveRate(s)
         )
       )
     );
   }
   _allZones() {
-    return this._summary?.controllers.flatMap((e) => e.zones) ?? [];
+    return this._summary?.controllers.flatMap((t) => t.zones) ?? [];
   }
-  _toggleController(e) {
-    this._expandedControllers = this._expandedControllers.includes(e) ? this._expandedControllers.filter((t) => t !== e) : [...this._expandedControllers, e];
+  _toggleController(t) {
+    this._expandedControllers = this._expandedControllers.includes(t) ? this._expandedControllers.filter((e) => e !== t) : [...this._expandedControllers, t];
   }
-  _patchManual(e) {
-    this._manualDraft = { ...this._manualDraft, ...e };
+  _patchManual(t) {
+    this._manualDraft = { ...this._manualDraft, ...t };
   }
-  _updateManualZone(e, t) {
-    const s = [...this._manualDraft.zones];
-    s[e] = t, this._patchManual({ zones: s });
+  _updateManualZone(t, e) {
+    const a = [...this._manualDraft.zones];
+    a[t] = e, this._patchManual({ zones: a });
   }
-  _removeManualZone(e) {
+  _removeManualZone(t) {
     this._patchManual({
       zones: this._manualDraft.zones.filter(
-        (t, s) => s !== e
+        (e, a) => a !== t
       )
     });
   }
-  _moveManualZone(e, t) {
-    const s = e + t;
-    if (s < 0 || s >= this._manualDraft.zones.length) return;
-    const a = [...this._manualDraft.zones];
-    [a[e], a[s]] = [a[s], a[e]], this._patchManual({ zones: a });
+  _moveManualZone(t, e) {
+    const a = t + e;
+    if (a < 0 || a >= this._manualDraft.zones.length) return;
+    const s = [...this._manualDraft.zones];
+    [s[t], s[a]] = [s[a], s[t]], this._patchManual({ zones: s });
   }
-  _patchDraft(e) {
-    this._draft && (this._draft = { ...this._draft, ...e });
+  _patchDraft(t) {
+    this._draft && (this._draft = { ...this._draft, ...t });
   }
-  _toggleDay(e) {
+  _toggleDay(t) {
     if (!this._draft) return;
-    const t = this._draft.weekdays.includes(e) ? this._draft.weekdays.filter((s) => s !== e) : [...this._draft.weekdays, e].sort();
-    this._patchDraft({ weekdays: t });
+    const e = this._draft.weekdays.includes(t) ? this._draft.weekdays.filter((a) => a !== t) : [...this._draft.weekdays, t].sort();
+    this._patchDraft({ weekdays: e });
   }
-  _updateDraftZone(e, t) {
+  _updateDraftZone(t, e) {
     if (!this._draft) return;
-    const s = [...this._draft.zones];
-    s[e] = t, this._patchDraft({ zones: s });
+    const a = [...this._draft.zones];
+    a[t] = e, this._patchDraft({ zones: a });
   }
-  _removeDraftZone(e) {
+  _removeDraftZone(t) {
     this._draft && this._patchDraft({
-      zones: this._draft.zones.filter((t, s) => s !== e)
+      zones: this._draft.zones.filter((e, a) => a !== t)
     });
   }
-  _patchSettings(e) {
+  _patchSettings(t) {
     this._summary && (this._settingsSaved = !1, this._summary = {
       ...this._summary,
-      settings: { ...this._summary.settings, ...e }
+      settings: { ...this._summary.settings, ...t }
     });
   }
-  _patchZoneProfile(e, t) {
+  _patchZoneProfile(t, e) {
     this._summary && (this._settingsSaved = !1, this._summary = {
       ...this._summary,
-      controllers: this._summary.controllers.map((s) => ({
-        ...s,
-        zones: s.zones.map(
-          (a) => a.entity_id === e ? { ...a, profile: { ...a.profile, ...t } } : a
+      controllers: this._summary.controllers.map((a) => ({
+        ...a,
+        zones: a.zones.map(
+          (s) => s.entity_id === t ? { ...s, profile: { ...s.profile, ...e } } : s
         )
       }))
     });
   }
-  _assignMoistureSensorToAll(e) {
-    if (e)
-      for (const t of this._allZones())
-        this._patchZoneProfile(t.entity_id, {
-          moisture_sensor_entity_id: e
+  _assignMoistureSensorToAll(t) {
+    if (t)
+      for (const e of this._allZones())
+        this._patchZoneProfile(e.entity_id, {
+          moisture_sensor_entity_id: t
         });
   }
   _moistureSensors() {
-    return Object.entries(this.hass?.states ?? {}).filter(([e, t]) => {
-      if (!e.startsWith("sensor.")) return !1;
-      const s = t.attributes, a = String(s.device_class ?? "").toLowerCase(), i = String(s.friendly_name ?? e).toLowerCase();
-      return a === "moisture" || i.includes("talajnedv") || i.includes("soil moisture");
-    }).map(([e, t]) => ({
-      entity_id: e,
-      name: String(t.attributes.friendly_name ?? e)
-    })).sort((e, t) => e.name.localeCompare(t.name, "hu"));
+    return Object.entries(this.hass?.states ?? {}).filter(([t, e]) => {
+      if (!t.startsWith("sensor.")) return !1;
+      const a = e.attributes, s = String(a.device_class ?? "").toLowerCase(), i = String(a.friendly_name ?? t).toLowerCase();
+      return s === "moisture" || i.includes("talajnedv") || i.includes("soil moisture");
+    }).map(([t, e]) => ({
+      entity_id: t,
+      name: String(e.attributes.friendly_name ?? t)
+    })).sort((t, e) => t.name.localeCompare(e.name, "hu"));
   }
-  _formatDays(e) {
-    return e.map((t) => Ge[t] ?? "").join(", ");
+  _formatDays(t) {
+    return t.map((e) => Qt[e] ?? "").join(", ");
   }
-  _temperatureConditionText(e) {
-    return `${e.temperature_condition_operator === "above" ? "Max. hőmérséklet >" : "Max. hőmérséklet <"} ${e.temperature_condition_value} °C`;
+  _temperatureConditionText(t) {
+    return `${t.temperature_condition_operator === "above" ? "Max. hőmérséklet >" : "Max. hőmérséklet <"} ${t.temperature_condition_value} °C`;
   }
-  _zoneProfile(e) {
-    return this._allZones().find((t) => t.entity_id === e)?.profile;
+  _zoneProfile(t) {
+    return this._allZones().find((e) => e.entity_id === t)?.profile;
   }
-  _effectiveRate(e) {
-    return e.flow_l_min !== null && e.area_m2 !== null && e.area_m2 > 0 ? e.flow_l_min * 60 / e.area_m2 : e.reference_rate_mm_h;
+  _effectiveRate(t) {
+    return t.flow_l_min !== null && t.area_m2 !== null && t.area_m2 > 0 ? t.flow_l_min * 60 / t.area_m2 : t.reference_rate_mm_h;
   }
-  _headLabel(e) {
-    return Z.find((t) => t.value === e)?.label ?? e;
+  _headLabel(t) {
+    return R.find((e) => e.value === t)?.label ?? t;
   }
-  _formatDateTime(e) {
+  _formatDateTime(t) {
     return new Intl.DateTimeFormat("hu-HU", {
       month: "short",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit"
-    }).format(new Date(e));
+    }).format(new Date(t));
   }
-  _formatTime(e) {
+  _formatTime(t) {
     return new Intl.DateTimeFormat("hu-HU", {
       hour: "2-digit",
       minute: "2-digit"
-    }).format(new Date(e));
+    }).format(new Date(t));
   }
-  _groupForecastDays(e) {
-    const t = /* @__PURE__ */ new Map();
-    for (const s of e) {
-      const a = new Date(s.timestamp), i = [
-        a.getFullYear(),
-        String(a.getMonth() + 1).padStart(2, "0"),
-        String(a.getDate()).padStart(2, "0")
+  _groupForecastDays(t) {
+    const e = /* @__PURE__ */ new Map();
+    for (const a of t) {
+      const s = new Date(a.timestamp), i = [
+        s.getFullYear(),
+        String(s.getMonth() + 1).padStart(2, "0"),
+        String(s.getDate()).padStart(2, "0")
       ].join("-");
-      t.set(i, [...t.get(i) ?? [], s]);
+      e.set(i, [...e.get(i) ?? [], a]);
     }
-    return [...t].map(([s, a]) => ({
-      date: s,
-      hours: a
+    return [...e].map(([a, s]) => ({
+      date: a,
+      hours: s
     }));
   }
-  _formatForecastDate(e, t) {
-    const s = new Intl.DateTimeFormat("hu-HU", {
+  _formatForecastDate(t, e) {
+    const a = new Intl.DateTimeFormat("hu-HU", {
       weekday: "long",
       month: "short",
       day: "numeric"
-    }).format(/* @__PURE__ */ new Date(`${e}T12:00:00`)), a = t === 0 ? "Ma" : t === 1 ? "Holnap" : "";
-    return a ? `${a} · ${s}` : s;
+    }).format(/* @__PURE__ */ new Date(`${t}T12:00:00`)), s = e === 0 ? "Ma" : e === 1 ? "Holnap" : "";
+    return s ? `${s} · ${a}` : a;
   }
-  _formatForecastNumber(e) {
-    return Number.isInteger(e) ? String(e) : e.toFixed(1);
+  _formatForecastNumber(t) {
+    return Number.isInteger(t) ? String(t) : t.toFixed(1);
   }
-  _forecastConditionLabel(e) {
+  _forecastConditionLabel(t) {
     return {
       sunny: "Napos",
       "clear-night": "Derült",
@@ -4134,9 +4320,9 @@ class Qe extends z {
       hail: "Jégeső",
       snowy: "Havazás",
       "snowy-rainy": "Havas eső"
-    }[e.toLowerCase()] ?? e;
+    }[t.toLowerCase()] ?? t;
   }
-  _forecastConditionIcon(e) {
+  _forecastConditionIcon(t) {
     return {
       sunny: "mdi:weather-sunny",
       "clear-night": "mdi:weather-night",
@@ -4152,17 +4338,17 @@ class Qe extends z {
       hail: "mdi:weather-hail",
       snowy: "mdi:weather-snowy",
       "snowy-rainy": "mdi:weather-snowy-rainy"
-    }[e.toLowerCase()] ?? "mdi:weather-cloudy-alert";
+    }[t.toLowerCase()] ?? "mdi:weather-cloudy-alert";
   }
-  _formatScheduleDate(e, t) {
-    const s = new Intl.DateTimeFormat("hu-HU", {
+  _formatScheduleDate(t, e) {
+    const a = new Intl.DateTimeFormat("hu-HU", {
       weekday: "long",
       month: "short",
       day: "numeric"
-    }).format(/* @__PURE__ */ new Date(`${e}T12:00:00`));
-    return `${t === 0 ? "Ma" : t === 1 ? "Holnap" : "Holnapután"} · ${s}`;
+    }).format(/* @__PURE__ */ new Date(`${t}T12:00:00`));
+    return `${e === 0 ? "Ma" : e === 1 ? "Holnap" : "Holnapután"} · ${a}`;
   }
-  _scheduleStatusLabel(e) {
+  _scheduleStatusLabel(t) {
     return {
       will_run: "Lefut",
       automation_off: "Automatika kikapcsolva",
@@ -4171,36 +4357,36 @@ class Qe extends z {
       weather_unavailable: "Nincs forecast",
       condition_skip: "Feltétel nem teljesül",
       rain_skip: "Eső miatt kimarad"
-    }[e];
+    }[t];
   }
-  _formatRelative(e) {
-    const t = new Date(e), s = /* @__PURE__ */ new Date(), a = new Date(s);
-    return a.setDate(s.getDate() + 1), `${t.toDateString() === s.toDateString() ? "ma" : t.toDateString() === a.toDateString() ? "holnap" : new Intl.DateTimeFormat("hu-HU", {
+  _formatRelative(t) {
+    const e = new Date(t), a = /* @__PURE__ */ new Date(), s = new Date(a);
+    return s.setDate(a.getDate() + 1), `${e.toDateString() === a.toDateString() ? "ma" : e.toDateString() === s.toDateString() ? "holnap" : new Intl.DateTimeFormat("hu-HU", {
       month: "short",
       day: "numeric"
-    }).format(t)} ${t.toLocaleTimeString("hu-HU", {
+    }).format(e)} ${e.toLocaleTimeString("hu-HU", {
       hour: "2-digit",
       minute: "2-digit"
     })}`;
   }
-  _outcomeLabel(e) {
+  _outcomeLabel(t) {
     return {
       completed: "Befejezve",
       skipped: "Kihagyva",
       failed: "Hiba",
       stopped: "Leállítva",
       interrupted: "Megszakítva"
-    }[e] ?? e;
+    }[t] ?? t;
   }
-  _clampDuration(e) {
-    return Math.max(1, Math.min(180, Number.isFinite(e) ? Math.round(e) : 15));
+  _clampDuration(t) {
+    return Math.max(1, Math.min(180, Number.isFinite(t) ? Math.round(t) : 15));
   }
-  _errorMessage(e) {
-    return e instanceof Error || typeof e == "object" && e !== null && "message" in e && typeof e.message == "string" ? e.message : "A művelet nem sikerült.";
+  _errorMessage(t) {
+    return t instanceof Error || typeof t == "object" && t !== null && "message" in t && typeof t.message == "string" ? t.message : "A művelet nem sikerült.";
   }
 }
-customElements.get("smart-yardian-panel") || customElements.define("smart-yardian-panel", Qe);
+customElements.get("smart-yardian-panel") || customElements.define("smart-yardian-panel", Xt);
 export {
-  Qe as SmartYardianPanel
+  Xt as SmartYardianPanel
 };
 //# sourceMappingURL=smart-yardian-panel.js.map

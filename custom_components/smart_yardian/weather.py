@@ -178,6 +178,8 @@ def evaluate_calendar_day(
     source: str,
     scheduled_at: datetime,
     settings: dict[str, Any] | None = None,
+    observed_precipitation_mm: float = 0.0,
+    rain_station: str | None = None,
 ) -> WeatherDecision:
     """Evaluate one shared weather decision for a local calendar day."""
     if scheduled_at.tzinfo is None:
@@ -202,6 +204,8 @@ def evaluate_calendar_day(
         now=hours[0].timestamp,
         settings=settings,
         minimum_hours=1,
+        observed_precipitation_mm=observed_precipitation_mm,
+        rain_station=rain_station,
     )
     return replace(
         decision,
@@ -215,6 +219,8 @@ def evaluate_green_lawn(
     now: datetime | None = None,
     settings: dict[str, Any] | None = None,
     minimum_hours: int = MIN_FORECAST_HOURS,
+    observed_precipitation_mm: float = 0.0,
+    rain_station: str | None = None,
 ) -> WeatherDecision:
     """Evaluate the explainable green-lawn watering preset."""
     now = now or datetime.now(UTC)
@@ -232,6 +238,8 @@ def evaluate_green_lawn(
         )
 
     precipitation = sum(hour.precipitation_mm for hour in hours)
+    observed_precipitation = max(0.0, float(observed_precipitation_mm))
+    effective_precipitation = precipitation + observed_precipitation
     probability = max(hour.precipitation_probability for hour in hours)
     max_temperature = max(hour.temperature for hour in hours)
     rainy_hours = sum(1 for hour in hours if _is_rainy(hour))
@@ -243,22 +251,48 @@ def evaluate_green_lawn(
     rainy_hours_skip = int(settings.get("rainy_hours_skip", 3))
 
     skip = (
-        precipitation >= skip_mm
-        or (probability >= skip_probability and precipitation >= skip_probability_mm)
+        effective_precipitation >= skip_mm
+        or (
+            probability >= skip_probability
+            and effective_precipitation >= skip_probability_mm
+        )
         or (rainy_hours >= rainy_hours_skip and precipitation > 0)
     )
     if skip:
         factor = 0.0
         rain_factor = 0.0
         climate_factor = 1.0
-        reason = "A várható csapadék elegendő, ezért a program kimarad."
+        if observed_precipitation > 0 and precipitation > 0:
+            reason = (
+                "Az elmúlt 24 órában mért és a várható csapadék együtt "
+                "elegendő, ezért a program kimarad."
+            )
+        elif observed_precipitation > 0:
+            reason = (
+                "Az elmúlt 24 órában mért csapadék elegendő, ezért a program "
+                "kimarad."
+            )
+        else:
+            reason = "A várható csapadék elegendő, ezért a program kimarad."
     else:
-        if precipitation >= float(settings.get("rain_reduce_high_mm", 4.0)):
+        if effective_precipitation >= float(
+            settings.get("rain_reduce_high_mm", 4.0)
+        ):
             rain_factor = float(settings.get("rain_factor_high", 0.65))
-            rain_reason = "jelentős várható csapadék"
-        elif precipitation >= float(settings.get("rain_reduce_low_mm", 1.0)):
+            rain_reason = (
+                "jelentős mért vagy várható csapadék"
+                if observed_precipitation > 0
+                else "jelentős várható csapadék"
+            )
+        elif effective_precipitation >= float(
+            settings.get("rain_reduce_low_mm", 1.0)
+        ):
             rain_factor = float(settings.get("rain_factor_low", 0.85))
-            rain_reason = "kevés várható csapadék"
+            rain_reason = (
+                "kevés mért vagy várható csapadék"
+                if observed_precipitation > 0
+                else "kevés várható csapadék"
+            )
         else:
             rain_factor = 1.0
             rain_reason = "kevés csapadék"
@@ -298,4 +332,7 @@ def evaluate_green_lawn(
         evaluated_at=now,
         rain_factor=round(rain_factor, 3),
         climate_factor=round(climate_factor, 3),
+        observed_precipitation_mm=round(observed_precipitation, 1),
+        effective_precipitation_mm=round(effective_precipitation, 1),
+        rain_station=rain_station,
     )

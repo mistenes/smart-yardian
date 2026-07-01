@@ -36,6 +36,9 @@ class WeatherDecision:
     evaluated_at: datetime
     rain_factor: float = 1.0
     climate_factor: float = 1.0
+    observed_precipitation_mm: float = 0.0
+    effective_precipitation_mm: float = 0.0
+    rain_station: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         """Return a JSON-safe representation."""

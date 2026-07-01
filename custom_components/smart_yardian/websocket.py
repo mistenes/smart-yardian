@@ -138,6 +138,27 @@ async def websocket_settings_update(
 
 @websocket_api.websocket_command(
     {
+        vol.Required("type"): f"{WS_PREFIX}/rain/stations",
+        vol.Required("city"): str,
+    }
+)
+@websocket_api.async_response
+async def websocket_rain_stations(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Find measured-rain stations by settlement name."""
+    try:
+        stations = await _manager(hass).async_search_rain_stations(msg["city"])
+    except (ValueError, WeatherUnavailableError) as err:
+        connection.send_error(msg["id"], "rain_stations_unavailable", str(err))
+        return
+    connection.send_result(msg["id"], {"stations": stations})
+
+
+@websocket_api.websocket_command(
+    {
         vol.Required("type"): f"{WS_PREFIX}/zone_profiles/update",
         vol.Required("profiles"): [dict],
     }
@@ -331,6 +352,7 @@ COMMANDS = (
     websocket_program_save,
     websocket_program_delete,
     websocket_settings_update,
+    websocket_rain_stations,
     websocket_zone_profiles_update,
     websocket_automation_set,
     websocket_run_program,

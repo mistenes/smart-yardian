@@ -248,7 +248,7 @@ export const panelStyles = css`
   .weather-band {
     min-height: 92px;
     display: grid;
-    grid-template-columns: minmax(270px, 1fr) repeat(4, minmax(100px, auto));
+    grid-template-columns: minmax(270px, 1fr) repeat(5, minmax(96px, auto));
     align-items: center;
     border: 1px solid color-mix(in srgb, var(--sy-amber) 72%, var(--sy-border));
     border-radius: 8px;
@@ -1434,6 +1434,57 @@ export const panelStyles = css`
     border-radius: 6px;
   }
 
+  .rain-station-settings {
+    grid-column: 1 / -1;
+  }
+
+  .rain-station-city,
+  .rain-station-result {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    align-items: center;
+    gap: 16px;
+    min-height: 49px;
+    border-bottom: 1px solid var(--sy-border);
+  }
+
+  .rain-station-city > div {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) auto;
+    gap: 8px;
+  }
+
+  .rain-station-city input,
+  .rain-station-result select {
+    width: 100%;
+    min-width: 0;
+    height: 36px;
+    padding: 5px 8px;
+    color: var(--sy-text);
+    background: var(--sy-control);
+    border: 1px solid var(--sy-border);
+    border-radius: 6px;
+  }
+
+  .rain-station-status,
+  .rain-station-reading {
+    min-height: 49px;
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 1px solid var(--sy-border);
+  }
+
+  .rain-station-reading > span:last-child {
+    color: var(--sy-muted);
+  }
+
+  .rain-station-error {
+    padding: 10px 0;
+    color: var(--sy-red);
+  }
+
   .zone-profiles {
     margin-top: 6px;
   }
@@ -1606,7 +1657,7 @@ export const panelStyles = css`
     }
 
     .weather-band {
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(2, 1fr);
     }
 
     .weather-summary {
@@ -1617,6 +1668,23 @@ export const panelStyles = css`
     .metric {
       min-height: 59px;
       padding: 5px 9px;
+    }
+
+    .rain-station-city,
+    .rain-station-result,
+    .rain-station-status,
+    .rain-station-reading {
+      grid-template-columns: 1fr;
+      gap: 7px;
+      padding: 10px 0;
+    }
+
+    .rain-station-city > div {
+      grid-template-columns: 1fr;
+    }
+
+    .rain-station-reading > span:last-child {
+      justify-self: start;
     }
 
     .overview-grid {

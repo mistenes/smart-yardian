@@ -30,6 +30,7 @@ WS_PREFIX: Final = "smart_yardian"
 WEATHER_MAX_AGE_SECONDS: Final = 90 * 60
 MIN_FORECAST_HOURS: Final = 12
 FORECAST_HORIZON_HOURS: Final = 24
+RAIN_MAP_CACHE_SECONDS: Final = 60 * 60
 
 START_CONFIRM_SECONDS: Final = 15
 STOP_CONFIRM_SECONDS: Final = 15
@@ -50,4 +51,7 @@ DEFAULT_SETTINGS: Final = {
     "factor_min": 0.5,
     "factor_max": 1.5,
     "notify_mobile": True,
+    "rain_station_city": "",
+    "rain_station_id": "",
+    "rain_station_name": "",
 }

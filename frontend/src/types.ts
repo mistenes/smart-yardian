@@ -75,6 +75,9 @@ export type WeatherDecision = {
   rainy_hours?: number;
   rain_factor?: number;
   climate_factor?: number;
+  observed_precipitation_mm?: number;
+  effective_precipitation_mm?: number;
+  rain_station?: string | null;
   reason: string;
   evaluated_at?: string;
   available?: boolean;
@@ -160,6 +163,22 @@ export type Settings = {
   factor_min: number;
   factor_max: number;
   notify_mobile: boolean;
+  rain_station_city: string;
+  rain_station_id: string;
+  rain_station_name: string;
+};
+
+export type RainStation = {
+  station_id: string;
+  location: string;
+  measured_mm: number;
+  radar_mm: number;
+  map_x: number;
+  map_y: number;
+};
+
+export type RainObservation = RainStation & {
+  fetched_at: string | null;
 };
 
 export type Summary = {
@@ -172,6 +191,8 @@ export type Summary = {
   settings: Settings;
   active_run: ActiveRun | null;
   weather: WeatherDecision | null;
+  rain_observation: RainObservation | null;
+  rain_observation_error: string | null;
   last_error: string | null;
   next_run: string | null;
   seasonal_target: {

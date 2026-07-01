@@ -6,6 +6,7 @@ import {
   runProgram,
   runZone,
   saveAndRunProgram,
+  searchRainStations,
   setAutomation,
   skipCurrentZone,
   updateSettings,
@@ -53,6 +54,15 @@ describe("Smart Yardian WebSocket client", () => {
     await getHourlyForecast(hass);
     expect(messages[0]).toEqual({
       type: "smart_yardian/weather/hourly",
+    });
+  });
+
+  it("searches Időkép rain stations by settlement", async () => {
+    const { hass, messages } = recordingHass();
+    await searchRainStations(hass, "Csömör");
+    expect(messages[0]).toEqual({
+      type: "smart_yardian/rain/stations",
+      city: "Csömör",
     });
   });
 

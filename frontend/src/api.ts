@@ -2,6 +2,7 @@ import type {
   Hass,
   HourlyForecast,
   Program,
+  RainStation,
   SchedulePreview,
   Settings,
   Summary,
@@ -43,6 +44,12 @@ export const updateSettings = (hass: Hass, settings: Partial<Settings>) =>
   hass.connection.sendMessagePromise<void>({
     type: "smart_yardian/settings/update",
     settings,
+  });
+
+export const searchRainStations = (hass: Hass, city: string) =>
+  hass.connection.sendMessagePromise<{ stations: RainStation[] }>({
+    type: "smart_yardian/rain/stations",
+    city,
   });
 
 export const updateZoneProfiles = (hass: Hass, profiles: ZoneProfile[]) =>

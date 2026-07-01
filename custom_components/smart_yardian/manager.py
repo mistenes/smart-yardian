@@ -15,6 +15,7 @@ from homeassistant.const import ATTR_ENTITY_ID, STATE_ON
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.util import dt as dt_util
 
@@ -24,6 +25,7 @@ from .const import (
     CONF_ZONE_ENTITIES,
     DOMAIN,
     MAX_QUEUE_DELAY_SECONDS,
+    RAIN_MAP_CACHE_SECONDS,
     START_CONFIRM_SECONDS,
     STOP_CONFIRM_SECONDS,
 )
@@ -34,6 +36,12 @@ from .irrigation import (
 )
 from .models import ForecastHour, IrrigationProgram, ProgramZone, RunRecord, WeatherDecision
 from .planning import upcoming_occurrences
+from .rainfall import (
+    IDOKEP_RAIN_MAP_URL,
+    RainObservation,
+    find_rain_stations,
+    parse_idokep_rain_map,
+)
 from .storage import SmartYardianStore
 from .weather import (
     WeatherUnavailableError,
@@ -64,6 +72,10 @@ class SmartYardianManager:
         self.active_run: dict[str, Any] | None = None
         self.last_decision: WeatherDecision | None = None
         self.last_error: str | None = None
+        self.last_rain_observation: dict[str, Any] | None = None
+        self.last_rain_error: str | None = None
+        self._rain_observations: list[RainObservation] = []
+        self._rain_observations_at: datetime | None = None
         self._run_lock = asyncio.Lock()
         self._stop_event = asyncio.Event()
         self._skip_zone_event = asyncio.Event()
@@ -206,11 +218,24 @@ class SmartYardianManager:
 
         try:
             forecast = await self._async_idokep_forecast()
+            observation = await self._async_selected_rain_observation()
             decision = evaluate_calendar_day(
                 forecast,
                 "Időkép",
                 target,
                 settings=self.store.settings,
+                observed_precipitation_mm=(
+                    observation.measured_mm
+                    if observation
+                    and target.date() == dt_util.as_local(dt_util.now()).date()
+                    else 0.0
+                ),
+                rain_station=(
+                    f"{observation.location} ({observation.station_id})"
+                    if observation
+                    and target.date() == dt_util.as_local(dt_util.now()).date()
+                    else None
+                ),
             )
             self.last_decision = decision
             self.last_error = None
@@ -221,6 +246,102 @@ class SmartYardianManager:
             self.last_error = f"Időkép: {err}"
             self._notify_listeners()
             raise WeatherUnavailableError(self.last_error) from err
+
+    async def _async_rain_observations(
+        self,
+        *,
+        force: bool = False,
+    ) -> list[RainObservation]:
+        """Fetch and cache the measured 24-hour Időkép station observations."""
+        now = dt_util.utcnow()
+        if (
+            not force
+            and self._rain_observations
+            and self._rain_observations_at is not None
+            and (now - self._rain_observations_at).total_seconds()
+            < RAIN_MAP_CACHE_SECONDS
+        ):
+            return self._rain_observations
+
+        session = async_get_clientsession(self.hass)
+        try:
+            async with session.get(
+                IDOKEP_RAIN_MAP_URL,
+                headers={
+                    "User-Agent": (
+                        "HomeAssistant SmartYardian/0.11 "
+                        "(https://github.com/mistenes/smart-yardian)"
+                    )
+                },
+                timeout=15,
+            ) as response:
+                response.raise_for_status()
+                document = await response.text()
+        except Exception as err:  # noqa: BLE001
+            self.last_rain_error = f"Az Időkép csapadéktérképe nem érhető el: {err}"
+            if self._rain_observations:
+                return self._rain_observations
+            raise WeatherUnavailableError(self.last_rain_error) from err
+
+        observations = parse_idokep_rain_map(document)
+        if not observations:
+            self.last_rain_error = (
+                "Az Időkép csapadéktérképe nem tartalmazott feldolgozható "
+                "automataadatot."
+            )
+            if self._rain_observations:
+                return self._rain_observations
+            raise WeatherUnavailableError(self.last_rain_error)
+
+        self._rain_observations = observations
+        self._rain_observations_at = now
+        self.last_rain_error = None
+        return observations
+
+    async def async_search_rain_stations(
+        self,
+        city: str,
+    ) -> list[dict[str, Any]]:
+        """Return Időkép rain stations matching a settlement name."""
+        city = city.strip()
+        if len(city) < 2:
+            raise ValueError("Adj meg legalább két karaktert a település nevéből.")
+        observations = await self._async_rain_observations()
+        return [item.as_dict() for item in find_rain_stations(observations, city)]
+
+    async def _async_selected_rain_observation(
+        self,
+    ) -> RainObservation | None:
+        """Return the configured station observation without blocking forecasts."""
+        station_id = str(self.store.settings.get("rain_station_id") or "").strip()
+        if not station_id:
+            self.last_rain_observation = None
+            self.last_rain_error = None
+            return None
+        try:
+            observations = await self._async_rain_observations()
+        except WeatherUnavailableError:
+            return None
+        observation = next(
+            (item for item in observations if item.station_id == station_id),
+            None,
+        )
+        if observation is None:
+            self.last_rain_observation = None
+            self.last_rain_error = (
+                f"A kiválasztott Időkép automata nem található: {station_id}."
+            )
+            return None
+        self.last_rain_observation = {
+            **observation.as_dict(),
+            "fetched_at": (
+                self._rain_observations_at.isoformat()
+                if self._rain_observations_at
+                else None
+            ),
+        }
+        self.last_rain_error = None
+        return observation
 
     async def _async_idokep_forecast(self) -> list[ForecastHour]:
         """Fetch normalized hourly data from the configured Időkép entity."""
@@ -308,6 +429,7 @@ class SmartYardianManager:
             idokep_forecast = await self._async_idokep_forecast()
         except (KeyError, TypeError, ValueError, WeatherUnavailableError) as err:
             idokep_error = str(err)
+        rain_observation = await self._async_selected_rain_observation()
 
         day_decisions: dict[str, WeatherDecision | None] = {}
         day_errors: dict[str, str] = {}
@@ -339,6 +461,19 @@ class SmartYardianManager:
                         "Időkép",
                         scheduled_at,
                         settings=self.store.settings,
+                        observed_precipitation_mm=(
+                            rain_observation.measured_mm
+                            if rain_observation
+                            and scheduled_at.date() == now.date()
+                            else 0.0
+                        ),
+                        rain_station=(
+                            f"{rain_observation.location} "
+                            f"({rain_observation.station_id})"
+                            if rain_observation
+                            and scheduled_at.date() == now.date()
+                            else None
+                        ),
                     )
                 except WeatherUnavailableError as err:
                     idokep_day_error = str(err)
@@ -553,6 +688,16 @@ class SmartYardianManager:
         for key, value in settings.items():
             if key == "notify_mobile":
                 candidate[key] = bool(value)
+                continue
+            if key in {
+                "rain_station_city",
+                "rain_station_id",
+                "rain_station_name",
+            }:
+                text = str(value or "").strip()
+                if len(text) > 120:
+                    raise ValueError(f"Túl hosszú beállítás: {key}")
+                candidate[key] = text
                 continue
             if key not in ranges:
                 continue
@@ -1099,6 +1244,8 @@ class SmartYardianManager:
             "settings": self.store.settings,
             "active_run": self.active_run,
             "weather": weather_decision.as_dict() if weather_decision else None,
+            "rain_observation": self.last_rain_observation,
+            "rain_observation_error": self.last_rain_error,
             "last_error": self.last_error,
             "next_run": next_run.isoformat() if next_run else None,
             "seasonal_target": target,

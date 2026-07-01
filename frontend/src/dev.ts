@@ -5,6 +5,7 @@ import {
   mdiChevronUp,
   mdiClockOutline,
   mdiClose,
+  mdiCupWater,
   mdiPause,
   mdiPlay,
   mdiPlus,
@@ -37,6 +38,7 @@ const iconPaths: Record<string, string> = {
   "mdi:chevron-up": mdiChevronUp,
   "mdi:clock-outline": mdiClockOutline,
   "mdi:close": mdiClose,
+  "mdi:cup-water": mdiCupWater,
   "mdi:pause": mdiPause,
   "mdi:play": mdiPlay,
   "mdi:plus": mdiPlus,
@@ -295,6 +297,9 @@ const summary = (): Summary => ({
     factor_min: 0.5,
     factor_max: 1.5,
     notify_mobile: true,
+    rain_station_city: "Csömör",
+    rain_station_id: "csomor1",
+    rain_station_name: "Csömör",
   },
   active_run: runningEntity
     ? {
@@ -333,9 +338,22 @@ const summary = (): Summary => ({
     rainy_hours: 1,
     rain_factor: 0.85,
     climate_factor: 1.1,
+    observed_precipitation_mm: 2.4,
+    effective_precipitation_mm: 3.6,
+    rain_station: "Csömör (csomor1)",
     reason: "Kevés csapadék, meleg és többnyire napos.",
     evaluated_at: new Date().toISOString(),
   },
+  rain_observation: {
+    station_id: "csomor1",
+    location: "Csömör",
+    measured_mm: 2.4,
+    radar_mm: 1.9,
+    map_x: 447,
+    map_y: 214,
+    fetched_at: new Date().toISOString(),
+  },
+  rain_observation_error: null,
   last_error: null,
   next_run: nextRun(),
   seasonal_target: {
@@ -503,6 +521,28 @@ const hass: Hass = {
       if (type === "smart_yardian/weather/preview") return summary().weather as T;
       if (type === "smart_yardian/weather/hourly") return hourlyForecast() as T;
       if (type === "smart_yardian/schedule/preview") return schedulePreview() as T;
+      if (type === "smart_yardian/rain/stations") {
+        return {
+          stations: [
+            {
+              station_id: "csomor1",
+              location: "Csömör",
+              measured_mm: 2.4,
+              radar_mm: 1.9,
+              map_x: 447,
+              map_y: 214,
+            },
+            {
+              station_id: "csomor2",
+              location: "Csömör",
+              measured_mm: 2.1,
+              radar_mm: 1.9,
+              map_x: 449,
+              map_y: 216,
+            },
+          ],
+        } as T;
+      }
       if (type === "smart_yardian/automation/set") {
         automationEnabled = Boolean(message.enabled);
       }

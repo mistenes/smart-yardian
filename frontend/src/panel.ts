@@ -10,6 +10,7 @@ import {
   runZone,
   saveAndRunProgram,
   saveProgram,
+  searchRainStations,
   setAutomation,
   skipCurrentZone,
   stopAll,
@@ -24,6 +25,7 @@ import type {
   HourlyForecastHour,
   Program,
   ProgramZone,
+  RainStation,
   RunRecord,
   SchedulePreview,
   ScheduleProgram,
@@ -109,6 +111,8 @@ export class SmartYardianPanel extends LitElement {
     _bulkMoistureSensor: { state: true },
     _settingsSaving: { state: true },
     _settingsSaved: { state: true },
+    _rainStationSearching: { state: true },
+    _rainStationMatches: { state: true },
     _runExpanded: { state: true },
     _now: { state: true },
     _manualDraft: { state: true },
@@ -135,6 +139,8 @@ export class SmartYardianPanel extends LitElement {
   private _bulkMoistureSensor = "";
   private _settingsSaving = false;
   private _settingsSaved = false;
+  private _rainStationSearching = false;
+  private _rainStationMatches: RainStation[] = [];
   private _runExpanded = false;
   private _now = Date.now();
   private _manualDraft: Program = emptyManualProgram();
@@ -432,6 +438,13 @@ export class SmartYardianPanel extends LitElement {
             <div class="weather-reason">${weather.reason}</div>
           </div>
         </div>
+        ${this._metric(
+          "mdi:cup-water",
+          "Elmúlt 24 óra",
+          weather.rain_station
+            ? `${weather.observed_precipitation_mm ?? 0} mm`
+            : "Nincs állomás",
+        )}
         ${this._metric("mdi:weather-rainy", "Várható eső", `${weather.precipitation_mm ?? 0} mm`)}
         ${this._metric("mdi:water-percent", "Esély", `${weather.max_probability ?? 0}%`)}
         ${this._metric("mdi:white-balance-sunny", "Napos órák", `${weather.sunny_hours ?? 0}`, "sun")}
@@ -744,7 +757,14 @@ export class SmartYardianPanel extends LitElement {
           ? html`
               <div class="schedule-weather">
                 <span>${program.weather.max_temperature ?? "–"} °C max.</span>
-                <span>${program.weather.precipitation_mm ?? 0} mm eső</span>
+                <span>${program.weather.precipitation_mm ?? 0} mm várható</span>
+                ${program.weather.observed_precipitation_mm
+                  ? html`
+                      <span>
+                        ${program.weather.observed_precipitation_mm} mm mért / 24 óra
+                      </span>
+                    `
+                  : nothing}
                 <span>Forrás: ${program.weather.source}</span>
               </div>
             `
@@ -1256,6 +1276,12 @@ export class SmartYardianPanel extends LitElement {
                                 <div class="history-weather">
                                   Döntéskor:
                                   ${record.weather.precipitation_mm ?? 0} mm ·
+                                  ${record.weather.observed_precipitation_mm
+                                    ? html`
+                                        ${record.weather.observed_precipitation_mm}
+                                        mm mért / 24 óra ·
+                                      `
+                                    : nothing}
                                   ${record.weather.max_probability ?? 0}% ·
                                   ${record.weather.rainy_hours ?? 0} esős óra ·
                                   ${record.weather.max_temperature ?? "–"} °C
@@ -1354,6 +1380,94 @@ export class SmartYardianPanel extends LitElement {
             <span>Legutóbbi aktuális számítás forrása</span>
             <strong>${this._summary!.weather?.source ?? "Nincs értékelés"}</strong>
           </div>
+        </section>
+        <section class="settings-section rain-station-settings">
+          <h3>Lehullott csapadék · Időkép automata</h3>
+          <p class="settings-help">
+            A településhez tartozó Időkép automaták elmúlt 24 órás mérése
+            beleszámít az eső miatti csökkentésbe és kihagyásba. Ez közeli
+            állomásadat, nem a kertben végzett mérés.
+          </p>
+          <label class="rain-station-city">
+            <span>Település</span>
+            <div>
+              <input
+                type="text"
+                placeholder="például Csömör"
+                .value=${settings.rain_station_city}
+                @input=${(event: Event) =>
+                  this._patchSettings({
+                    rain_station_city: (event.target as HTMLInputElement).value,
+                  })}
+              />
+              <button
+                class="button quiet"
+                type="button"
+                ?disabled=${this._rainStationSearching ||
+                settings.rain_station_city.trim().length < 2}
+                @click=${this._searchRainStations}
+              >
+                ${this._rainStationSearching ? "Keresés…" : "Automaták keresése"}
+              </button>
+            </div>
+          </label>
+          ${this._rainStationMatches.length
+            ? html`
+                <label class="rain-station-result">
+                  <span>Használt automata</span>
+                  <select
+                    .value=${settings.rain_station_id}
+                    @change=${(event: Event) => {
+                      const station = this._rainStationMatches.find(
+                        (item) =>
+                          item.station_id ===
+                          (event.target as HTMLSelectElement).value,
+                      );
+                      if (station) {
+                        this._patchSettings({
+                          rain_station_id: station.station_id,
+                          rain_station_name: station.location,
+                        });
+                      }
+                    }}
+                  >
+                    ${this._rainStationMatches.map(
+                      (station) => html`
+                        <option value=${station.station_id}>
+                          ${station.location} · ${station.station_id} ·
+                          ${station.measured_mm} mm
+                        </option>
+                      `,
+                    )}
+                  </select>
+                </label>
+              `
+            : nothing}
+          <div class="rain-station-status">
+            <span>Kiválasztva</span>
+            <strong>
+              ${settings.rain_station_id
+                ? `${settings.rain_station_name} (${settings.rain_station_id})`
+                : "Nincs automata kiválasztva"}
+            </strong>
+          </div>
+          ${this._summary!.rain_observation
+            ? html`
+                <div class="rain-station-reading">
+                  <span>Elmúlt 24 óra</span>
+                  <strong>${this._summary!.rain_observation.measured_mm} mm</strong>
+                  <span>
+                    Radarbecslés: ${this._summary!.rain_observation.radar_mm} mm
+                  </span>
+                </div>
+              `
+            : this._summary!.rain_observation_error
+              ? html`
+                  <div class="rain-station-error">
+                    ${this._summary!.rain_observation_error}
+                  </div>
+                `
+              : nothing}
         </section>
       </div>
       <section class="settings-section zone-profiles">
@@ -2001,6 +2115,36 @@ export class SmartYardianPanel extends LitElement {
       this._error = this._errorMessage(error);
     } finally {
       this._settingsSaving = false;
+    }
+  };
+
+  private _searchRainStations = async (): Promise<void> => {
+    if (!this.hass || !this._summary || this._rainStationSearching) return;
+    const city = this._summary.settings.rain_station_city.trim();
+    if (city.length < 2) return;
+    this._rainStationSearching = true;
+    try {
+      const result = await searchRainStations(this.hass, city);
+      this._rainStationMatches = result.stations;
+      if (!result.stations.length) {
+        this._error = `Nem található Időkép automata „${city}” közelében.`;
+        return;
+      }
+      const selected =
+        result.stations.find(
+          (station) =>
+            station.station_id === this._summary?.settings.rain_station_id,
+        ) ?? result.stations[0];
+      if (!selected) return;
+      this._patchSettings({
+        rain_station_id: selected.station_id,
+        rain_station_name: selected.location,
+      });
+      this._error = "";
+    } catch (error) {
+      this._error = this._errorMessage(error);
+    } finally {
+      this._rainStationSearching = false;
     }
   };
 

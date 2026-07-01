@@ -53,6 +53,36 @@ def test_green_lawn_skips_heavy_rain() -> None:
     assert "kimarad" in decision.reason
 
 
+def test_measured_rain_is_separate_but_counts_toward_skip() -> None:
+    decision = evaluate_green_lawn(
+        forecast(precipitation=1.5, probability=40),
+        "Időkép",
+        NOW,
+        observed_precipitation_mm=7,
+        rain_station="Csömör (csomor1)",
+    )
+
+    assert decision.factor == 0
+    assert decision.precipitation_mm == 1.5
+    assert decision.observed_precipitation_mm == 7
+    assert decision.effective_precipitation_mm == 8.5
+    assert decision.rain_station == "Csömör (csomor1)"
+    assert "mért és a várható" in decision.reason
+
+
+def test_measured_rain_alone_can_reduce_irrigation() -> None:
+    decision = evaluate_green_lawn(
+        forecast(temperature=22, cloud_cover=70),
+        "Időkép",
+        NOW,
+        observed_precipitation_mm=2.5,
+    )
+
+    assert decision.factor == 0.85
+    assert decision.precipitation_mm == 0
+    assert decision.observed_precipitation_mm == 2.5
+
+
 def test_rainy_conditions_without_precipitation_do_not_skip() -> None:
     decision = evaluate_green_lawn(
         forecast(precipitation=0, probability=90, rainy_hours=6),
