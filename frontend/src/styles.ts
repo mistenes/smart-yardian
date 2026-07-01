@@ -1434,10 +1434,12 @@ export const panelStyles = css`
     border-radius: 6px;
   }
 
+  .forecast-settings,
   .rain-station-settings {
     grid-column: 1 / -1;
   }
 
+  .forecast-location,
   .rain-station-city,
   .rain-station-result {
     display: grid;
@@ -1454,6 +1456,7 @@ export const panelStyles = css`
     gap: 8px;
   }
 
+  .forecast-location input,
   .rain-station-city input,
   .rain-station-result select {
     width: 100%;
@@ -1670,6 +1673,7 @@ export const panelStyles = css`
       padding: 5px 9px;
     }
 
+    .forecast-location,
     .rain-station-city,
     .rain-station-result,
     .rain-station-status,

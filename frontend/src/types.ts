@@ -166,6 +166,7 @@ export type Settings = {
   rain_station_city: string;
   rain_station_id: string;
   rain_station_name: string;
+  idokep_location: string;
 };
 
 export type RainStation = {

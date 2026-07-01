@@ -14,7 +14,7 @@ CONF_NOTIFY_SERVICE: Final = "notify_service"
 PANEL_URL: Final = "smart-yardian"
 PANEL_COMPONENT: Final = "smart-yardian-panel"
 PANEL_STATIC_URL: Final = "/smart_yardian/smart-yardian-panel.js"
-PANEL_MODULE_URL: Final = f"{PANEL_STATIC_URL}?v=0.11.2"
+PANEL_MODULE_URL: Final = f"{PANEL_STATIC_URL}?v=0.12.0"
 
 STORE_VERSION: Final = 1
 STORE_KEY_PREFIX: Final = "smart_yardian"
@@ -55,4 +55,5 @@ DEFAULT_SETTINGS: Final = {
     "rain_station_city": "",
     "rain_station_id": "",
     "rain_station_name": "",
+    "idokep_location": "",
 }

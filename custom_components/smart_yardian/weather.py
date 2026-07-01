@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import replace
 from datetime import UTC, datetime, time, timedelta
+import re
 from typing import Any
 
 from .const import FORECAST_HORIZON_HOURS, MIN_FORECAST_HOURS
@@ -27,6 +28,19 @@ SUN_WEIGHTS = {
 
 class WeatherUnavailableError(RuntimeError):
     """Raised when a provider has no trustworthy forecast."""
+
+
+def validate_idokep_location(value: Any) -> str:
+    """Return a safe Időkép settlement name or raise a user-facing error."""
+    location = " ".join(str(value or "").strip().split())
+    if not 2 <= len(location) <= 80:
+        raise ValueError("A település neve 2 és 80 karakter közötti legyen.")
+    if re.fullmatch(r"[\w .'-]+", location, flags=re.UNICODE) is None:
+        raise ValueError(
+            "A település neve csak betűt, számot, szóközt, pontot, "
+            "kötőjelet és aposztrófot tartalmazhat."
+        )
+    return location
 
 
 def _as_float(value: Any, default: float = 0.0) -> float:

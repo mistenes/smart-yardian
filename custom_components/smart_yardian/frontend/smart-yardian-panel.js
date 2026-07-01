@@ -35,10 +35,10 @@ const pt = (r) => new rt(typeof r == "string" ? r : r + "", void 0, O), ht = (r,
   for (const a of t.cssRules) e += a.cssText;
   return pt(e);
 })(r) : r;
-const { is: mt, defineProperty: gt, getOwnPropertyDescriptor: _t, getOwnPropertyNames: vt, getOwnPropertySymbols: bt, getPrototypeOf: yt } = Object, N = globalThis, W = N.trustedTypes, ft = W ? W.emptyScript : "", xt = N.reactiveElementPolyfillSupport, k = (r, t) => r, L = { toAttribute(r, t) {
+const { is: mt, defineProperty: gt, getOwnPropertyDescriptor: _t, getOwnPropertyNames: vt, getOwnPropertySymbols: bt, getPrototypeOf: ft } = Object, N = globalThis, W = N.trustedTypes, yt = W ? W.emptyScript : "", xt = N.reactiveElementPolyfillSupport, k = (r, t) => r, L = { toAttribute(r, t) {
   switch (t) {
     case Boolean:
-      r = r ? ft : null;
+      r = r ? yt : null;
       break;
     case Object:
     case Array:
@@ -65,7 +65,7 @@ const { is: mt, defineProperty: gt, getOwnPropertyDescriptor: _t, getOwnProperty
   return e;
 } }, it = (r, t) => !mt(r, t), Y = { attribute: !0, type: String, converter: L, reflect: !1, useDefault: !1, hasChanged: it };
 Symbol.metadata ??= /* @__PURE__ */ Symbol("metadata"), N.litPropertyMetadata ??= /* @__PURE__ */ new WeakMap();
-let f = class extends HTMLElement {
+let y = class extends HTMLElement {
   static addInitializer(t) {
     this._$Ei(), (this.l ??= []).push(t);
   }
@@ -94,7 +94,7 @@ let f = class extends HTMLElement {
   }
   static _$Ei() {
     if (this.hasOwnProperty(k("elementProperties"))) return;
-    const t = yt(this);
+    const t = ft(this);
     t.finalize(), t.l !== void 0 && (this.l = [...t.l]), this.elementProperties = new Map(t.elementProperties);
   }
   static finalize() {
@@ -246,10 +246,10 @@ let f = class extends HTMLElement {
   firstUpdated(t) {
   }
 };
-f.elementStyles = [], f.shadowRootOptions = { mode: "open" }, f[k("elementProperties")] = /* @__PURE__ */ new Map(), f[k("finalized")] = /* @__PURE__ */ new Map(), xt?.({ ReactiveElement: f }), (N.reactiveElementVersions ??= []).push("2.1.2");
-const I = globalThis, J = (r) => r, j = I.trustedTypes, G = j ? j.createPolicy("lit-html", { createHTML: (r) => r }) : void 0, nt = "$lit$", _ = `lit$${Math.random().toFixed(9).slice(2)}$`, ot = "?" + _, $t = `<${ot}>`, y = document, S = () => y.createComment(""), A = (r) => r === null || typeof r != "object" && typeof r != "function", K = Array.isArray, wt = (r) => K(r) || typeof r?.[Symbol.iterator] == "function", T = `[ 	
+y.elementStyles = [], y.shadowRootOptions = { mode: "open" }, y[k("elementProperties")] = /* @__PURE__ */ new Map(), y[k("finalized")] = /* @__PURE__ */ new Map(), xt?.({ ReactiveElement: y }), (N.reactiveElementVersions ??= []).push("2.1.2");
+const I = globalThis, J = (r) => r, j = I.trustedTypes, G = j ? j.createPolicy("lit-html", { createHTML: (r) => r }) : void 0, nt = "$lit$", _ = `lit$${Math.random().toFixed(9).slice(2)}$`, ot = "?" + _, $t = `<${ot}>`, f = document, S = () => f.createComment(""), A = (r) => r === null || typeof r != "object" && typeof r != "function", K = Array.isArray, wt = (r) => K(r) || typeof r?.[Symbol.iterator] == "function", T = `[ 	
 \f\r]`, w = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g, Q = /-->/g, X = />/g, v = RegExp(`>|${T}(?:([^\\s"'>=/]+)(${T}*=${T}*(?:[^ 	
-\f\r"'\`<>=]|("|')|))|$)`, "g"), tt = /'/g, et = /"/g, lt = /^(?:script|style|textarea|title)$/i, kt = (r) => (t, ...e) => ({ _$litType$: r, strings: t, values: e }), n = kt(1), x = /* @__PURE__ */ Symbol.for("lit-noChange"), d = /* @__PURE__ */ Symbol.for("lit-nothing"), at = /* @__PURE__ */ new WeakMap(), b = y.createTreeWalker(y, 129);
+\f\r"'\`<>=]|("|')|))|$)`, "g"), tt = /'/g, et = /"/g, lt = /^(?:script|style|textarea|title)$/i, kt = (r) => (t, ...e) => ({ _$litType$: r, strings: t, values: e }), n = kt(1), x = /* @__PURE__ */ Symbol.for("lit-noChange"), d = /* @__PURE__ */ Symbol.for("lit-nothing"), at = /* @__PURE__ */ new WeakMap(), b = f.createTreeWalker(f, 129);
 function dt(r, t) {
   if (!K(r) || !r.hasOwnProperty("raw")) throw Error("invalid template strings array");
   return G !== void 0 ? G.createHTML(t) : t;
@@ -279,8 +279,8 @@ class M {
     for (; (s = b.nextNode()) !== null && l.length < c; ) {
       if (s.nodeType === 1) {
         if (s.hasAttributes()) for (const p of s.getAttributeNames()) if (p.endsWith(nt)) {
-          const m = u[o++], g = s.getAttribute(p).split(_), D = /([.?@])?(.*)/.exec(m);
-          l.push({ type: 1, index: i, name: D[2], strings: g, ctor: D[1] === "." ? At : D[1] === "?" ? Mt : D[1] === "@" ? Pt : H }), s.removeAttribute(p);
+          const m = u[o++], g = s.getAttribute(p).split(_), E = /([.?@])?(.*)/.exec(m);
+          l.push({ type: 1, index: i, name: E[2], strings: g, ctor: E[1] === "." ? At : E[1] === "?" ? Mt : E[1] === "@" ? Pt : H }), s.removeAttribute(p);
         } else p.startsWith(_) && (l.push({ type: 6, index: i }), s.removeAttribute(p));
         if (lt.test(s.tagName)) {
           const p = s.textContent.split(_), m = p.length - 1;
@@ -299,7 +299,7 @@ class M {
     }
   }
   static createElement(t, e) {
-    const a = y.createElement("template");
+    const a = f.createElement("template");
     return a.innerHTML = t, a;
   }
 }
@@ -320,17 +320,17 @@ class St {
     return this._$AM._$AU;
   }
   u(t) {
-    const { el: { content: e }, parts: a } = this._$AD, s = (t?.creationScope ?? y).importNode(e, !0);
+    const { el: { content: e }, parts: a } = this._$AD, s = (t?.creationScope ?? f).importNode(e, !0);
     b.currentNode = s;
     let i = b.nextNode(), o = 0, c = 0, l = a[0];
     for (; l !== void 0; ) {
       if (o === l.index) {
         let h;
-        l.type === 2 ? h = new P(i, i.nextSibling, this, t) : l.type === 1 ? h = new l.ctor(i, l.name, l.strings, this, t) : l.type === 6 && (h = new Dt(i, this, t)), this._$AV.push(h), l = a[++c];
+        l.type === 2 ? h = new P(i, i.nextSibling, this, t) : l.type === 1 ? h = new l.ctor(i, l.name, l.strings, this, t) : l.type === 6 && (h = new Et(i, this, t)), this._$AV.push(h), l = a[++c];
       }
       o !== l?.index && (i = b.nextNode(), o++);
     }
-    return b.currentNode = y, s;
+    return b.currentNode = f, s;
   }
   p(t) {
     let e = 0;
@@ -365,7 +365,7 @@ class P {
     this._$AH !== t && (this._$AR(), this._$AH = this.O(t));
   }
   _(t) {
-    this._$AH !== d && A(this._$AH) ? this._$AA.nextSibling.data = t : this.T(y.createTextNode(t)), this._$AH = t;
+    this._$AH !== d && A(this._$AH) ? this._$AA.nextSibling.data = t : this.T(f.createTextNode(t)), this._$AH = t;
   }
   $(t) {
     const { values: e, _$litType$: a } = t, s = typeof a == "number" ? this._$AC(t) : (a.el === void 0 && (a.el = M.createElement(dt(a.h, a.h[0]), this.options)), a);
@@ -450,7 +450,7 @@ class Pt extends H {
     typeof this._$AH == "function" ? this._$AH.call(this.options?.host ?? this.element, t) : this._$AH.handleEvent(t);
   }
 }
-class Dt {
+class Et {
   constructor(t, e, a) {
     this.element = t, this.type = 6, this._$AN = void 0, this._$AM = e, this.options = a;
   }
@@ -461,8 +461,8 @@ class Dt {
     $(this, t);
   }
 }
-const Et = I.litHtmlPolyfillSupport;
-Et?.(M, P), (I.litHtmlVersions ??= []).push("3.3.3");
+const Dt = I.litHtmlPolyfillSupport;
+Dt?.(M, P), (I.litHtmlVersions ??= []).push("3.3.3");
 const Ct = (r, t, e) => {
   const a = e?.renderBefore ?? t;
   let s = a._$litPart$;
@@ -473,7 +473,7 @@ const Ct = (r, t, e) => {
   return s._$AI(r), s;
 };
 const B = globalThis;
-class z extends f {
+class z extends y {
   constructor() {
     super(...arguments), this.renderOptions = { host: this }, this._$Do = void 0;
   }
@@ -1977,10 +1977,12 @@ const Nt = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
     border-radius: 6px;
   }
 
+  .forecast-settings,
   .rain-station-settings {
     grid-column: 1 / -1;
   }
 
+  .forecast-location,
   .rain-station-city,
   .rain-station-result {
     display: grid;
@@ -1997,6 +1999,7 @@ const Nt = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
     gap: 8px;
   }
 
+  .forecast-location input,
   .rain-station-city input,
   .rain-station-result select {
     width: 100%;
@@ -2213,6 +2216,7 @@ const Nt = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
       padding: 5px 9px;
     }
 
+    .forecast-location,
     .rain-station-city,
     .rain-station-result,
     .rain-station-status,
@@ -2562,7 +2566,7 @@ const Nt = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
   soil_moisture_enabled: !1,
   zones: [],
   skip_next: !1
-}), E = (r) => JSON.parse(JSON.stringify(r)), Z = () => {
+}), D = (r) => JSON.parse(JSON.stringify(r)), Z = () => {
   const r = /* @__PURE__ */ new Date();
   return {
     ...ct(),
@@ -2669,7 +2673,7 @@ class Xt extends z {
         this._saving = !0, this._error = "";
         try {
           const e = await F(this.hass, this._draft);
-          await this._load(!1), this._draft = E(e);
+          await this._load(!1), this._draft = D(e);
         } catch (e) {
           this._error = this._errorMessage(e);
         } finally {
@@ -2694,7 +2698,7 @@ class Xt extends z {
         this._saving = !0, this._error = "";
         try {
           const e = await Kt(this.hass, t);
-          this._draft = E(e), await this._load(!1);
+          this._draft = D(e), await this._load(!1);
         } catch (e) {
           this._error = this._errorMessage(e);
         } finally {
@@ -3498,7 +3502,7 @@ class Xt extends z {
                     class="program-list-item"
                     ?selected=${e?.program_id === a.program_id}
                     @click=${() => {
-        this._draft = E(a);
+        this._draft = D(a);
       }}
                   >
                     <strong>${a.name}</strong>
@@ -3863,6 +3867,26 @@ class Xt extends z {
             <strong>${this._summary.weather?.source ?? "Nincs értékelés"}</strong>
           </div>
         </section>
+        <section class="settings-section forecast-settings">
+          <h3>Időkép előrejelzés</h3>
+          <p class="settings-help">
+            Ez a település adja az órás előrejelzést, a hőmérsékleti
+            feltételeket és az öntözési korrekciót. Mentéskor az Időkép
+            integráció újratöltődik. A lehullott csapadék automatája ettől
+            külön választható.
+          </p>
+          <label class="forecast-location">
+            <span>Előrejelzés települése</span>
+            <input
+              type="text"
+              placeholder="például Csömör"
+              .value=${t.idokep_location}
+              @input=${(e) => this._patchSettings({
+      idokep_location: e.target.value
+    })}
+            />
+          </label>
+        </section>
         <section class="settings-section rain-station-settings">
           <h3>Lehullott csapadék · Időkép automata</h3>
           <p class="settings-help">
@@ -4136,7 +4160,7 @@ class Xt extends z {
   }
   _selectFirstProgram() {
     const t = this._summary?.programs[0];
-    this._draft = t ? E(t) : null;
+    this._draft = t ? D(t) : null;
   }
   _nextProgramName() {
     if (!this._summary?.next_run) return "";

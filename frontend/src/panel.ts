@@ -1381,6 +1381,27 @@ export class SmartYardianPanel extends LitElement {
             <strong>${this._summary!.weather?.source ?? "Nincs értékelés"}</strong>
           </div>
         </section>
+        <section class="settings-section forecast-settings">
+          <h3>Időkép előrejelzés</h3>
+          <p class="settings-help">
+            Ez a település adja az órás előrejelzést, a hőmérsékleti
+            feltételeket és az öntözési korrekciót. Mentéskor az Időkép
+            integráció újratöltődik. A lehullott csapadék automatája ettől
+            külön választható.
+          </p>
+          <label class="forecast-location">
+            <span>Előrejelzés települése</span>
+            <input
+              type="text"
+              placeholder="például Csömör"
+              .value=${settings.idokep_location}
+              @input=${(event: Event) =>
+                this._patchSettings({
+                  idokep_location: (event.target as HTMLInputElement).value,
+                })}
+            />
+          </label>
+        </section>
         <section class="settings-section rain-station-settings">
           <h3>Lehullott csapadék · Időkép automata</h3>
           <p class="settings-help">

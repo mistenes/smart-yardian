@@ -7,6 +7,7 @@ Időjárás-alapú, magyar nyelvű öntözésvezérlő Home Assistant 2026.6+ re
 - több Yardian vezérlő és dinamikusan bővíthető zónalista;
 - Yardian-szerű heti programok, soros végrehajtással;
 - egységes, kizárólag Időkép-alapú napi előrejelzés;
+- a Smart Yardian beállításaiból módosítható Időkép-előrejelzési település;
 - település alapján kiválasztható közeli Időkép automata, amelynek elmúlt
   24 órás mért csapadéka beleszámít az öntözési döntésbe;
 - átlátható, 0–150%-os időjárási korrekció;
@@ -122,6 +123,15 @@ Az eső miatti csökkentés és kihagyás a két érték összegét használja. 
 nem vetítjük előre. A radaros becslés ellenőrzésként látható, de a számítás a
 kiválasztott automata mérését használja. Ez közeli állomásadat, ezért nem
 azonos pontosságú egy saját, kertben elhelyezett esőmérővel.
+
+## Előrejelzési település
+
+A **Beállítások → Időkép előrejelzés** részen közvetlenül megadható az a
+település, amelynek órás előrejelzését és napi maximum-hőmérsékletét a Smart
+Yardian használja. Mentés előtt a rendszer ellenőrzi, hogy az Időkép ad-e
+órás előrejelzést a településhez, majd átállítja és újratölti a kiválasztott
+Időkép-integrációt. Az előrejelzés települése és a mért csapadékhoz használt
+közeli automata külön beállítás.
 
 ## Ha a Yardian zóna „Nem elérhető”
 

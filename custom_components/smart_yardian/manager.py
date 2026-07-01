@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from urllib.parse import quote
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
@@ -49,6 +50,7 @@ from .weather import (
     is_plausible_celsius,
     normalize_ha_forecast,
     rebase_idokep_timeline,
+    validate_idokep_location,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -685,6 +687,7 @@ class SmartYardianManager:
             "factor_max": (0, 2),
         }
         candidate = dict(self.store.settings)
+        requested_idokep_location: str | None = None
         for key, value in settings.items():
             if key == "notify_mobile":
                 candidate[key] = bool(value)
@@ -698,6 +701,10 @@ class SmartYardianManager:
                 if len(text) > 120:
                     raise ValueError(f"Túl hosszú beállítás: {key}")
                 candidate[key] = text
+                continue
+            if key == "idokep_location":
+                requested_idokep_location = validate_idokep_location(value)
+                candidate[key] = requested_idokep_location
                 continue
             if key not in ranges:
                 continue
@@ -718,9 +725,83 @@ class SmartYardianManager:
             raise ValueError(
                 "Az enyhe eső küszöbe nem lehet nagyobb az erős csökkentés küszöbénél."
             )
+        current_location = self._idokep_location()
+        if (
+            requested_idokep_location is not None
+            and requested_idokep_location.casefold()
+            != current_location.casefold()
+        ):
+            await self._async_update_idokep_location(requested_idokep_location)
         self.store.settings = candidate
         await self.store.async_save()
         self._notify_listeners()
+
+    def _idokep_config_entry(self) -> Any:
+        """Return the Időkép config entry backing the selected weather entity."""
+        weather_entity = str(self.config.get(CONF_WEATHER_ENTITY) or "")
+        registry_entry = er.async_get(self.hass).async_get(weather_entity)
+        config_entry_id = registry_entry.config_entry_id if registry_entry else None
+        config_entry = (
+            self.hass.config_entries.async_get_entry(config_entry_id)
+            if config_entry_id
+            else None
+        )
+        if config_entry is None or config_entry.domain != "idokep":
+            raise ValueError(
+                "A kiválasztott weather entitás nem az Időkép integrációhoz tartozik."
+            )
+        return config_entry
+
+    def _idokep_location(self) -> str:
+        """Return the settlement currently configured in Időkép."""
+        try:
+            entry = self._idokep_config_entry()
+        except ValueError:
+            return str(self.store.settings.get("idokep_location") or "")
+        return str(
+            entry.data.get("location_name")
+            or self.store.settings.get("idokep_location")
+            or ""
+        ).strip()
+
+    async def _async_update_idokep_location(self, location: str) -> None:
+        """Validate and reconfigure the selected Időkép integration entry."""
+        session = async_get_clientsession(self.hass)
+        url = f"https://www.idokep.hu/elorejelzes/{quote(location, safe='')}"
+        try:
+            async with session.get(
+                url,
+                headers={
+                    "User-Agent": (
+                        "HomeAssistant SmartYardian/0.12 "
+                        "(https://github.com/mistenes/smart-yardian)"
+                    )
+                },
+                timeout=15,
+            ) as response:
+                response.raise_for_status()
+                document = await response.text()
+        except Exception as err:  # noqa: BLE001
+            raise ValueError(
+                f"Az Időkép település-ellenőrzése nem sikerült: {err}"
+            ) from err
+        if "wide-hourly-forecast-card" not in document:
+            raise ValueError(
+                f"Az Időkép nem adott órás előrejelzést ehhez: {location}."
+            )
+
+        entry = self._idokep_config_entry()
+        old_data = dict(entry.data)
+        new_data = {**old_data, "location_name": location}
+        self.hass.config_entries.async_update_entry(entry, data=new_data)
+        try:
+            await self.hass.config_entries.async_reload(entry.entry_id)
+        except Exception as err:  # noqa: BLE001
+            self.hass.config_entries.async_update_entry(entry, data=old_data)
+            await self.hass.config_entries.async_reload(entry.entry_id)
+            raise ValueError(
+                "Az Időkép integráció nem tudott átállni az új településre."
+            ) from err
 
     def zone_profile(self, entity_id: str) -> ZoneProfile:
         """Return a configured profile or a safe in-memory default."""
@@ -1263,6 +1344,8 @@ class SmartYardianManager:
             if weather_decision
             else None
         )
+        settings = dict(self.store.settings)
+        settings["idokep_location"] = self._idokep_location()
         return {
             "status": self.status,
             "automation_enabled": self.store.settings.get("automation_enabled", True),
@@ -1270,7 +1353,7 @@ class SmartYardianManager:
             "controllers": list(controllers.values()),
             "programs": [program.as_dict() for program in self.store.programs],
             "history": list(reversed(self.store.history[-20:])),
-            "settings": self.store.settings,
+            "settings": settings,
             "active_run": self.active_run,
             "weather": weather_decision.as_dict() if weather_decision else None,
             "rain_observation": self.last_rain_observation,

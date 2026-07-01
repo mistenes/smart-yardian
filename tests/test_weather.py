@@ -15,6 +15,7 @@ from custom_components.smart_yardian.weather import (
     is_plausible_celsius,
     normalize_ha_forecast,
     rebase_idokep_timeline,
+    validate_idokep_location,
 )
 
 NOW = datetime(2026, 7, 1, 4, 0, tzinfo=UTC)
@@ -248,6 +249,19 @@ def test_idokep_implausible_temperature_is_rejected() -> None:
                 }
             ]
         )
+
+
+def test_idokep_location_accepts_hungarian_settlement_names() -> None:
+    assert validate_idokep_location("  Székesfehérvár  ") == "Székesfehérvár"
+    assert validate_idokep_location("Budapest XIII. kerület") == (
+        "Budapest XIII. kerület"
+    )
+
+
+@pytest.mark.parametrize("value", ["", "B", "https://example.com", "../Pécs"])
+def test_idokep_location_rejects_unsafe_values(value: str) -> None:
+    with pytest.raises(ValueError):
+        validate_idokep_location(value)
 
 
 def test_temperature_plausibility_guard() -> None:

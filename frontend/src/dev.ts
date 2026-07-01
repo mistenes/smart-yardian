@@ -300,6 +300,7 @@ const summary = (): Summary => ({
     rain_station_city: "Csömör",
     rain_station_id: "csomor1",
     rain_station_name: "Csömör",
+    idokep_location: "Csömör",
   },
   active_run: runningEntity
     ? {
