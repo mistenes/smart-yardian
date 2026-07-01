@@ -52,7 +52,7 @@ from .weather import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-UNAVAILABLE_STATES = {"unavailable"}
+UNAVAILABLE_STATES = {"unavailable", "unknown"}
 
 
 class SmartYardianManager:
@@ -1004,7 +1004,7 @@ class SmartYardianManager:
 
     async def _async_start_zone(self, entity_id: str, duration: int) -> None:
         state = self.hass.states.get(entity_id)
-        if state is None or state.state == "unavailable":
+        if state is None or state.state in UNAVAILABLE_STATES:
             raise RuntimeError(f"A zóna nem érhető el: {entity_id}")
         await self.hass.services.async_call(
             "yardian",
@@ -1014,7 +1014,13 @@ class SmartYardianManager:
             blocking=True,
         )
         if not await self._async_wait_state(entity_id, True, START_CONFIRM_SECONDS):
-            raise RuntimeError(f"A zóna nem igazolta vissza az indítást: {entity_id}")
+            state = self.hass.states.get(entity_id)
+            observed_state = state.state if state is not None else "missing"
+            raise RuntimeError(
+                "A zóna nem igazolta vissza az indítást "
+                f"{START_CONFIRM_SECONDS} másodpercen belül: {entity_id} "
+                f"(utolsó HA állapot: {observed_state})"
+            )
 
     async def _async_stop_zone(self, entity_id: str) -> None:
         await self.hass.services.async_call(
@@ -1031,10 +1037,31 @@ class SmartYardianManager:
         self, entity_id: str, expected_on: bool, timeout_seconds: int
     ) -> bool:
         deadline = asyncio.get_running_loop().time() + timeout_seconds
+        next_refresh = asyncio.get_running_loop().time() + 5
         while asyncio.get_running_loop().time() < deadline:
             state = self.hass.states.get(entity_id)
-            if state is not None and (state.state == STATE_ON) == expected_on:
+            if (
+                state is not None
+                and state.state not in UNAVAILABLE_STATES
+                and (state.state == STATE_ON) == expected_on
+            ):
                 return True
+            if asyncio.get_running_loop().time() >= next_refresh:
+                try:
+                    await self.hass.services.async_call(
+                        "homeassistant",
+                        "update_entity",
+                        {},
+                        target={ATTR_ENTITY_ID: entity_id},
+                        blocking=False,
+                    )
+                except Exception:  # noqa: BLE001
+                    _LOGGER.debug(
+                        "Could not request an immediate state refresh for %s",
+                        entity_id,
+                        exc_info=True,
+                    )
+                next_refresh = asyncio.get_running_loop().time() + 5
             await asyncio.sleep(1)
         return False
 
@@ -1070,18 +1097,20 @@ class SmartYardianManager:
     async def async_stop_all(self) -> None:
         """Stop every active configured Yardian zone."""
         self._stop_event.set()
-        active = [
+        active = {
             entity_id
             for entity_id in self.zone_entities
             if (state := self.hass.states.get(entity_id)) is not None
             and state.state == STATE_ON
-        ]
+        }
+        if self.active_run and self.active_run.get("current_zone"):
+            active.add(str(self.active_run["current_zone"]))
         if active:
             await self.hass.services.async_call(
                 "homeassistant",
                 "turn_off",
                 {},
-                target={ATTR_ENTITY_ID: active},
+                target={ATTR_ENTITY_ID: sorted(active)},
                 blocking=True,
             )
         self._notify_listeners()

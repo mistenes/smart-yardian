@@ -5,6 +5,13 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+MANAGER_PATH = (
+    Path(__file__).parents[1]
+    / "custom_components"
+    / "smart_yardian"
+    / "manager.py"
+)
+
 
 def _called_method_names(node: ast.AST) -> set[str]:
     return {
@@ -14,15 +21,19 @@ def _called_method_names(node: ast.AST) -> set[str]:
     }
 
 
+def _function_body(source: str, name: str) -> str:
+    module = ast.parse(source)
+    function = next(
+        node
+        for node in ast.walk(module)
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == name
+    )
+    return ast.get_source_segment(source, function) or ""
+
+
 def test_queue_timeout_does_not_wrap_program_execution() -> None:
     """The 30-minute guard must stop after the run slot is acquired."""
-    manager_path = (
-        Path(__file__).parents[1]
-        / "custom_components"
-        / "smart_yardian"
-        / "manager.py"
-    )
-    module = ast.parse(manager_path.read_text(encoding="utf-8"))
+    module = ast.parse(MANAGER_PATH.read_text(encoding="utf-8"))
     run_program = next(
         node
         for node in ast.walk(module)
@@ -40,3 +51,15 @@ def test_queue_timeout_does_not_wrap_program_execution() -> None:
     assert "acquire" in timeout_calls
     assert "_async_wait_for_external_irrigation" in timeout_calls
     assert "_async_execute_program" not in timeout_calls
+
+
+def test_state_confirmation_forces_refresh_and_safety_stop_tracks_current_zone() -> None:
+    source = MANAGER_PATH.read_text()
+
+    wait_state = _function_body(source, "_async_wait_state")
+    stop_all = _function_body(source, "async_stop_all")
+
+    assert '"update_entity"' in wait_state
+    assert "blocking=False" in wait_state
+    assert "state.state not in UNAVAILABLE_STATES" in wait_state
+    assert 'self.active_run.get("current_zone")' in stop_all
