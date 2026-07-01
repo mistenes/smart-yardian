@@ -1,13 +1,13 @@
-const C = globalThis, L = C.ShadowRoot && (C.ShadyCSS === void 0 || C.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype, I = /* @__PURE__ */ Symbol(), q = /* @__PURE__ */ new WeakMap();
+const C = globalThis, U = C.ShadowRoot && (C.ShadyCSS === void 0 || C.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype, O = /* @__PURE__ */ Symbol(), q = /* @__PURE__ */ new WeakMap();
 let re = class {
   constructor(e, t, s) {
-    if (this._$cssResult$ = !0, s !== I) throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");
+    if (this._$cssResult$ = !0, s !== O) throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");
     this.cssText = e, this.t = t;
   }
   get styleSheet() {
     let e = this.o;
     const t = this.t;
-    if (L && e === void 0) {
+    if (U && e === void 0) {
       const s = t !== void 0 && t.length === 1;
       s && (e = q.get(t)), e === void 0 && ((this.o = e = new CSSStyleSheet()).replaceSync(this.cssText), s && q.set(t, e));
     }
@@ -17,25 +17,25 @@ let re = class {
     return this.cssText;
   }
 };
-const pe = (r) => new re(typeof r == "string" ? r : r + "", void 0, I), ue = (r, ...e) => {
+const pe = (r) => new re(typeof r == "string" ? r : r + "", void 0, O), ue = (r, ...e) => {
   const t = r.length === 1 ? r[0] : e.reduce((s, a, i) => s + ((n) => {
     if (n._$cssResult$ === !0) return n.cssText;
     if (typeof n == "number") return n;
     throw Error("Value passed to 'css' function must be a 'css' function result: " + n + ". Use 'unsafeCSS' to pass non-literal values, but take care to ensure page security.");
   })(a) + r[i + 1], r[0]);
-  return new re(t, r, I);
+  return new re(t, r, O);
 }, he = (r, e) => {
-  if (L) r.adoptedStyleSheets = e.map((t) => t instanceof CSSStyleSheet ? t : t.styleSheet);
+  if (U) r.adoptedStyleSheets = e.map((t) => t instanceof CSSStyleSheet ? t : t.styleSheet);
   else for (const t of e) {
     const s = document.createElement("style"), a = C.litNonce;
     a !== void 0 && s.setAttribute("nonce", a), s.textContent = t.cssText, r.appendChild(s);
   }
-}, V = L ? (r) => r : (r) => r instanceof CSSStyleSheet ? ((e) => {
+}, V = U ? (r) => r : (r) => r instanceof CSSStyleSheet ? ((e) => {
   let t = "";
   for (const s of e.cssRules) t += s.cssText;
   return pe(t);
 })(r) : r;
-const { is: me, defineProperty: ge, getOwnPropertyDescriptor: _e, getOwnPropertyNames: ve, getOwnPropertySymbols: be, getPrototypeOf: fe } = Object, N = globalThis, W = N.trustedTypes, ye = W ? W.emptyScript : "", xe = N.reactiveElementPolyfillSupport, k = (r, e) => r, U = { toAttribute(r, e) {
+const { is: me, defineProperty: ge, getOwnPropertyDescriptor: _e, getOwnPropertyNames: ve, getOwnPropertySymbols: be, getPrototypeOf: fe } = Object, N = globalThis, W = N.trustedTypes, ye = W ? W.emptyScript : "", xe = N.reactiveElementPolyfillSupport, k = (r, e) => r, L = { toAttribute(r, e) {
   switch (e) {
     case Boolean:
       r = r ? ye : null;
@@ -63,7 +63,7 @@ const { is: me, defineProperty: ge, getOwnPropertyDescriptor: _e, getOwnProperty
       }
   }
   return t;
-} }, ie = (r, e) => !me(r, e), Y = { attribute: !0, type: String, converter: U, reflect: !1, useDefault: !1, hasChanged: ie };
+} }, ie = (r, e) => !me(r, e), Y = { attribute: !0, type: String, converter: L, reflect: !1, useDefault: !1, hasChanged: ie };
 Symbol.metadata ??= /* @__PURE__ */ Symbol("metadata"), N.litPropertyMetadata ??= /* @__PURE__ */ new WeakMap();
 let y = class extends HTMLElement {
   static addInitializer(e) {
@@ -162,14 +162,14 @@ let y = class extends HTMLElement {
   _$ET(e, t) {
     const s = this.constructor.elementProperties.get(e), a = this.constructor._$Eu(e, s);
     if (a !== void 0 && s.reflect === !0) {
-      const i = (s.converter?.toAttribute !== void 0 ? s.converter : U).toAttribute(t, s.type);
+      const i = (s.converter?.toAttribute !== void 0 ? s.converter : L).toAttribute(t, s.type);
       this._$Em = e, i == null ? this.removeAttribute(a) : this.setAttribute(a, i), this._$Em = null;
     }
   }
   _$AK(e, t) {
     const s = this.constructor, a = s._$Eh.get(e);
     if (a !== void 0 && this._$Em !== a) {
-      const i = s.getPropertyOptions(a), n = typeof i.converter == "function" ? { fromAttribute: i.converter } : i.converter?.fromAttribute !== void 0 ? i.converter : U;
+      const i = s.getPropertyOptions(a), n = typeof i.converter == "function" ? { fromAttribute: i.converter } : i.converter?.fromAttribute !== void 0 ? i.converter : L;
       this._$Em = a;
       const c = n.fromAttribute(t, i.type);
       this[a] = c ?? this._$Ej?.get(a) ?? c, this._$Em = null;
@@ -247,11 +247,11 @@ let y = class extends HTMLElement {
   }
 };
 y.elementStyles = [], y.shadowRootOptions = { mode: "open" }, y[k("elementProperties")] = /* @__PURE__ */ new Map(), y[k("finalized")] = /* @__PURE__ */ new Map(), xe?.({ ReactiveElement: y }), (N.reactiveElementVersions ??= []).push("2.1.2");
-const B = globalThis, J = (r) => r, j = B.trustedTypes, G = j ? j.createPolicy("lit-html", { createHTML: (r) => r }) : void 0, ne = "$lit$", _ = `lit$${Math.random().toFixed(9).slice(2)}$`, oe = "?" + _, $e = `<${oe}>`, f = document, A = () => f.createComment(""), S = (r) => r === null || typeof r != "object" && typeof r != "function", K = Array.isArray, we = (r) => K(r) || typeof r?.[Symbol.iterator] == "function", H = `[ 	
-\f\r]`, w = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g, Q = /-->/g, X = />/g, v = RegExp(`>|${H}(?:([^\\s"'>=/]+)(${H}*=${H}*(?:[^ 	
+const I = globalThis, J = (r) => r, j = I.trustedTypes, G = j ? j.createPolicy("lit-html", { createHTML: (r) => r }) : void 0, ne = "$lit$", _ = `lit$${Math.random().toFixed(9).slice(2)}$`, oe = "?" + _, $e = `<${oe}>`, f = document, A = () => f.createComment(""), S = (r) => r === null || typeof r != "object" && typeof r != "function", B = Array.isArray, we = (r) => B(r) || typeof r?.[Symbol.iterator] == "function", T = `[ 	
+\f\r]`, w = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g, Q = /-->/g, X = />/g, v = RegExp(`>|${T}(?:([^\\s"'>=/]+)(${T}*=${T}*(?:[^ 	
 \f\r"'\`<>=]|("|')|))|$)`, "g"), ee = /'/g, te = /"/g, le = /^(?:script|style|textarea|title)$/i, ke = (r) => (e, ...t) => ({ _$litType$: r, strings: e, values: t }), o = ke(1), x = /* @__PURE__ */ Symbol.for("lit-noChange"), d = /* @__PURE__ */ Symbol.for("lit-nothing"), se = /* @__PURE__ */ new WeakMap(), b = f.createTreeWalker(f, 129);
 function de(r, e) {
-  if (!K(r) || !r.hasOwnProperty("raw")) throw Error("invalid template strings array");
+  if (!B(r) || !r.hasOwnProperty("raw")) throw Error("invalid template strings array");
   return G !== void 0 ? G.createHTML(e) : e;
 }
 const ze = (r, e) => {
@@ -279,8 +279,8 @@ class M {
     for (; (a = b.nextNode()) !== null && l.length < c; ) {
       if (a.nodeType === 1) {
         if (a.hasAttributes()) for (const p of a.getAttributeNames()) if (p.endsWith(ne)) {
-          const m = h[n++], g = a.getAttribute(p).split(_), E = /([.?@])?(.*)/.exec(m);
-          l.push({ type: 1, index: i, name: E[2], strings: g, ctor: E[1] === "." ? Se : E[1] === "?" ? Me : E[1] === "@" ? Pe : T }), a.removeAttribute(p);
+          const m = h[n++], g = a.getAttribute(p).split(_), D = /([.?@])?(.*)/.exec(m);
+          l.push({ type: 1, index: i, name: D[2], strings: g, ctor: D[1] === "." ? Se : D[1] === "?" ? Me : D[1] === "@" ? Pe : H }), a.removeAttribute(p);
         } else p.startsWith(_) && (l.push({ type: 6, index: i }), a.removeAttribute(p));
         if (le.test(a.tagName)) {
           const p = a.textContent.split(_), m = p.length - 1;
@@ -326,7 +326,7 @@ class Ae {
     for (; l !== void 0; ) {
       if (n === l.index) {
         let u;
-        l.type === 2 ? u = new P(i, i.nextSibling, this, e) : l.type === 1 ? u = new l.ctor(i, l.name, l.strings, this, e) : l.type === 6 && (u = new Ee(i, this, e)), this._$AV.push(u), l = s[++c];
+        l.type === 2 ? u = new P(i, i.nextSibling, this, e) : l.type === 1 ? u = new l.ctor(i, l.name, l.strings, this, e) : l.type === 6 && (u = new De(i, this, e)), this._$AV.push(u), l = s[++c];
       }
       n !== l?.index && (i = b.nextNode(), n++);
     }
@@ -380,7 +380,7 @@ class P {
     return t === void 0 && se.set(e.strings, t = new M(e)), t;
   }
   k(e) {
-    K(this._$AH) || (this._$AH = [], this._$AR());
+    B(this._$AH) || (this._$AH = [], this._$AR());
     const t = this._$AH;
     let s, a = 0;
     for (const i of e) a === t.length ? t.push(s = new P(this.O(A()), this.O(A()), this, this.options)) : s = t[a], s._$AI(i), a++;
@@ -396,7 +396,7 @@ class P {
     this._$AM === void 0 && (this._$Cv = e, this._$AP?.(e));
   }
 }
-class T {
+class H {
   get tagName() {
     return this.element.tagName;
   }
@@ -421,7 +421,7 @@ class T {
     e === d ? this.element.removeAttribute(this.name) : this.element.setAttribute(this.name, e ?? "");
   }
 }
-class Se extends T {
+class Se extends H {
   constructor() {
     super(...arguments), this.type = 3;
   }
@@ -429,7 +429,7 @@ class Se extends T {
     this.element[this.name] = e === d ? void 0 : e;
   }
 }
-class Me extends T {
+class Me extends H {
   constructor() {
     super(...arguments), this.type = 4;
   }
@@ -437,7 +437,7 @@ class Me extends T {
     this.element.toggleAttribute(this.name, !!e && e !== d);
   }
 }
-class Pe extends T {
+class Pe extends H {
   constructor(e, t, s, a, i) {
     super(e, t, s, a, i), this.type = 5;
   }
@@ -450,7 +450,7 @@ class Pe extends T {
     typeof this._$AH == "function" ? this._$AH.call(this.options?.host ?? this.element, e) : this._$AH.handleEvent(e);
   }
 }
-class Ee {
+class De {
   constructor(e, t, s) {
     this.element = e, this.type = 6, this._$AN = void 0, this._$AM = t, this.options = s;
   }
@@ -461,8 +461,8 @@ class Ee {
     $(this, e);
   }
 }
-const De = B.litHtmlPolyfillSupport;
-De?.(M, P), (B.litHtmlVersions ??= []).push("3.3.3");
+const Ee = I.litHtmlPolyfillSupport;
+Ee?.(M, P), (I.litHtmlVersions ??= []).push("3.3.3");
 const Ce = (r, e, t) => {
   const s = t?.renderBefore ?? e;
   let a = s._$litPart$;
@@ -472,7 +472,7 @@ const Ce = (r, e, t) => {
   }
   return a._$AI(r), a;
 };
-const F = globalThis;
+const K = globalThis;
 class z extends y {
   constructor() {
     super(...arguments), this.renderOptions = { host: this }, this._$Do = void 0;
@@ -495,36 +495,38 @@ class z extends y {
     return x;
   }
 }
-z._$litElement$ = !0, z.finalized = !0, F.litElementHydrateSupport?.({ LitElement: z });
-const je = F.litElementPolyfillSupport;
+z._$litElement$ = !0, z.finalized = !0, K.litElementHydrateSupport?.({ LitElement: z });
+const je = K.litElementPolyfillSupport;
 je?.({ LitElement: z });
-(F.litElementVersions ??= []).push("4.2.2");
-const Ne = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary" }), Te = (r) => r.connection.sendMessagePromise({
+(K.litElementVersions ??= []).push("4.2.2");
+const Ne = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary" }), He = (r) => r.connection.sendMessagePromise({
   type: "smart_yardian/weather/preview"
-}), He = (r) => r.connection.sendMessagePromise({
+}), Te = (r) => r.connection.sendMessagePromise({
+  type: "smart_yardian/weather/hourly"
+}), Ze = (r) => r.connection.sendMessagePromise({
   type: "smart_yardian/schedule/preview"
-}), O = (r, e) => r.connection.sendMessagePromise({
+}), F = (r, e) => r.connection.sendMessagePromise({
   type: "smart_yardian/program/save",
   program: e
-}), Ze = (r, e) => r.connection.sendMessagePromise({
+}), Re = (r, e) => r.connection.sendMessagePromise({
   type: "smart_yardian/program/delete",
   program_id: e
-}), Re = (r, e) => r.connection.sendMessagePromise({
+}), Le = (r, e) => r.connection.sendMessagePromise({
   type: "smart_yardian/settings/update",
   settings: e
-}), Ue = (r, e) => r.connection.sendMessagePromise({
+}), Fe = (r, e) => r.connection.sendMessagePromise({
   type: "smart_yardian/zone_profiles/update",
   profiles: e
-}), Oe = (r, e) => r.connection.sendMessagePromise({
+}), Ue = (r, e) => r.connection.sendMessagePromise({
   type: "smart_yardian/automation/set",
   enabled: e
-}), Le = (r, e) => r.connection.sendMessagePromise({
+}), Oe = (r, e) => r.connection.sendMessagePromise({
   type: "smart_yardian/run/program",
   program_id: e,
   apply_weather: !0
 }), Ie = async (r, e) => {
-  const t = await O(r, e);
-  return await Le(r, t.program_id), t;
+  const t = await F(r, e);
+  return await Oe(r, t.program_id), t;
 }, Be = (r, e, t) => r.connection.sendMessagePromise({
   type: "smart_yardian/run/manual_program",
   program: e,
@@ -533,12 +535,12 @@ const Ne = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
   type: "smart_yardian/run/zone",
   entity_id: e,
   duration_minutes: t
-}), Fe = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/run/stop" }), qe = (r) => r.connection.sendMessagePromise({
+}), qe = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/run/stop" }), Ve = (r) => r.connection.sendMessagePromise({
   type: "smart_yardian/run/skip_current_zone"
 }), ae = (r, e) => r.connection.sendMessagePromise({
   type: "smart_yardian/pause_until",
   until: e
-}), Ve = (r = Date.now(), e = Math.random()) => `program-${r.toString(36)}-${Math.floor(e * 4294967296).toString(36).padStart(7, "0")}`, We = ue`
+}), We = (r = Date.now(), e = Math.random()) => `program-${r.toString(36)}-${Math.floor(e * 4294967296).toString(36).padStart(7, "0")}`, Ye = ue`
   :host {
     --sy-blue: var(--primary-color, #1688e8);
     --sy-green: var(--success-color, #2e9637);
@@ -1440,6 +1442,116 @@ const Ne = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
     font-weight: 600;
   }
 
+  .forecast-source {
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--sy-muted);
+    font-size: 12px;
+  }
+
+  .forecast-days {
+    display: grid;
+    gap: 16px;
+  }
+
+  .forecast-day {
+    overflow: hidden;
+    border: 1px solid var(--sy-border);
+    border-radius: 8px;
+  }
+
+  .forecast-day-head {
+    min-height: 46px;
+    padding: 9px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid var(--sy-border);
+    background: var(--sy-surface-muted);
+  }
+
+  .forecast-day-head strong {
+    text-transform: capitalize;
+  }
+
+  .forecast-day-head span {
+    color: var(--sy-muted);
+    font-size: 12px;
+  }
+
+  .forecast-table-head,
+  .forecast-hour {
+    display: grid;
+    grid-template-columns: 64px minmax(150px, 1fr) 120px 120px 100px;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .forecast-table-head {
+    min-height: 34px;
+    padding: 0 14px;
+    color: var(--sy-muted);
+    border-bottom: 1px solid var(--sy-border);
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .forecast-hour {
+    min-height: 48px;
+    padding: 7px 14px;
+    border-bottom: 1px solid var(--sy-border);
+  }
+
+  .forecast-hour:last-child {
+    border-bottom: 0;
+  }
+
+  .forecast-hour[raining] {
+    box-shadow: inset 3px 0 0 var(--sy-blue);
+    background: var(--sy-blue-soft);
+  }
+
+  .forecast-hour time {
+    color: var(--sy-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .forecast-condition {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+
+  .forecast-condition ha-icon {
+    flex: 0 0 auto;
+    color: var(--sy-muted);
+    --mdc-icon-size: 21px;
+  }
+
+  .forecast-condition span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .forecast-metric {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .forecast-metric > span {
+    display: none;
+  }
+
+  .forecast-hour[raining] .forecast-metric.precipitation strong,
+  .forecast-hour[raining] .forecast-metric.probability strong {
+    color: var(--sy-blue);
+  }
+
   .schedule-days {
     padding-top: 18px;
     display: grid;
@@ -2064,6 +2176,11 @@ const Ne = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
       grid-template-columns: 1fr;
     }
 
+    .forecast-table-head,
+    .forecast-hour {
+      grid-template-columns: 56px minmax(130px, 1fr) 100px 100px 80px;
+    }
+
     .program-list {
       max-height: 240px;
       overflow-y: auto;
@@ -2134,6 +2251,59 @@ const Ne = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
   }
 
   @media (max-width: 600px) {
+    .forecast-source {
+      padding: 8px 0;
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .forecast-table-head {
+      display: none;
+    }
+
+    .forecast-hour {
+      min-height: 78px;
+      grid-template-columns: 48px minmax(0, 1fr) auto;
+      grid-template-rows: auto auto;
+      gap: 7px 10px;
+    }
+
+    .forecast-hour time {
+      grid-row: 1 / 3;
+      align-self: start;
+      padding-top: 3px;
+    }
+
+    .forecast-condition {
+      grid-column: 2;
+    }
+
+    .forecast-metric.temperature {
+      grid-column: 3;
+      grid-row: 1;
+      text-align: right;
+    }
+
+    .forecast-metric.precipitation {
+      grid-column: 2;
+      grid-row: 2;
+    }
+
+    .forecast-metric.probability {
+      grid-column: 3;
+      grid-row: 2;
+      text-align: right;
+    }
+
+    .forecast-metric > span {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--sy-muted);
+      font-size: 10px;
+      font-weight: 400;
+    }
+
     .active-run {
       width: auto;
       right: 8px;
@@ -2302,14 +2472,14 @@ const Ne = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
       padding-bottom: 12px;
     }
   }
-`, Ye = ["H", "K", "Sze", "Cs", "P", "Szo", "V"], Je = ["Hé", "Ke", "Sze", "Csü", "Pén", "Szo", "Vas"], Z = [
+`, Je = ["H", "K", "Sze", "Cs", "P", "Szo", "V"], Ge = ["Hé", "Ke", "Sze", "Csü", "Pén", "Szo", "Vas"], Z = [
   { value: "rotator", label: "Rotátor (MP)", rate: 10 },
   { value: "mp800", label: "Rotátor MP800", rate: 20 },
   { value: "spray", label: "Spray / esőztető", rate: 40 },
   { value: "rotor", label: "Rotoros", rate: 12 },
   { value: "drip", label: "Csepegtető", rate: 12 }
 ], ce = () => ({
-  program_id: Ve(),
+  program_id: We(),
   name: "Új program",
   enabled: !0,
   weekdays: [0, 2, 4],
@@ -2321,7 +2491,7 @@ const Ne = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
   soil_moisture_enabled: !1,
   zones: [],
   skip_next: !1
-}), D = (r) => JSON.parse(JSON.stringify(r)), R = () => {
+}), E = (r) => JSON.parse(JSON.stringify(r)), R = () => {
   const r = /* @__PURE__ */ new Date();
   return {
     ...ce(),
@@ -2334,17 +2504,28 @@ const Ne = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
     weather_adjustment: !1
   };
 };
-class Ge extends z {
+class Qe extends z {
   constructor() {
-    super(...arguments), this.narrow = !1, this._summary = null, this._tab = "overview", this._loading = !0, this._error = "", this._draft = null, this._saving = !1, this._zoneDurations = {}, this._expandedControllers = [], this._schedulePreview = null, this._scheduleLoading = !1, this._bulkMoistureSensor = "", this._settingsSaving = !1, this._settingsSaved = !1, this._runExpanded = !1, this._now = Date.now(), this._manualDraft = R(), this._manualRunning = !1, this._loadSchedule = async () => {
+    super(...arguments), this.narrow = !1, this._summary = null, this._tab = "overview", this._loading = !0, this._error = "", this._draft = null, this._saving = !1, this._zoneDurations = {}, this._expandedControllers = [], this._schedulePreview = null, this._scheduleLoading = !1, this._hourlyForecast = null, this._forecastLoading = !1, this._bulkMoistureSensor = "", this._settingsSaving = !1, this._settingsSaved = !1, this._runExpanded = !1, this._now = Date.now(), this._manualDraft = R(), this._manualRunning = !1, this._loadSchedule = async () => {
       if (!(!this.hass || this._scheduleLoading)) {
         this._scheduleLoading = !0;
         try {
-          this._schedulePreview = await He(this.hass), this._error = "";
+          this._schedulePreview = await Ze(this.hass), this._error = "";
         } catch (e) {
           this._error = this._errorMessage(e);
         } finally {
           this._scheduleLoading = !1;
+        }
+      }
+    }, this._loadHourlyForecast = async () => {
+      if (!(!this.hass || this._forecastLoading)) {
+        this._forecastLoading = !0;
+        try {
+          this._hourlyForecast = await Te(this.hass), this._error = "";
+        } catch (e) {
+          this._error = this._errorMessage(e);
+        } finally {
+          this._forecastLoading = !1;
         }
       }
     }, this._newProgram = () => {
@@ -2416,8 +2597,8 @@ class Ge extends z {
         }
         this._saving = !0, this._error = "";
         try {
-          const t = await O(this.hass, this._draft);
-          await this._load(!1), this._draft = D(t);
+          const t = await F(this.hass, this._draft);
+          await this._load(!1), this._draft = E(t);
         } catch (t) {
           this._error = this._errorMessage(t);
         } finally {
@@ -2433,7 +2614,7 @@ class Ge extends z {
         return;
       }
       try {
-        await Ze(this.hass, this._draft.program_id), this._draft = null, await this._load(!1), this._selectFirstProgram();
+        await Re(this.hass, this._draft.program_id), this._draft = null, await this._load(!1), this._selectFirstProgram();
       } catch (t) {
         this._error = this._errorMessage(t);
       }
@@ -2442,7 +2623,7 @@ class Ge extends z {
         this._saving = !0, this._error = "";
         try {
           const t = await Ie(this.hass, e);
-          this._draft = D(t), await this._load(!1);
+          this._draft = E(t), await this._load(!1);
         } catch (t) {
           this._error = this._errorMessage(t);
         } finally {
@@ -2452,7 +2633,7 @@ class Ge extends z {
     }, this._quickToggleProgram = async (e) => {
       if (this.hass)
         try {
-          await O(this.hass, { ...e, enabled: !e.enabled }), await this._load(!1);
+          await F(this.hass, { ...e, enabled: !e.enabled }), await this._load(!1);
         } catch (t) {
           this._error = this._errorMessage(t);
         }
@@ -2470,21 +2651,21 @@ class Ge extends z {
     }, this._stopAll = async () => {
       if (this.hass)
         try {
-          await Fe(this.hass), await this._load(!1);
+          await qe(this.hass), await this._load(!1);
         } catch (e) {
           this._error = this._errorMessage(e);
         }
     }, this._skipCurrentZone = async (e) => {
       if (e.stopPropagation(), !!this.hass)
         try {
-          await qe(this.hass), await this._load(!1);
+          await Ve(this.hass), await this._load(!1);
         } catch (t) {
           this._error = this._errorMessage(t);
         }
     }, this._toggleAutomation = async () => {
       if (!(!this.hass || !this._summary))
         try {
-          await Oe(this.hass, !this._summary.automation_enabled), await this._load(!1);
+          await Ue(this.hass, !this._summary.automation_enabled), await this._load(!1);
         } catch (e) {
           this._error = this._errorMessage(e);
         }
@@ -2492,7 +2673,7 @@ class Ge extends z {
       if (!(!this.hass || !this._summary || this._settingsSaving)) {
         this._settingsSaving = !0, this._settingsSaved = !1;
         try {
-          await Re(this.hass, this._summary.settings), await Ue(
+          await Le(this.hass, this._summary.settings), await Fe(
             this.hass,
             this._allZones().map((e) => e.profile)
           ), await this._load(!1), this._settingsSaved = !0, this._error = "";
@@ -2525,6 +2706,8 @@ class Ge extends z {
       _expandedControllers: { state: !0 },
       _schedulePreview: { state: !0 },
       _scheduleLoading: { state: !0 },
+      _hourlyForecast: { state: !0 },
+      _forecastLoading: { state: !0 },
       _bulkMoistureSensor: { state: !0 },
       _settingsSaving: { state: !0 },
       _settingsSaved: { state: !0 },
@@ -2535,11 +2718,11 @@ class Ge extends z {
     };
   }
   static {
-    this.styles = We;
+    this.styles = Ye;
   }
   connectedCallback() {
     super.connectedCallback(), this._load(!0), this._timer = window.setInterval(() => {
-      this._tab !== "settings" && this._tab !== "schedule" && this._load(!1);
+      this._tab !== "settings" && this._tab !== "schedule" && this._tab !== "forecast" && this._load(!1);
     }, 5e3), this._clockTimer = window.setInterval(() => {
       this._now = Date.now();
     }, 1e3);
@@ -2556,6 +2739,7 @@ class Ge extends z {
         </header>
         <nav class="tabs" aria-label="Öntözés nézetek">
           ${this._tabButton("overview", "Áttekintés")}
+          ${this._tabButton("forecast", "Órás előrejelzés")}
           ${this._tabButton("schedule", "Következő 3 nap")}
           ${this._tabButton("programs", "Programok")}
           ${this._tabButton("manual", "Kézi program")}
@@ -2576,7 +2760,7 @@ class Ge extends z {
         ?selected=${this._tab === e}
         aria-current=${this._tab === e ? "page" : d}
         @click=${() => {
-      this._tab = e, e === "programs" && !this._draft && this._selectFirstProgram(), e === "schedule" && this._loadSchedule();
+      this._tab = e, e === "programs" && !this._draft && this._selectFirstProgram(), e === "schedule" && this._loadSchedule(), e === "forecast" && this._loadHourlyForecast();
     }}
       >
         ${t}
@@ -2590,6 +2774,8 @@ class Ge extends z {
         return this._renderPrograms();
       case "schedule":
         return this._renderSchedule();
+      case "forecast":
+        return this._renderHourlyForecast();
       case "manual":
         return this._renderManualProgram();
       case "history":
@@ -2883,6 +3069,77 @@ class Ge extends z {
       </div>
     `;
   }
+  _renderHourlyForecast() {
+    const e = this._hourlyForecast, t = e ? this._groupForecastDays(e.hours) : [];
+    return o`
+      <div class="page-head">
+        <div>
+          <h2>Órás előrejelzés</h2>
+          <div class="subtle">
+            Az öntözési döntésekhez használt, javított napbesorolású Időkép-adatok.
+          </div>
+        </div>
+        <button
+          class="button quiet"
+          @click=${this._loadHourlyForecast}
+          ?disabled=${this._forecastLoading}
+        >
+          ${this._forecastLoading ? "Frissítés…" : "Frissítés"}
+        </button>
+      </div>
+      ${this._forecastLoading && !e ? o`<div class="loading">Időkép-előrejelzés betöltése…</div>` : e ? o`
+              <div class="forecast-source">
+                <span>Forrás: ${e.source}</span>
+                <span>Frissítve: ${this._formatDateTime(e.generated_at)}</span>
+              </div>
+              <div class="forecast-days">
+                ${t.map(
+      (s, a) => o`
+                    <section class="forecast-day">
+                      <div class="forecast-day-head">
+                        <strong>${this._formatForecastDate(s.date, a)}</strong>
+                        <span>${s.hours.length} óra</span>
+                      </div>
+                      <div class="forecast-table-head" aria-hidden="true">
+                        <span>Idő</span>
+                        <span>Időjárás</span>
+                        <span>Hőmérséklet</span>
+                        <span>Csapadék</span>
+                        <span>Esély</span>
+                      </div>
+                      ${s.hours.map((i) => this._renderForecastHour(i))}
+                    </section>
+                  `
+    )}
+              </div>
+            ` : o`<div class="empty">Az órás Időkép-előrejelzés nem érhető el.</div>`}
+      ${this._error ? o`<div class="error">${this._error}</div>` : d}
+    `;
+  }
+  _renderForecastHour(e) {
+    const t = e.precipitation_mm > 0 || e.precipitation_probability >= 50;
+    return o`
+      <article class="forecast-hour" ?raining=${t}>
+        <time>${this._formatTime(e.timestamp)}</time>
+        <div class="forecast-condition">
+          <ha-icon icon=${this._forecastConditionIcon(e.condition)}></ha-icon>
+          <span>${this._forecastConditionLabel(e.condition)}</span>
+        </div>
+        <div class="forecast-metric temperature">
+          <span>Hőmérséklet</span>
+          <strong>${this._formatForecastNumber(e.temperature)} °C</strong>
+        </div>
+        <div class="forecast-metric precipitation">
+          <span>Csapadék</span>
+          <strong>${this._formatForecastNumber(e.precipitation_mm)} mm</strong>
+        </div>
+        <div class="forecast-metric probability">
+          <span>Esély</span>
+          <strong>${e.precipitation_probability}%</strong>
+        </div>
+      </article>
+    `;
+  }
   _renderSchedule() {
     const e = this._schedulePreview;
     return o`
@@ -3133,7 +3390,7 @@ class Ge extends z {
                     class="program-list-item"
                     ?selected=${t?.program_id === s.program_id}
                     @click=${() => {
-        this._draft = D(s);
+        this._draft = E(s);
       }}
                   >
                     <strong>${s.name}</strong>
@@ -3166,7 +3423,7 @@ class Ge extends z {
         <div class="field">
           <span class="field-label">Napok</span>
           <div class="days">
-            ${Ye.map(
+            ${Je.map(
       (s, a) => o`
                 <button
                   class="day"
@@ -3684,7 +3941,7 @@ class Ge extends z {
     }
     try {
       const t = await Ne(this.hass);
-      this._summary = t, !this._expandedControllers.length && t.controllers[0] && (this._expandedControllers = [t.controllers[0].id]), this._error = "", (e || !t.weather) && (t.weather = await Te(this.hass), this._summary = { ...t }), this._tab === "programs" && !this._draft && this._selectFirstProgram();
+      this._summary = t, !this._expandedControllers.length && t.controllers[0] && (this._expandedControllers = [t.controllers[0].id]), this._error = "", (e || !t.weather) && (t.weather = await He(this.hass), this._summary = { ...t }), this._tab === "programs" && !this._draft && this._selectFirstProgram();
     } catch (t) {
       this._error = this._errorMessage(t);
     } finally {
@@ -3693,7 +3950,7 @@ class Ge extends z {
   }
   _selectFirstProgram() {
     const e = this._summary?.programs[0];
-    this._draft = e ? D(e) : null;
+    this._draft = e ? E(e) : null;
   }
   _nextProgramName() {
     if (!this._summary?.next_run) return "";
@@ -3807,7 +4064,7 @@ class Ge extends z {
     })).sort((e, t) => e.name.localeCompare(t.name, "hu"));
   }
   _formatDays(e) {
-    return e.map((t) => Je[t] ?? "").join(", ");
+    return e.map((t) => Ge[t] ?? "").join(", ");
   }
   _temperatureConditionText(e) {
     return `${e.temperature_condition_operator === "above" ? "Max. hőmérséklet >" : "Max. hőmérséklet <"} ${e.temperature_condition_value} °C`;
@@ -3834,6 +4091,68 @@ class Ge extends z {
       hour: "2-digit",
       minute: "2-digit"
     }).format(new Date(e));
+  }
+  _groupForecastDays(e) {
+    const t = /* @__PURE__ */ new Map();
+    for (const s of e) {
+      const a = new Date(s.timestamp), i = [
+        a.getFullYear(),
+        String(a.getMonth() + 1).padStart(2, "0"),
+        String(a.getDate()).padStart(2, "0")
+      ].join("-");
+      t.set(i, [...t.get(i) ?? [], s]);
+    }
+    return [...t].map(([s, a]) => ({
+      date: s,
+      hours: a
+    }));
+  }
+  _formatForecastDate(e, t) {
+    const s = new Intl.DateTimeFormat("hu-HU", {
+      weekday: "long",
+      month: "short",
+      day: "numeric"
+    }).format(/* @__PURE__ */ new Date(`${e}T12:00:00`)), a = t === 0 ? "Ma" : t === 1 ? "Holnap" : "";
+    return a ? `${a} · ${s}` : s;
+  }
+  _formatForecastNumber(e) {
+    return Number.isInteger(e) ? String(e) : e.toFixed(1);
+  }
+  _forecastConditionLabel(e) {
+    return {
+      sunny: "Napos",
+      "clear-night": "Derült",
+      partlycloudy: "Részben felhős",
+      cloudy: "Felhős",
+      rainy: "Esős",
+      pouring: "Erős eső",
+      "lightning-rainy": "Zivatar",
+      lightning: "Villámlás",
+      fog: "Ködös",
+      windy: "Szeles",
+      "windy-variant": "Szeles, felhős",
+      hail: "Jégeső",
+      snowy: "Havazás",
+      "snowy-rainy": "Havas eső"
+    }[e.toLowerCase()] ?? e;
+  }
+  _forecastConditionIcon(e) {
+    return {
+      sunny: "mdi:weather-sunny",
+      "clear-night": "mdi:weather-night",
+      partlycloudy: "mdi:weather-partly-cloudy",
+      cloudy: "mdi:weather-cloudy",
+      rainy: "mdi:weather-rainy",
+      pouring: "mdi:weather-pouring",
+      "lightning-rainy": "mdi:weather-lightning-rainy",
+      lightning: "mdi:weather-lightning",
+      fog: "mdi:weather-fog",
+      windy: "mdi:weather-windy",
+      "windy-variant": "mdi:weather-windy-variant",
+      hail: "mdi:weather-hail",
+      snowy: "mdi:weather-snowy",
+      "snowy-rainy": "mdi:weather-snowy-rainy"
+    }[e.toLowerCase()] ?? "mdi:weather-cloudy-alert";
   }
   _formatScheduleDate(e, t) {
     const s = new Intl.DateTimeFormat("hu-HU", {
@@ -3880,8 +4199,8 @@ class Ge extends z {
     return e instanceof Error || typeof e == "object" && e !== null && "message" in e && typeof e.message == "string" ? e.message : "A művelet nem sikerült.";
   }
 }
-customElements.get("smart-yardian-panel") || customElements.define("smart-yardian-panel", Ge);
+customElements.get("smart-yardian-panel") || customElements.define("smart-yardian-panel", Qe);
 export {
-  Ge as SmartYardianPanel
+  Qe as SmartYardianPanel
 };
 //# sourceMappingURL=smart-yardian-panel.js.map

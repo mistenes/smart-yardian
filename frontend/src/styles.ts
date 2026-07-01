@@ -902,6 +902,116 @@ export const panelStyles = css`
     font-weight: 600;
   }
 
+  .forecast-source {
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--sy-muted);
+    font-size: 12px;
+  }
+
+  .forecast-days {
+    display: grid;
+    gap: 16px;
+  }
+
+  .forecast-day {
+    overflow: hidden;
+    border: 1px solid var(--sy-border);
+    border-radius: 8px;
+  }
+
+  .forecast-day-head {
+    min-height: 46px;
+    padding: 9px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid var(--sy-border);
+    background: var(--sy-surface-muted);
+  }
+
+  .forecast-day-head strong {
+    text-transform: capitalize;
+  }
+
+  .forecast-day-head span {
+    color: var(--sy-muted);
+    font-size: 12px;
+  }
+
+  .forecast-table-head,
+  .forecast-hour {
+    display: grid;
+    grid-template-columns: 64px minmax(150px, 1fr) 120px 120px 100px;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .forecast-table-head {
+    min-height: 34px;
+    padding: 0 14px;
+    color: var(--sy-muted);
+    border-bottom: 1px solid var(--sy-border);
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .forecast-hour {
+    min-height: 48px;
+    padding: 7px 14px;
+    border-bottom: 1px solid var(--sy-border);
+  }
+
+  .forecast-hour:last-child {
+    border-bottom: 0;
+  }
+
+  .forecast-hour[raining] {
+    box-shadow: inset 3px 0 0 var(--sy-blue);
+    background: var(--sy-blue-soft);
+  }
+
+  .forecast-hour time {
+    color: var(--sy-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .forecast-condition {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+
+  .forecast-condition ha-icon {
+    flex: 0 0 auto;
+    color: var(--sy-muted);
+    --mdc-icon-size: 21px;
+  }
+
+  .forecast-condition span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .forecast-metric {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .forecast-metric > span {
+    display: none;
+  }
+
+  .forecast-hour[raining] .forecast-metric.precipitation strong,
+  .forecast-hour[raining] .forecast-metric.probability strong {
+    color: var(--sy-blue);
+  }
+
   .schedule-days {
     padding-top: 18px;
     display: grid;
@@ -1526,6 +1636,11 @@ export const panelStyles = css`
       grid-template-columns: 1fr;
     }
 
+    .forecast-table-head,
+    .forecast-hour {
+      grid-template-columns: 56px minmax(130px, 1fr) 100px 100px 80px;
+    }
+
     .program-list {
       max-height: 240px;
       overflow-y: auto;
@@ -1596,6 +1711,59 @@ export const panelStyles = css`
   }
 
   @media (max-width: 600px) {
+    .forecast-source {
+      padding: 8px 0;
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .forecast-table-head {
+      display: none;
+    }
+
+    .forecast-hour {
+      min-height: 78px;
+      grid-template-columns: 48px minmax(0, 1fr) auto;
+      grid-template-rows: auto auto;
+      gap: 7px 10px;
+    }
+
+    .forecast-hour time {
+      grid-row: 1 / 3;
+      align-self: start;
+      padding-top: 3px;
+    }
+
+    .forecast-condition {
+      grid-column: 2;
+    }
+
+    .forecast-metric.temperature {
+      grid-column: 3;
+      grid-row: 1;
+      text-align: right;
+    }
+
+    .forecast-metric.precipitation {
+      grid-column: 2;
+      grid-row: 2;
+    }
+
+    .forecast-metric.probability {
+      grid-column: 3;
+      grid-row: 2;
+      text-align: right;
+    }
+
+    .forecast-metric > span {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--sy-muted);
+      font-size: 10px;
+      font-weight: 400;
+    }
+
     .active-run {
       width: auto;
       right: 8px;

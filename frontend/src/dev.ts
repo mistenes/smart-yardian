@@ -14,13 +14,16 @@ import {
   mdiWater,
   mdiWaterPercent,
   mdiWeatherNight,
+  mdiWeatherCloudy,
   mdiWeatherPartlyCloudy,
   mdiWeatherRainy,
+  mdiWeatherSunny,
   mdiWeatherSunsetUp,
   mdiWhiteBalanceSunny,
 } from "@mdi/js";
 import type {
   Hass,
+  HourlyForecast,
   Program,
   RunRecord,
   SchedulePreview,
@@ -43,8 +46,10 @@ const iconPaths: Record<string, string> = {
   "mdi:water": mdiWater,
   "mdi:water-percent": mdiWaterPercent,
   "mdi:weather-night": mdiWeatherNight,
+  "mdi:weather-cloudy": mdiWeatherCloudy,
   "mdi:weather-partly-cloudy": mdiWeatherPartlyCloudy,
   "mdi:weather-rainy": mdiWeatherRainy,
+  "mdi:weather-sunny": mdiWeatherSunny,
   "mdi:weather-sunset-up": mdiWeatherSunsetUp,
   "mdi:white-balance-sunny": mdiWhiteBalanceSunny,
 };
@@ -439,6 +444,38 @@ const schedulePreview = (): SchedulePreview => {
   };
 };
 
+const hourlyForecast = (): HourlyForecast => {
+  const start = new Date();
+  start.setMinutes(0, 0, 0);
+  const hours = Array.from({ length: 36 }, (_, index) => {
+    const timestamp = new Date(start);
+    timestamp.setHours(start.getHours() + index);
+    const localHour = timestamp.getHours();
+    const rainy = index >= 8 && index <= 10;
+    const night = localHour < 6 || localHour >= 21;
+    return {
+      timestamp: timestamp.toISOString(),
+      temperature: Math.round((24 + Math.sin(index / 4) * 7) * 10) / 10,
+      precipitation_mm: rainy ? [0.4, 1.2, 0.7][index - 8] ?? 0 : 0,
+      precipitation_probability: rainy ? [45, 82, 60][index - 8] ?? 0 : 5,
+      condition: rainy
+        ? "rainy"
+        : night
+          ? "clear-night"
+          : index % 4 === 0
+            ? "partlycloudy"
+            : "sunny",
+      cloud_cover: rainy ? 85 : index % 4 === 0 ? 45 : 12,
+      is_daylight: !night,
+    };
+  });
+  return {
+    source: "Időkép",
+    generated_at: new Date().toISOString(),
+    hours,
+  };
+};
+
 const hass: Hass = {
   themes: { darkMode: forceDark },
   states: {
@@ -464,6 +501,7 @@ const hass: Hass = {
       const type = message.type;
       if (type === "smart_yardian/summary") return summary() as T;
       if (type === "smart_yardian/weather/preview") return summary().weather as T;
+      if (type === "smart_yardian/weather/hourly") return hourlyForecast() as T;
       if (type === "smart_yardian/schedule/preview") return schedulePreview() as T;
       if (type === "smart_yardian/automation/set") {
         automationEnabled = Boolean(message.enabled);

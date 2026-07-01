@@ -1,6 +1,7 @@
 import { LitElement, html, nothing, type TemplateResult } from "lit";
 import {
   deleteProgram,
+  getHourlyForecast,
   getSummary,
   pauseUntil,
   previewSchedule,
@@ -19,6 +20,8 @@ import { createProgramId } from "./ids";
 import { panelStyles } from "./styles";
 import type {
   Hass,
+  HourlyForecast,
+  HourlyForecastHour,
   Program,
   ProgramZone,
   RunRecord,
@@ -33,6 +36,7 @@ import type {
 
 type Tab =
   | "overview"
+  | "forecast"
   | "schedule"
   | "programs"
   | "manual"
@@ -100,6 +104,8 @@ export class SmartYardianPanel extends LitElement {
     _expandedControllers: { state: true },
     _schedulePreview: { state: true },
     _scheduleLoading: { state: true },
+    _hourlyForecast: { state: true },
+    _forecastLoading: { state: true },
     _bulkMoistureSensor: { state: true },
     _settingsSaving: { state: true },
     _settingsSaved: { state: true },
@@ -124,6 +130,8 @@ export class SmartYardianPanel extends LitElement {
   private _expandedControllers: string[] = [];
   private _schedulePreview: SchedulePreview | null = null;
   private _scheduleLoading = false;
+  private _hourlyForecast: HourlyForecast | null = null;
+  private _forecastLoading = false;
   private _bulkMoistureSensor = "";
   private _settingsSaving = false;
   private _settingsSaved = false;
@@ -138,7 +146,11 @@ export class SmartYardianPanel extends LitElement {
     super.connectedCallback();
     void this._load(true);
     this._timer = window.setInterval(() => {
-      if (this._tab !== "settings" && this._tab !== "schedule") {
+      if (
+        this._tab !== "settings" &&
+        this._tab !== "schedule" &&
+        this._tab !== "forecast"
+      ) {
         void this._load(false);
       }
     }, 5000);
@@ -162,6 +174,7 @@ export class SmartYardianPanel extends LitElement {
         </header>
         <nav class="tabs" aria-label="Öntözés nézetek">
           ${this._tabButton("overview", "Áttekintés")}
+          ${this._tabButton("forecast", "Órás előrejelzés")}
           ${this._tabButton("schedule", "Következő 3 nap")}
           ${this._tabButton("programs", "Programok")}
           ${this._tabButton("manual", "Kézi program")}
@@ -190,6 +203,7 @@ export class SmartYardianPanel extends LitElement {
           this._tab = tab;
           if (tab === "programs" && !this._draft) this._selectFirstProgram();
           if (tab === "schedule") void this._loadSchedule();
+          if (tab === "forecast") void this._loadHourlyForecast();
         }}
       >
         ${label}
@@ -204,6 +218,8 @@ export class SmartYardianPanel extends LitElement {
         return this._renderPrograms();
       case "schedule":
         return this._renderSchedule();
+      case "forecast":
+        return this._renderHourlyForecast();
       case "manual":
         return this._renderManualProgram();
       case "history":
@@ -578,6 +594,85 @@ export class SmartYardianPanel extends LitElement {
             `
           : html`<div class="subtle">Még nincs futási előzmény.</div>`}
       </div>
+    `;
+  }
+
+  private _renderHourlyForecast(): TemplateResult {
+    const forecast = this._hourlyForecast;
+    const days = forecast ? this._groupForecastDays(forecast.hours) : [];
+    return html`
+      <div class="page-head">
+        <div>
+          <h2>Órás előrejelzés</h2>
+          <div class="subtle">
+            Az öntözési döntésekhez használt, javított napbesorolású Időkép-adatok.
+          </div>
+        </div>
+        <button
+          class="button quiet"
+          @click=${this._loadHourlyForecast}
+          ?disabled=${this._forecastLoading}
+        >
+          ${this._forecastLoading ? "Frissítés…" : "Frissítés"}
+        </button>
+      </div>
+      ${this._forecastLoading && !forecast
+        ? html`<div class="loading">Időkép-előrejelzés betöltése…</div>`
+        : forecast
+          ? html`
+              <div class="forecast-source">
+                <span>Forrás: ${forecast.source}</span>
+                <span>Frissítve: ${this._formatDateTime(forecast.generated_at)}</span>
+              </div>
+              <div class="forecast-days">
+                ${days.map(
+                  (day, index) => html`
+                    <section class="forecast-day">
+                      <div class="forecast-day-head">
+                        <strong>${this._formatForecastDate(day.date, index)}</strong>
+                        <span>${day.hours.length} óra</span>
+                      </div>
+                      <div class="forecast-table-head" aria-hidden="true">
+                        <span>Idő</span>
+                        <span>Időjárás</span>
+                        <span>Hőmérséklet</span>
+                        <span>Csapadék</span>
+                        <span>Esély</span>
+                      </div>
+                      ${day.hours.map((hour) => this._renderForecastHour(hour))}
+                    </section>
+                  `,
+                )}
+              </div>
+            `
+          : html`<div class="empty">Az órás Időkép-előrejelzés nem érhető el.</div>`}
+      ${this._error ? html`<div class="error">${this._error}</div>` : nothing}
+    `;
+  }
+
+  private _renderForecastHour(hour: HourlyForecastHour): TemplateResult {
+    const raining =
+      hour.precipitation_mm > 0 || hour.precipitation_probability >= 50;
+    return html`
+      <article class="forecast-hour" ?raining=${raining}>
+        <time>${this._formatTime(hour.timestamp)}</time>
+        <div class="forecast-condition">
+          <ha-icon icon=${this._forecastConditionIcon(hour.condition)}></ha-icon>
+          <span>${this._forecastConditionLabel(hour.condition)}</span>
+        </div>
+        <div class="forecast-metric temperature">
+          <span>Hőmérséklet</span>
+          <strong>${this._formatForecastNumber(hour.temperature)} °C</strong>
+        </div>
+        <div class="forecast-metric precipitation">
+          <span>Csapadék</span>
+          <strong>${this._formatForecastNumber(hour.precipitation_mm)} mm</strong>
+        </div>
+        <div class="forecast-metric probability">
+          <span>Esély</span>
+          <strong>${hour.precipitation_probability}%</strong>
+        </div>
+      </article>
     `;
   }
 
@@ -1508,6 +1603,19 @@ export class SmartYardianPanel extends LitElement {
     }
   };
 
+  private _loadHourlyForecast = async (): Promise<void> => {
+    if (!this.hass || this._forecastLoading) return;
+    this._forecastLoading = true;
+    try {
+      this._hourlyForecast = await getHourlyForecast(this.hass);
+      this._error = "";
+    } catch (error) {
+      this._error = this._errorMessage(error);
+    } finally {
+      this._forecastLoading = false;
+    }
+  };
+
   private _selectFirstProgram(): void {
     const first = this._summary?.programs[0];
     this._draft = first ? cloneProgram(first) : null;
@@ -1954,6 +2062,79 @@ export class SmartYardianPanel extends LitElement {
       hour: "2-digit",
       minute: "2-digit",
     }).format(new Date(value));
+  }
+
+  private _groupForecastDays(
+    hours: HourlyForecastHour[],
+  ): Array<{ date: string; hours: HourlyForecastHour[] }> {
+    const grouped = new Map<string, HourlyForecastHour[]>();
+    for (const hour of hours) {
+      const date = new Date(hour.timestamp);
+      const key = [
+        date.getFullYear(),
+        String(date.getMonth() + 1).padStart(2, "0"),
+        String(date.getDate()).padStart(2, "0"),
+      ].join("-");
+      grouped.set(key, [...(grouped.get(key) ?? []), hour]);
+    }
+    return [...grouped].map(([date, dayHours]) => ({
+      date,
+      hours: dayHours,
+    }));
+  }
+
+  private _formatForecastDate(value: string, index: number): string {
+    const formatted = new Intl.DateTimeFormat("hu-HU", {
+      weekday: "long",
+      month: "short",
+      day: "numeric",
+    }).format(new Date(`${value}T12:00:00`));
+    const prefix = index === 0 ? "Ma" : index === 1 ? "Holnap" : "";
+    return prefix ? `${prefix} · ${formatted}` : formatted;
+  }
+
+  private _formatForecastNumber(value: number): string {
+    return Number.isInteger(value) ? String(value) : value.toFixed(1);
+  }
+
+  private _forecastConditionLabel(condition: string): string {
+    const labels: Record<string, string> = {
+      sunny: "Napos",
+      "clear-night": "Derült",
+      partlycloudy: "Részben felhős",
+      cloudy: "Felhős",
+      rainy: "Esős",
+      pouring: "Erős eső",
+      "lightning-rainy": "Zivatar",
+      lightning: "Villámlás",
+      fog: "Ködös",
+      windy: "Szeles",
+      "windy-variant": "Szeles, felhős",
+      hail: "Jégeső",
+      snowy: "Havazás",
+      "snowy-rainy": "Havas eső",
+    };
+    return labels[condition.toLowerCase()] ?? condition;
+  }
+
+  private _forecastConditionIcon(condition: string): string {
+    const icons: Record<string, string> = {
+      sunny: "mdi:weather-sunny",
+      "clear-night": "mdi:weather-night",
+      partlycloudy: "mdi:weather-partly-cloudy",
+      cloudy: "mdi:weather-cloudy",
+      rainy: "mdi:weather-rainy",
+      pouring: "mdi:weather-pouring",
+      "lightning-rainy": "mdi:weather-lightning-rainy",
+      lightning: "mdi:weather-lightning",
+      fog: "mdi:weather-fog",
+      windy: "mdi:weather-windy",
+      "windy-variant": "mdi:weather-windy-variant",
+      hail: "mdi:weather-hail",
+      snowy: "mdi:weather-snowy",
+      "snowy-rainy": "mdi:weather-snowy-rainy",
+    };
+    return icons[condition.toLowerCase()] ?? "mdi:weather-cloudy-alert";
   }
 
   private _formatScheduleDate(value: string, index: number): string {

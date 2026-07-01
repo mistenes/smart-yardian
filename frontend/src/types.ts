@@ -80,6 +80,22 @@ export type WeatherDecision = {
   available?: boolean;
 };
 
+export type HourlyForecastHour = {
+  timestamp: string;
+  temperature: number;
+  precipitation_mm: number;
+  precipitation_probability: number;
+  condition: string;
+  cloud_cover: number | null;
+  is_daylight: boolean | null;
+};
+
+export type HourlyForecast = {
+  source: "Időkép";
+  generated_at: string;
+  hours: HourlyForecastHour[];
+};
+
 export type RunRecord = {
   run_id: string;
   program_id: string | null;

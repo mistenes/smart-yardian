@@ -263,6 +263,32 @@ class SmartYardianManager:
                 "available": False,
             }
 
+    async def async_hourly_forecast(self) -> dict[str, Any]:
+        """Return the normalized Időkép hourly timeline for the panel."""
+        forecast = await self._async_idokep_forecast()
+        return {
+            "source": "Időkép",
+            "generated_at": dt_util.now().isoformat(),
+            "hours": [
+                {
+                    "timestamp": hour.timestamp.isoformat(),
+                    "temperature": round(hour.temperature, 1),
+                    "precipitation_mm": round(hour.precipitation_mm, 1),
+                    "precipitation_probability": round(
+                        hour.precipitation_probability
+                    ),
+                    "condition": hour.condition,
+                    "cloud_cover": (
+                        round(hour.cloud_cover)
+                        if hour.cloud_cover is not None
+                        else None
+                    ),
+                    "is_daylight": hour.is_daylight,
+                }
+                for hour in forecast
+            ],
+        }
+
     async def async_three_day_preview(self) -> dict[str, Any]:
         """Calculate a read-only preview of the next three calendar days."""
         now = dt_util.as_local(dt_util.now())

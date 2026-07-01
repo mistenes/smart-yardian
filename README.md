@@ -13,6 +13,8 @@ Időjárás-alapú, magyar nyelvű öntözésvezérlő Home Assistant 2026.6+ re
   előrejelzett maximumára;
 - külön háromnapos előnézet a várható futásokkal, kihagyásokkal és
   zónánként számolt időkkel;
+- külön órás Időkép-előrejelzés hőmérséklettel, csapadékmennyiséggel és
+  csapadékeséllyel;
 - rotátor, MP800, spray, rotoros és csepegtető zónaprofil, opcionális
   vízhozam- és területméréssel;
 - napos vagy árnyékos területjelleg, amely referencia módban módosítja az időt;

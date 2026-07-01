@@ -11,6 +11,7 @@ from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN, WS_PREFIX
 from .manager import SmartYardianManager
+from .weather import WeatherUnavailableError
 
 
 def _manager(hass: HomeAssistant) -> SmartYardianManager:
@@ -40,6 +41,24 @@ async def websocket_weather_preview(
     msg: dict[str, Any],
 ) -> None:
     connection.send_result(msg["id"], await _manager(hass).async_preview_weather())
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): f"{WS_PREFIX}/weather/hourly"}
+)
+@websocket_api.async_response
+async def websocket_hourly_forecast(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Return the normalized Időkép hourly timeline."""
+    try:
+        forecast = await _manager(hass).async_hourly_forecast()
+    except (KeyError, TypeError, ValueError, WeatherUnavailableError) as err:
+        connection.send_error(msg["id"], "forecast_unavailable", str(err))
+        return
+    connection.send_result(msg["id"], forecast)
 
 
 @websocket_api.websocket_command(
@@ -307,6 +326,7 @@ async def websocket_pause_until(
 COMMANDS = (
     websocket_summary,
     websocket_weather_preview,
+    websocket_hourly_forecast,
     websocket_schedule_preview,
     websocket_program_save,
     websocket_program_delete,

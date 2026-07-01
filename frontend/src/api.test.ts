@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getHourlyForecast,
   previewSchedule,
   runManualProgram,
   runProgram,
@@ -44,6 +45,14 @@ describe("Smart Yardian WebSocket client", () => {
     await previewSchedule(hass);
     expect(messages[0]).toEqual({
       type: "smart_yardian/schedule/preview",
+    });
+  });
+
+  it("requests the normalized Időkép hourly forecast", async () => {
+    const { hass, messages } = recordingHass();
+    await getHourlyForecast(hass);
+    expect(messages[0]).toEqual({
+      type: "smart_yardian/weather/hourly",
     });
   });
 
