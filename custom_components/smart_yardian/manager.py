@@ -318,6 +318,7 @@ class SmartYardianManager:
                         "Időkép",
                         scheduled_at,
                         settings=self.store.settings,
+                        now=now,
                     )
                 except WeatherUnavailableError as err:
                     idokep_day_error = str(err)

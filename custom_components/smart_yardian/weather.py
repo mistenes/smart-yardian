@@ -134,16 +134,37 @@ def evaluate_calendar_day(
     source: str,
     scheduled_at: datetime,
     settings: dict[str, Any] | None = None,
+    now: datetime | None = None,
 ) -> WeatherDecision:
     """Evaluate one shared weather decision for a local calendar day."""
     if scheduled_at.tzinfo is None:
         scheduled_at = scheduled_at.replace(tzinfo=UTC)
     timezone = scheduled_at.tzinfo
     target_date = scheduled_at.date()
+    forecast_hours = sorted(forecast, key=lambda item: item.timestamp)
+
+    if now is not None:
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=UTC)
+        if now.astimezone(timezone).date() == target_date:
+            decision = evaluate_green_lawn(
+                forecast_hours,
+                source,
+                now=now,
+                settings=settings,
+            )
+            return replace(
+                decision,
+                max_temperature=forecast_day_max_temperature(
+                    forecast_hours,
+                    scheduled_at,
+                ),
+            )
+
     hours = sorted(
         (
             hour
-            for hour in forecast
+            for hour in forecast_hours
             if hour.timestamp.astimezone(timezone).date() == target_date
         ),
         key=lambda item: item.timestamp,

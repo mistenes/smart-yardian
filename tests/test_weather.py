@@ -111,6 +111,32 @@ def test_calendar_day_decision_is_identical_for_every_program_time() -> None:
     assert early.as_dict() == later.as_dict()
 
 
+def test_current_day_uses_next_24_hours_when_calendar_day_has_fewer_hours() -> None:
+    late_now = datetime(2026, 7, 1, 18, 0, tzinfo=UTC)
+    hours = [
+        ForecastHour(
+            timestamp=late_now + timedelta(hours=index + 1),
+            temperature=36 if index == 1 else 28,
+            precipitation_mm=0,
+            precipitation_probability=0,
+            condition="sunny",
+            cloud_cover=10,
+            is_daylight=index < 2,
+        )
+        for index in range(24)
+    ]
+
+    decision = evaluate_calendar_day(
+        hours,
+        "Időkép",
+        late_now + timedelta(hours=2),
+        now=late_now,
+    )
+
+    assert decision.max_temperature == 36
+    assert decision.source == "Időkép"
+
+
 def test_idokep_implausible_temperature_is_rejected() -> None:
     with pytest.raises(WeatherUnavailableError, match="297.8 °C"):
         normalize_ha_forecast(
