@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, time, timedelta
 import re
 from typing import Any
@@ -24,6 +24,24 @@ SUN_WEIGHTS = {
     "cloudy": 0.15,
     "clear-night": 0.0,
 }
+WIND_HEAD_GROUPS = {
+    "spray": "spray",
+    "rotator": "rotator",
+    "mp800": "rotator",
+    "rotor": "rotor",
+}
+
+
+@dataclass(frozen=True, slots=True)
+class WindAssessment:
+    """Program-window wind safety decision."""
+
+    action: str
+    reason: str
+    max_wind_speed_kmh: float | None = None
+    max_wind_gust_kmh: float | None = None
+    windy_hours: int = 0
+    delayed_until: datetime | None = None
 
 
 class WeatherUnavailableError(RuntimeError):
@@ -48,6 +66,15 @@ def _as_float(value: Any, default: float = 0.0) -> float:
         return float(value)
     except (TypeError, ValueError):
         return default
+
+
+def _optional_float(value: Any) -> float | None:
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def is_plausible_celsius(value: float) -> bool:
@@ -96,11 +123,34 @@ def normalize_ha_forecast(items: Iterable[dict[str, Any]]) -> list[ForecastHour]
                         else None
                     ),
                     is_daylight=condition != "clear-night" and 6 <= local_hour < 20,
+                    wind_speed_kmh=_non_negative_optional(
+                        item.get("wind_speed")
+                    ),
+                    wind_gust_kmh=_non_negative_optional(
+                        item.get("wind_gust")
+                        if item.get("wind_gust") is not None
+                        else item.get("wind_gust_speed")
+                    ),
+                    wind_bearing_deg=_wind_bearing(item.get("wind_bearing")),
                 )
             )
         except (KeyError, TypeError, ValueError):
             continue
     return normalized
+
+
+def _non_negative_optional(value: Any) -> float | None:
+    parsed = _optional_float(value)
+    if parsed is None:
+        return None
+    return max(0.0, parsed)
+
+
+def _wind_bearing(value: Any) -> float | None:
+    parsed = _optional_float(value)
+    if parsed is None:
+        return None
+    return parsed % 360
 
 
 def rebase_idokep_timeline(
@@ -164,6 +214,236 @@ def _sun_weight(hour: ForecastHour) -> float:
     if hour.cloud_cover is not None:
         return max(0.0, 1.0 - hour.cloud_cover / 100.0)
     return SUN_WEIGHTS.get(hour.condition.lower(), 0.25)
+
+
+def wind_thresholds_for_head_types(
+    head_types: Iterable[str],
+    settings: dict[str, Any] | None = None,
+) -> tuple[float, float] | None:
+    """Return the strictest wind thresholds for non-drip zones."""
+    settings = settings or {}
+    thresholds: list[tuple[float, float]] = []
+    for head_type in head_types:
+        group = WIND_HEAD_GROUPS.get(str(head_type))
+        if group is None:
+            continue
+        thresholds.append(
+            (
+                float(settings.get(f"wind_speed_threshold_{group}", 30.0)),
+                float(settings.get(f"wind_gust_threshold_{group}", 45.0)),
+            )
+        )
+    if not thresholds:
+        return None
+    return min(thresholds, key=lambda item: (item[0], item[1]))
+
+
+def _overlaps_window(
+    hour: ForecastHour,
+    scheduled_at: datetime,
+    duration_minutes: int,
+) -> bool:
+    hour_start = hour.timestamp
+    if hour_start.tzinfo is None:
+        hour_start = hour_start.replace(tzinfo=UTC)
+    hour_end = hour_start + timedelta(hours=1)
+    window_end = scheduled_at + timedelta(minutes=duration_minutes)
+    return hour_start < window_end and hour_end > scheduled_at
+
+
+def _wind_window_hours(
+    forecast: Iterable[ForecastHour],
+    scheduled_at: datetime,
+    duration_minutes: int,
+) -> list[ForecastHour]:
+    if scheduled_at.tzinfo is None:
+        scheduled_at = scheduled_at.replace(tzinfo=UTC)
+    return sorted(
+        (
+            hour
+            for hour in forecast
+            if _overlaps_window(hour, scheduled_at, duration_minutes)
+        ),
+        key=lambda item: item.timestamp,
+    )
+
+
+def _wind_stats(
+    hours: Iterable[ForecastHour],
+    speed_threshold: float,
+    gust_threshold: float,
+) -> tuple[float | None, float | None, int, bool]:
+    speeds = [
+        hour.wind_speed_kmh
+        for hour in hours
+        if hour.wind_speed_kmh is not None
+    ]
+    gusts = [
+        hour.wind_gust_kmh
+        for hour in hours
+        if hour.wind_gust_kmh is not None
+    ]
+    has_data = bool(speeds or gusts)
+    max_speed = max(speeds) if speeds else None
+    max_gust = max(gusts) if gusts else None
+    windy_hours = 0
+    for hour in hours:
+        too_fast = (
+            hour.wind_speed_kmh is not None
+            and hour.wind_speed_kmh > speed_threshold
+        )
+        too_gusty = (
+            hour.wind_gust_kmh is not None
+            and hour.wind_gust_kmh > gust_threshold
+        )
+        if too_fast or too_gusty:
+            windy_hours += 1
+    return max_speed, max_gust, windy_hours, has_data
+
+
+def assess_program_wind(
+    forecast: Iterable[ForecastHour],
+    scheduled_at: datetime,
+    duration_minutes: int,
+    head_types: Iterable[str],
+    settings: dict[str, Any] | None = None,
+) -> WindAssessment:
+    """Evaluate wind safety for the exact irrigation program window."""
+    settings = settings or {}
+    if not settings.get("wind_adjustment_enabled", True):
+        return WindAssessment("none", "A szélkorrekció ki van kapcsolva.")
+
+    thresholds = wind_thresholds_for_head_types(head_types, settings)
+    if thresholds is None:
+        return WindAssessment(
+            "none",
+            "Csak csepegtető zóna érintett, ezért a szél nem módosítja a futást.",
+        )
+
+    speed_threshold, gust_threshold = thresholds
+    hours = _wind_window_hours(forecast, scheduled_at, max(1, duration_minutes))
+    max_speed, max_gust, windy_hours, has_data = _wind_stats(
+        hours,
+        speed_threshold,
+        gust_threshold,
+    )
+    if not hours or not has_data:
+        return WindAssessment(
+            "skip",
+            "Nincs széladat az öntözési időablakra, ezért az automata overhead "
+            "öntözés nem indul vakon.",
+            max_speed,
+            max_gust,
+            0,
+        )
+
+    if windy_hours:
+        peak = _wind_peak_text(max_speed, max_gust)
+        delay_enabled = settings.get("wind_delay_enabled", True)
+        action = "delay" if delay_enabled else "skip"
+        return WindAssessment(
+            action,
+            (
+                f"Erős szél várható az öntözési ablakban ({peak}); "
+                f"a határ {speed_threshold:g} km/h szél vagy "
+                f"{gust_threshold:g} km/h széllökés."
+            ),
+            round(max_speed, 1) if max_speed is not None else None,
+            round(max_gust, 1) if max_gust is not None else None,
+            windy_hours,
+        )
+
+    return WindAssessment(
+        "none",
+        f"A program időablakában a szél rendben van ({_wind_peak_text(max_speed, max_gust)}).",
+        round(max_speed, 1) if max_speed is not None else None,
+        round(max_gust, 1) if max_gust is not None else None,
+        0,
+    )
+
+
+def find_wind_delay(
+    forecast: Iterable[ForecastHour],
+    scheduled_at: datetime,
+    duration_minutes: int,
+    head_types: Iterable[str],
+    settings: dict[str, Any] | None = None,
+) -> WindAssessment:
+    """Return a delay decision with a later safe same-day start if possible."""
+    settings = settings or {}
+    current = assess_program_wind(
+        forecast,
+        scheduled_at,
+        duration_minutes,
+        head_types,
+        settings,
+    )
+    if current.action != "delay":
+        return current
+
+    deadline = _delay_deadline(scheduled_at, settings)
+    step = int(settings.get("wind_delay_step_minutes", 30))
+    step = max(5, min(120, step))
+    candidate = scheduled_at + timedelta(minutes=step)
+    while candidate + timedelta(minutes=duration_minutes) <= deadline:
+        assessment = assess_program_wind(
+            forecast,
+            candidate,
+            duration_minutes,
+            head_types,
+            settings,
+        )
+        if assessment.action == "none":
+            return WindAssessment(
+                "delay",
+                (
+                    f"{current.reason} A következő nyugodtabb ablak "
+                    f"{candidate.strftime('%H:%M')}-kor kezdődik."
+                ),
+                current.max_wind_speed_kmh,
+                current.max_wind_gust_kmh,
+                current.windy_hours,
+                candidate,
+            )
+        candidate += timedelta(minutes=step)
+
+    return WindAssessment(
+        "skip",
+        (
+            f"{current.reason} {deadline.strftime('%H:%M')}-ig nincs elég "
+            "szélcsendes időablak, ezért a program kimarad."
+        ),
+        current.max_wind_speed_kmh,
+        current.max_wind_gust_kmh,
+        current.windy_hours,
+    )
+
+
+def _delay_deadline(scheduled_at: datetime, settings: dict[str, Any]) -> datetime:
+    raw = str(settings.get("wind_delay_until") or "22:00")
+    try:
+        hour, minute = (int(part) for part in raw.split(":", 1))
+        if not (0 <= hour <= 23 and 0 <= minute <= 59):
+            raise ValueError
+    except ValueError:
+        hour, minute = 22, 0
+    return datetime.combine(
+        scheduled_at.date(),
+        time(hour=hour, minute=minute),
+        tzinfo=scheduled_at.tzinfo,
+    )
+
+
+def _wind_peak_text(
+    max_speed: float | None,
+    max_gust: float | None,
+) -> str:
+    parts = []
+    if max_speed is not None:
+        parts.append(f"{max_speed:g} km/h szél")
+    if max_gust is not None:
+        parts.append(f"{max_gust:g} km/h lökés")
+    return ", ".join(parts) if parts else "nincs adat"
 
 
 def forecast_day_max_temperature(
@@ -258,6 +538,11 @@ def evaluate_green_lawn(
     max_temperature = max(hour.temperature for hour in hours)
     rainy_hours = sum(1 for hour in hours if _is_rainy(hour))
     sunny_hours = sum(_sun_weight(hour) for hour in hours)
+    max_wind_speed, max_wind_gust, windy_hours, _ = _wind_stats(
+        hours,
+        float(settings.get("wind_speed_threshold_rotator", 30.0)),
+        float(settings.get("wind_gust_threshold_rotator", 45.0)),
+    )
 
     skip_mm = float(settings.get("rain_skip_mm", 8.0))
     skip_probability = float(settings.get("rain_skip_probability", 80))
@@ -349,4 +634,13 @@ def evaluate_green_lawn(
         observed_precipitation_mm=round(observed_precipitation, 1),
         effective_precipitation_mm=round(effective_precipitation, 1),
         rain_station=rain_station,
+        max_wind_speed_kmh=(
+            round(max_wind_speed, 1) if max_wind_speed is not None else None
+        ),
+        max_wind_gust_kmh=(
+            round(max_wind_gust, 1) if max_wind_gust is not None else None
+        ),
+        windy_hours=windy_hours,
+        wind_action="none",
+        wind_reason="A napi széladatot programonként külön értékeli a rendszer.",
     )

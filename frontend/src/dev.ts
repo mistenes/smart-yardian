@@ -20,6 +20,7 @@ import {
   mdiWeatherRainy,
   mdiWeatherSunny,
   mdiWeatherSunsetUp,
+  mdiWeatherWindy,
   mdiWhiteBalanceSunny,
 } from "@mdi/js";
 import type {
@@ -53,6 +54,7 @@ const iconPaths: Record<string, string> = {
   "mdi:weather-rainy": mdiWeatherRainy,
   "mdi:weather-sunny": mdiWeatherSunny,
   "mdi:weather-sunset-up": mdiWeatherSunsetUp,
+  "mdi:weather-windy": mdiWeatherWindy,
   "mdi:white-balance-sunny": mdiWhiteBalanceSunny,
 };
 
@@ -301,6 +303,16 @@ const summary = (): Summary => ({
     rain_station_id: "csomor1",
     rain_station_name: "Csömör",
     idokep_location: "Csömör",
+    wind_adjustment_enabled: true,
+    wind_delay_enabled: true,
+    wind_delay_step_minutes: 30,
+    wind_delay_until: "22:00",
+    wind_speed_threshold_spray: 25,
+    wind_gust_threshold_spray: 35,
+    wind_speed_threshold_rotator: 30,
+    wind_gust_threshold_rotator: 45,
+    wind_speed_threshold_rotor: 35,
+    wind_gust_threshold_rotor: 50,
   },
   active_run: runningEntity
     ? {
@@ -342,6 +354,11 @@ const summary = (): Summary => ({
     observed_precipitation_mm: 2.4,
     effective_precipitation_mm: 3.6,
     rain_station: "Csömör (csomor1)",
+    max_wind_speed_kmh: 28,
+    max_wind_gust_kmh: 41,
+    windy_hours: 1,
+    wind_action: "none",
+    wind_reason: "A program időablakában a szél rendben van.",
     reason: "Kevés csapadék, meleg és többnyire napos.",
     evaluated_at: new Date().toISOString(),
   },
@@ -448,14 +465,21 @@ const schedulePreview = (): SchedulePreview => {
             program_id: evening.program_id,
             program_name: evening.name,
             scheduled_at: occurrence(2, 20, 0),
-            status: "weather_unavailable",
-            reason: "Nincs használható Időkép-előrejelzés erre a napra.",
-            total_minutes: null,
-            zones: plannedZones(evening).map((zone) => ({
-              ...zone,
-              planned_minutes: null,
-            })),
-            weather: null,
+            status: "wind_delayed",
+            reason:
+              "Erős szél várható az öntözési ablakban; a következő nyugodtabb ablak 21:00-kor kezdődik.",
+            total_minutes: 100,
+            zones: plannedZones(evening),
+            weather: {
+              ...weather,
+              max_wind_speed_kmh: 36,
+              max_wind_gust_kmh: 52,
+              windy_hours: 2,
+              wind_action: "delay",
+              wind_reason:
+                "Erős szél várható az öntözési ablakban; halasztás javasolt.",
+              delayed_until: occurrence(2, 21, 0),
+            },
           },
         ],
       },
@@ -486,6 +510,9 @@ const hourlyForecast = (): HourlyForecast => {
             : "sunny",
       cloud_cover: rainy ? 85 : index % 4 === 0 ? 45 : 12,
       is_daylight: !night,
+      wind_speed_kmh: index % 9 === 0 ? 34 : 16 + (index % 5) * 3,
+      wind_gust_kmh: index % 9 === 0 ? 48 : 24 + (index % 4) * 4,
+      wind_bearing_deg: (index * 35) % 360,
     };
   });
   return {

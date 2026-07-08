@@ -19,6 +19,9 @@ class ForecastHour:
     condition: str
     cloud_cover: float | None = None
     is_daylight: bool | None = None
+    wind_speed_kmh: float | None = None
+    wind_gust_kmh: float | None = None
+    wind_bearing_deg: float | None = None
 
 
 @dataclass(slots=True)
@@ -39,11 +42,19 @@ class WeatherDecision:
     observed_precipitation_mm: float = 0.0
     effective_precipitation_mm: float = 0.0
     rain_station: str | None = None
+    max_wind_speed_kmh: float | None = None
+    max_wind_gust_kmh: float | None = None
+    windy_hours: int = 0
+    wind_action: str = "none"
+    wind_reason: str = ""
+    delayed_until: datetime | None = None
 
     def as_dict(self) -> dict[str, Any]:
         """Return a JSON-safe representation."""
         data = asdict(self)
         data["evaluated_at"] = self.evaluated_at.isoformat()
+        if self.delayed_until is not None:
+            data["delayed_until"] = self.delayed_until.isoformat()
         data["percent"] = round(self.factor * 100)
         return data
 

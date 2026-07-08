@@ -9,8 +9,10 @@ import pytest
 from custom_components.smart_yardian.models import ForecastHour
 from custom_components.smart_yardian.weather import (
     WeatherUnavailableError,
+    assess_program_wind,
     evaluate_calendar_day,
     evaluate_green_lawn,
+    find_wind_delay,
     forecast_day_max_temperature,
     is_plausible_celsius,
     normalize_ha_forecast,
@@ -28,6 +30,8 @@ def forecast(
     temperature: float = 29,
     cloud_cover: float = 30,
     rainy_hours: int = 0,
+    wind_speed: float | None = 12,
+    wind_gust: float | None = 20,
 ) -> list[ForecastHour]:
     return [
         ForecastHour(
@@ -38,6 +42,8 @@ def forecast(
             condition="rainy" if index < rainy_hours else "sunny",
             cloud_cover=cloud_cover,
             is_daylight=6 <= (NOW + timedelta(hours=index + 1)).hour < 20,
+            wind_speed_kmh=wind_speed,
+            wind_gust_kmh=wind_gust,
         )
         for index in range(24)
     ]
@@ -106,6 +112,18 @@ def test_green_lawn_increases_hot_sunny_day() -> None:
     assert decision.climate_factor == 1.35
     assert decision.sunny_hours >= 8
     assert "forró" in decision.reason
+
+
+def test_weather_decision_includes_daily_wind_stats() -> None:
+    hours = forecast(wind_speed=18, wind_gust=28)
+    hours[2].wind_speed_kmh = 37
+    hours[2].wind_gust_kmh = 51
+
+    decision = evaluate_green_lawn(hours, "Időkép", NOW)
+
+    assert decision.max_wind_speed_kmh == 37
+    assert decision.max_wind_gust_kmh == 51
+    assert decision.windy_hours == 1
 
 
 def test_green_lawn_reduces_for_light_rain() -> None:
@@ -249,6 +267,83 @@ def test_idokep_implausible_temperature_is_rejected() -> None:
                 }
             ]
         )
+
+
+def test_idokep_wind_fields_are_normalized() -> None:
+    forecast = normalize_ha_forecast(
+        [
+            {
+                "datetime": NOW.isoformat(),
+                "temperature": 24,
+                "condition": "sunny",
+                "precipitation": 0,
+                "precipitation_probability": 0,
+                "wind_speed": 32,
+                "wind_gust": 47,
+                "wind_bearing": 370,
+            }
+        ]
+    )
+
+    assert forecast[0].wind_speed_kmh == 32
+    assert forecast[0].wind_gust_kmh == 47
+    assert forecast[0].wind_bearing_deg == 10
+
+
+def test_wind_delay_selects_later_same_day_window() -> None:
+    hours = forecast(wind_speed=12, wind_gust=20)
+    hours[0].wind_speed_kmh = 36
+    hours[0].wind_gust_kmh = 52
+
+    assessment = find_wind_delay(
+        hours,
+        NOW + timedelta(hours=1),
+        60,
+        ["rotator"],
+        {"wind_delay_step_minutes": 30, "wind_delay_until": "08:00"},
+    )
+
+    assert assessment.action == "delay"
+    assert assessment.delayed_until == NOW + timedelta(hours=2)
+    assert "06:00" in assessment.reason
+
+
+def test_wind_skip_when_no_later_safe_window() -> None:
+    hours = forecast(wind_speed=36, wind_gust=52)
+
+    assessment = find_wind_delay(
+        hours,
+        NOW + timedelta(hours=1),
+        60,
+        ["rotator"],
+        {"wind_delay_step_minutes": 30, "wind_delay_until": "07:00"},
+    )
+
+    assert assessment.action == "skip"
+    assert "nincs elég" in assessment.reason
+
+
+def test_drip_zone_ignores_wind() -> None:
+    assessment = assess_program_wind(
+        forecast(wind_speed=80, wind_gust=100),
+        NOW + timedelta(hours=1),
+        60,
+        ["drip"],
+    )
+
+    assert assessment.action == "none"
+
+
+def test_missing_wind_data_blocks_automatic_overhead_window() -> None:
+    assessment = assess_program_wind(
+        forecast(wind_speed=None, wind_gust=None),
+        NOW + timedelta(hours=1),
+        60,
+        ["spray"],
+    )
+
+    assert assessment.action == "skip"
+    assert "Nincs széladat" in assessment.reason
 
 
 def test_idokep_location_accepts_hungarian_settlement_names() -> None:

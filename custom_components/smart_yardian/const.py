@@ -14,7 +14,7 @@ CONF_NOTIFY_SERVICE: Final = "notify_service"
 PANEL_URL: Final = "smart-yardian"
 PANEL_COMPONENT: Final = "smart-yardian-panel"
 PANEL_STATIC_URL: Final = "/smart_yardian/smart-yardian-panel.js"
-PANEL_MODULE_URL: Final = f"{PANEL_STATIC_URL}?v=0.12.0"
+PANEL_MODULE_URL: Final = f"{PANEL_STATIC_URL}?v=0.13.0"
 
 STORE_VERSION: Final = 1
 STORE_KEY_PREFIX: Final = "smart_yardian"
@@ -56,4 +56,14 @@ DEFAULT_SETTINGS: Final = {
     "rain_station_id": "",
     "rain_station_name": "",
     "idokep_location": "",
+    "wind_adjustment_enabled": True,
+    "wind_delay_enabled": True,
+    "wind_delay_step_minutes": 30,
+    "wind_delay_until": "22:00",
+    "wind_speed_threshold_spray": 25.0,
+    "wind_gust_threshold_spray": 35.0,
+    "wind_speed_threshold_rotator": 30.0,
+    "wind_gust_threshold_rotator": 45.0,
+    "wind_speed_threshold_rotor": 35.0,
+    "wind_gust_threshold_rotor": 50.0,
 }

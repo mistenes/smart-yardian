@@ -78,6 +78,12 @@ export type WeatherDecision = {
   observed_precipitation_mm?: number;
   effective_precipitation_mm?: number;
   rain_station?: string | null;
+  max_wind_speed_kmh?: number | null;
+  max_wind_gust_kmh?: number | null;
+  windy_hours?: number;
+  wind_action?: "none" | "warn" | "delay" | "skip";
+  wind_reason?: string;
+  delayed_until?: string | null;
   reason: string;
   evaluated_at?: string;
   available?: boolean;
@@ -91,6 +97,9 @@ export type HourlyForecastHour = {
   condition: string;
   cloud_cover: number | null;
   is_daylight: boolean | null;
+  wind_speed_kmh: number | null;
+  wind_gust_kmh: number | null;
+  wind_bearing_deg: number | null;
 };
 
 export type HourlyForecast = {
@@ -121,7 +130,10 @@ export type ScheduleStatus =
   | "skip_next"
   | "weather_unavailable"
   | "condition_skip"
-  | "rain_skip";
+  | "rain_skip"
+  | "wind_delayed"
+  | "wind_skip"
+  | "wind_unavailable";
 
 export type ScheduleZone = {
   entity_id: string;
@@ -167,6 +179,16 @@ export type Settings = {
   rain_station_id: string;
   rain_station_name: string;
   idokep_location: string;
+  wind_adjustment_enabled: boolean;
+  wind_delay_enabled: boolean;
+  wind_delay_step_minutes: number;
+  wind_delay_until: string;
+  wind_speed_threshold_spray: number;
+  wind_gust_threshold_spray: number;
+  wind_speed_threshold_rotator: number;
+  wind_gust_threshold_rotator: number;
+  wind_speed_threshold_rotor: number;
+  wind_gust_threshold_rotor: number;
 };
 
 export type RainStation = {

@@ -448,6 +448,7 @@ export class SmartYardianPanel extends LitElement {
         ${this._metric("mdi:weather-rainy", "Várható eső", `${weather.precipitation_mm ?? 0} mm`)}
         ${this._metric("mdi:water-percent", "Esély", `${weather.max_probability ?? 0}%`)}
         ${this._metric("mdi:white-balance-sunny", "Napos órák", `${weather.sunny_hours ?? 0}`, "sun")}
+        ${this._metric("mdi:weather-windy", "Szél max.", this._formatWeatherWind(weather), "wind")}
         ${this._metric("mdi:thermometer", "Maximum", `${weather.max_temperature ?? 0} °C`, "temp")}
       </section>
     `;
@@ -651,6 +652,7 @@ export class SmartYardianPanel extends LitElement {
                         <span>Hőmérséklet</span>
                         <span>Csapadék</span>
                         <span>Esély</span>
+                        <span>Szél</span>
                       </div>
                       ${day.hours.map((hour) => this._renderForecastHour(hour))}
                     </section>
@@ -666,8 +668,10 @@ export class SmartYardianPanel extends LitElement {
   private _renderForecastHour(hour: HourlyForecastHour): TemplateResult {
     const raining =
       hour.precipitation_mm > 0 || hour.precipitation_probability >= 50;
+    const windy =
+      (hour.wind_speed_kmh ?? 0) >= 30 || (hour.wind_gust_kmh ?? 0) >= 45;
     return html`
-      <article class="forecast-hour" ?raining=${raining}>
+      <article class="forecast-hour" ?raining=${raining} ?windy=${windy}>
         <time>${this._formatTime(hour.timestamp)}</time>
         <div class="forecast-condition">
           <ha-icon icon=${this._forecastConditionIcon(hour.condition)}></ha-icon>
@@ -684,6 +688,10 @@ export class SmartYardianPanel extends LitElement {
         <div class="forecast-metric probability">
           <span>Esély</span>
           <strong>${hour.precipitation_probability}%</strong>
+        </div>
+        <div class="forecast-metric wind">
+          <span>Szél</span>
+          <strong>${this._formatForecastWind(hour)}</strong>
         </div>
       </article>
     `;
@@ -749,7 +757,7 @@ export class SmartYardianPanel extends LitElement {
           <time>${this._formatTime(program.scheduled_at)}</time>
           <strong>${program.program_name}</strong>
           <span class="schedule-status ${program.status}">
-            ${this._scheduleStatusLabel(program.status)}
+            ${this._scheduleStatusLabel(program)}
           </span>
         </div>
         <div class="schedule-reason">${program.reason}</div>
@@ -762,6 +770,14 @@ export class SmartYardianPanel extends LitElement {
                   ? html`
                       <span>
                         ${program.weather.observed_precipitation_mm} mm mért / 24 óra
+                      </span>
+                    `
+                  : nothing}
+                ${program.weather.max_wind_speed_kmh !== null &&
+                program.weather.max_wind_speed_kmh !== undefined
+                  ? html`
+                      <span>
+                        Szél: ${this._formatWeatherWind(program.weather)}
                       </span>
                     `
                   : nothing}
@@ -1284,6 +1300,13 @@ export class SmartYardianPanel extends LitElement {
                                     : nothing}
                                   ${record.weather.max_probability ?? 0}% ·
                                   ${record.weather.rainy_hours ?? 0} esős óra ·
+                                  ${record.weather.max_wind_speed_kmh !== null &&
+                                  record.weather.max_wind_speed_kmh !== undefined
+                                    ? html`
+                                        ${this._formatWeatherWind(record.weather)}
+                                        szél ·
+                                      `
+                                    : nothing}
                                   ${record.weather.max_temperature ?? "–"} °C
                                   ${record.weather.evaluated_at
                                     ? html` · ${this._formatDateTime(
@@ -1380,6 +1403,51 @@ export class SmartYardianPanel extends LitElement {
             <span>Legutóbbi aktuális számítás forrása</span>
             <strong>${this._summary!.weather?.source ?? "Nincs értékelés"}</strong>
           </div>
+        </section>
+        <section class="settings-section">
+          <h3>Szélkorrekció</h3>
+          <div class="setting-row">
+            <span>Szél figyelése automata programnál</span>
+            <button
+              class="toggle"
+              ?on=${settings.wind_adjustment_enabled}
+              aria-label="Szélkorrekció kapcsolása"
+              @click=${() =>
+                this._patchSettings({
+                  wind_adjustment_enabled: !settings.wind_adjustment_enabled,
+                })}
+            ></button>
+          </div>
+          <div class="setting-row">
+            <span>Erős szélben halasztás</span>
+            <button
+              class="toggle"
+              ?on=${settings.wind_delay_enabled}
+              aria-label="Szél miatti halasztás kapcsolása"
+              @click=${() =>
+                this._patchSettings({
+                  wind_delay_enabled: !settings.wind_delay_enabled,
+                })}
+            ></button>
+          </div>
+          ${this._settingNumber("Halasztási lépés (perc)", "wind_delay_step_minutes", settings)}
+          <label class="setting-row">
+            <span>Halasztás legkésőbb eddig</span>
+            <input
+              type="time"
+              .value=${settings.wind_delay_until}
+              @change=${(event: Event) =>
+                this._patchSettings({
+                  wind_delay_until: (event.target as HTMLInputElement).value,
+                })}
+            />
+          </label>
+          ${this._settingNumber("Sprayer szélhatár (km/h)", "wind_speed_threshold_spray", settings)}
+          ${this._settingNumber("Sprayer lökéshatár (km/h)", "wind_gust_threshold_spray", settings)}
+          ${this._settingNumber("Rotator / MP800 szélhatár (km/h)", "wind_speed_threshold_rotator", settings)}
+          ${this._settingNumber("Rotator / MP800 lökéshatár (km/h)", "wind_gust_threshold_rotator", settings)}
+          ${this._settingNumber("Rotoros szélhatár (km/h)", "wind_speed_threshold_rotor", settings)}
+          ${this._settingNumber("Rotoros lökéshatár (km/h)", "wind_gust_threshold_rotor", settings)}
         </section>
         <section class="settings-section forecast-settings">
           <h3>Időkép előrejelzés</h3>
@@ -2312,7 +2380,7 @@ export class SmartYardianPanel extends LitElement {
     return `${prefix} · ${formatted}`;
   }
 
-  private _scheduleStatusLabel(status: ScheduleProgram["status"]): string {
+  private _scheduleStatusLabel(program: ScheduleProgram): string {
     const labels: Record<ScheduleProgram["status"], string> = {
       will_run: "Lefut",
       automation_off: "Automatika kikapcsolva",
@@ -2321,8 +2389,47 @@ export class SmartYardianPanel extends LitElement {
       weather_unavailable: "Nincs forecast",
       condition_skip: "Feltétel nem teljesül",
       rain_skip: "Eső miatt kimarad",
+      wind_delayed: program.weather?.delayed_until
+        ? `Halasztva ${this._formatTime(program.weather.delayed_until)}-ra`
+        : "Szél miatt halasztva",
+      wind_skip: "Szél miatt kimarad",
+      wind_unavailable: "Széladat hiányzik",
     };
-    return labels[status];
+    return labels[program.status];
+  }
+
+  private _formatWeatherWind(weather: WeatherDecision): string {
+    const speed = weather.max_wind_speed_kmh;
+    const gust = weather.max_wind_gust_kmh;
+    if (speed === null || speed === undefined) return "nincs adat";
+    const speedText = `${this._formatForecastNumber(speed)} km/h`;
+    return gust === null || gust === undefined
+      ? speedText
+      : `${speedText} / ${this._formatForecastNumber(gust)} lökés`;
+  }
+
+  private _formatForecastWind(hour: HourlyForecastHour): string {
+    if (hour.wind_speed_kmh === null && hour.wind_gust_kmh === null) {
+      return "nincs adat";
+    }
+    const direction =
+      hour.wind_bearing_deg === null
+        ? ""
+        : `${this._formatWindDirection(hour.wind_bearing_deg)} `;
+    const speed =
+      hour.wind_speed_kmh === null
+        ? "–"
+        : this._formatForecastNumber(hour.wind_speed_kmh);
+    const gust =
+      hour.wind_gust_kmh === null
+        ? ""
+        : ` / ${this._formatForecastNumber(hour.wind_gust_kmh)}`;
+    return `${direction}${speed}${gust} km/h`;
+  }
+
+  private _formatWindDirection(degrees: number): string {
+    const labels = ["É", "ÉK", "K", "DK", "D", "DNY", "NY", "ÉNY"];
+    return labels[Math.round((degrees % 360) / 45) % labels.length]!;
   }
 
   private _formatRelative(value: string): string {

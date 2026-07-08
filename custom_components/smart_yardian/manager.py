@@ -45,8 +45,10 @@ from .rainfall import (
 )
 from .storage import SmartYardianStore
 from .weather import (
+    WindAssessment,
     WeatherUnavailableError,
     evaluate_calendar_day,
+    find_wind_delay,
     is_plausible_celsius,
     normalize_ha_forecast,
     rebase_idokep_timeline,
@@ -160,6 +162,7 @@ class SmartYardianManager:
         executed = self.store.runtime.setdefault("executed", [])
         if len(executed) > 500:
             executed[:] = executed[-250:]
+        await self._async_run_due_delayed(local_now, executed)
 
         for program in self.store.programs:
             run_key = f"{program.program_id}:{key_date}:{program.start_time}"
@@ -179,9 +182,73 @@ class SmartYardianManager:
                     )
                     continue
                 self._create_task(
-                    self.async_run_program(program, local_now),
+                    self.async_run_program(
+                        program,
+                        local_now,
+                        allow_wind_delay=True,
+                        run_key=run_key,
+                        original_scheduled_at=local_now,
+                    ),
                     f"{DOMAIN}_program_{program.program_id}",
                 )
+
+    async def _async_run_due_delayed(
+        self,
+        local_now: datetime,
+        executed: list[str],
+    ) -> None:
+        """Start persisted wind-delayed runs that are due."""
+        delayed_runs = list(self.store.runtime.get("delayed_runs") or [])
+        if not delayed_runs:
+            return
+        remaining: list[dict[str, Any]] = []
+        changed = False
+        for item in delayed_runs:
+            try:
+                delayed_at = datetime.fromisoformat(str(item["scheduled_at"]))
+                if delayed_at.tzinfo is None:
+                    delayed_at = delayed_at.replace(tzinfo=local_now.tzinfo)
+                delayed_at = delayed_at.astimezone(local_now.tzinfo)
+                run_key = str(item["run_key"])
+                program = self.get_program(str(item["program_id"]))
+            except (KeyError, TypeError, ValueError):
+                changed = True
+                continue
+
+            if delayed_at > local_now:
+                remaining.append(item)
+                continue
+
+            changed = True
+            if delayed_at.date() != local_now.date():
+                await self._async_record_skip(
+                    program,
+                    delayed_at,
+                    "A szél miatt halasztott futás már nem aktuális.",
+                )
+                continue
+
+            if run_key not in executed:
+                executed.append(run_key)
+            original_scheduled_at = _parse_runtime_datetime(
+                item.get("original_scheduled_at"),
+                delayed_at,
+            )
+            self._create_task(
+                self.async_run_program(
+                    program,
+                    delayed_at,
+                    allow_wind_delay=True,
+                    run_key=run_key,
+                    original_scheduled_at=original_scheduled_at,
+                ),
+                f"{DOMAIN}_delayed_{program.program_id}",
+            )
+
+        if changed:
+            self.store.runtime["delayed_runs"] = remaining
+            await self.store.async_save()
+            self._notify_listeners()
 
     def automation_available(self, now: datetime | None = None) -> bool:
         """Return whether scheduled automation may run."""
@@ -407,6 +474,21 @@ class SmartYardianManager:
                         else None
                     ),
                     "is_daylight": hour.is_daylight,
+                    "wind_speed_kmh": (
+                        round(hour.wind_speed_kmh, 1)
+                        if hour.wind_speed_kmh is not None
+                        else None
+                    ),
+                    "wind_gust_kmh": (
+                        round(hour.wind_gust_kmh, 1)
+                        if hour.wind_gust_kmh is not None
+                        else None
+                    ),
+                    "wind_bearing_deg": (
+                        round(hour.wind_bearing_deg)
+                        if hour.wind_bearing_deg is not None
+                        else None
+                    ),
                 }
                 for hour in forecast
             ],
@@ -446,6 +528,7 @@ class SmartYardianManager:
                     zone.duration_mode == "reference"
                     for zone in program.zones
                 )
+                or self._program_uses_wind_guard(program)
             ):
                 weather_days.setdefault(
                     occurrence.scheduled_at.date().isoformat(),
@@ -493,6 +576,7 @@ class SmartYardianManager:
                 program.weather_adjustment
                 or program.temperature_condition_enabled
                 or any(zone.duration_mode == "reference" for zone in program.zones)
+                or self._program_uses_wind_guard(program)
             )
             decision = day_decisions.get(day_key) if needs_weather else None
             weather_error = day_errors.get(day_key) if needs_weather else None
@@ -514,6 +598,22 @@ class SmartYardianManager:
                 for zone in zones
                 if zone["planned_minutes"] is not None
             ]
+            wind_assessment: WindAssessment | None = None
+            if (
+                decision is not None
+                and idokep_forecast is not None
+                and self._program_uses_wind_guard(program)
+                and len(planned_minutes) == len(zones)
+            ):
+                wind_assessment = find_wind_delay(
+                    idokep_forecast,
+                    occurrence.scheduled_at,
+                    sum(planned_minutes),
+                    self._program_head_types(program),
+                    self.store.settings,
+                )
+                decision = self._decision_with_wind(decision, wind_assessment)
+
             status = "will_run"
             reason = "A jelenlegi számítás szerint a program lefut."
 
@@ -540,6 +640,16 @@ class SmartYardianManager:
             elif decision and program.weather_adjustment and decision.factor == 0:
                 status = "rain_skip"
                 reason = decision.reason
+            elif wind_assessment and wind_assessment.action == "delay":
+                status = "wind_delayed"
+                reason = wind_assessment.reason
+            elif wind_assessment and wind_assessment.action == "skip":
+                status = (
+                    "wind_unavailable"
+                    if "Nincs széladat" in wind_assessment.reason
+                    else "wind_skip"
+                )
+                reason = wind_assessment.reason
 
             item = {
                 "program_id": program.program_id,
@@ -685,12 +795,26 @@ class SmartYardianManager:
             "rain_factor_low": (0, 2),
             "factor_min": (0, 2),
             "factor_max": (0, 2),
+            "wind_delay_step_minutes": (5, 120),
+            "wind_speed_threshold_spray": (0, 150),
+            "wind_gust_threshold_spray": (0, 180),
+            "wind_speed_threshold_rotator": (0, 150),
+            "wind_gust_threshold_rotator": (0, 180),
+            "wind_speed_threshold_rotor": (0, 150),
+            "wind_gust_threshold_rotor": (0, 180),
         }
         candidate = dict(self.store.settings)
         requested_idokep_location: str | None = None
         for key, value in settings.items():
-            if key == "notify_mobile":
+            if key in {
+                "notify_mobile",
+                "wind_adjustment_enabled",
+                "wind_delay_enabled",
+            }:
                 candidate[key] = bool(value)
+                continue
+            if key == "wind_delay_until":
+                candidate[key] = _validate_clock_time(value, "Szélhalasztás vége")
                 continue
             if key in {
                 "rain_station_city",
@@ -773,7 +897,7 @@ class SmartYardianManager:
                 url,
                 headers={
                     "User-Agent": (
-                        "HomeAssistant SmartYardian/0.12 "
+                        "HomeAssistant SmartYardian/0.13 "
                         "(https://github.com/mistenes/smart-yardian)"
                     )
                 },
@@ -826,9 +950,14 @@ class SmartYardianManager:
         program: IrrigationProgram,
         scheduled_at: datetime | None = None,
         apply_weather: bool | None = None,
+        *,
+        allow_wind_delay: bool = False,
+        run_key: str | None = None,
+        original_scheduled_at: datetime | None = None,
     ) -> None:
         """Run every zone safely under one global lock."""
         scheduled_at = scheduled_at or dt_util.now()
+        original_scheduled_at = original_scheduled_at or scheduled_at
         apply_weather = (
             program.weather_adjustment if apply_weather is None else apply_weather
         )
@@ -837,6 +966,7 @@ class SmartYardianManager:
             zone.duration_mode == "reference" for zone in program.zones
         )
         uses_temperature_condition = program.temperature_condition_enabled
+        uses_wind_guard = self._program_uses_wind_guard(program)
 
         lock_acquired = False
         try:
@@ -860,13 +990,22 @@ class SmartYardianManager:
                 if apply_weather or uses_reference or uses_temperature_condition
                 else WeatherDecision(
                     factor=1.0,
-                    source="Kézi, korrekció nélkül",
+                    source=(
+                        "Időkép szélkorrekció"
+                        if uses_wind_guard and allow_wind_delay
+                        else "Kézi, korrekció nélkül"
+                    ),
                     precipitation_mm=0,
                     max_probability=0,
                     max_temperature=0,
                     sunny_hours=0,
                     rainy_hours=0,
-                    reason="A program kézi, időjárás-korrekció nélküli futás.",
+                    reason=(
+                        "A program időjárás-korrekció nélkül fut, de a "
+                        "szélbiztonság ellenőrzése aktív."
+                        if uses_wind_guard and allow_wind_delay
+                        else "A program kézi, időjárás-korrekció nélküli futás."
+                    ),
                     evaluated_at=dt_util.utcnow(),
                 )
             )
@@ -905,6 +1044,63 @@ class SmartYardianManager:
                     program, scheduled_at, decision.reason, decision
                 )
                 return
+            if uses_wind_guard and (allow_wind_delay or apply_weather):
+                try:
+                    forecast = await self._async_idokep_forecast()
+                    wind_assessment = find_wind_delay(
+                        forecast,
+                        scheduled_at,
+                        self._planned_program_minutes(program, decision),
+                        self._program_head_types(program),
+                        self.store.settings,
+                    )
+                except WeatherUnavailableError as err:
+                    if allow_wind_delay:
+                        await self._async_record_skip(
+                            program,
+                            scheduled_at,
+                            f"Széladat hiányzik: {err}",
+                            self._decision_with_wind(
+                                decision,
+                                WindAssessment(
+                                    "skip",
+                                    f"Széladat hiányzik: {err}",
+                                ),
+                            ),
+                        )
+                        return
+                else:
+                    if (
+                        allow_wind_delay
+                        and wind_assessment.action == "delay"
+                        and wind_assessment.delayed_until is not None
+                    ):
+                        decision = self._decision_with_wind(decision, wind_assessment)
+                        await self._async_schedule_wind_delay(
+                            program,
+                            original_scheduled_at,
+                            scheduled_at,
+                            wind_assessment,
+                            run_key,
+                        )
+                        return
+                    if allow_wind_delay and wind_assessment.action == "skip":
+                        await self._async_record_skip(
+                            program,
+                            scheduled_at,
+                            wind_assessment.reason,
+                            self._decision_with_wind(decision, wind_assessment),
+                        )
+                        return
+                    if wind_assessment.action in {"delay", "skip"}:
+                        wind_assessment = WindAssessment(
+                            "warn",
+                            wind_assessment.reason,
+                            wind_assessment.max_wind_speed_kmh,
+                            wind_assessment.max_wind_gust_kmh,
+                            wind_assessment.windy_hours,
+                        )
+                    decision = self._decision_with_wind(decision, wind_assessment)
             await self._async_execute_program(
                 run_id, program, scheduled_at, decision
             )
@@ -917,6 +1113,94 @@ class SmartYardianManager:
         finally:
             if lock_acquired:
                 self._run_lock.release()
+
+    def _program_uses_wind_guard(self, program: IrrigationProgram) -> bool:
+        """Return whether wind can affect this program."""
+        return bool(
+            self.store.settings.get("wind_adjustment_enabled", True)
+            and any(head_type != "drip" for head_type in self._program_head_types(program))
+        )
+
+    def _program_head_types(self, program: IrrigationProgram) -> list[str]:
+        """Return the configured head type of every zone in a program."""
+        return [
+            self.zone_profile(zone.entity_id).head_type
+            for zone in program.zones
+        ]
+
+    def _planned_program_minutes(
+        self,
+        program: IrrigationProgram,
+        decision: WeatherDecision,
+    ) -> int:
+        """Calculate the program length used for wind-window checks."""
+        return sum(
+            int(self._zone_run_details(zone, decision)["planned_minutes"])
+            for zone in program.zones
+        )
+
+    @staticmethod
+    def _decision_with_wind(
+        decision: WeatherDecision,
+        assessment: WindAssessment,
+    ) -> WeatherDecision:
+        """Attach a program-window wind assessment to a weather decision."""
+        return replace(
+            decision,
+            max_wind_speed_kmh=assessment.max_wind_speed_kmh,
+            max_wind_gust_kmh=assessment.max_wind_gust_kmh,
+            windy_hours=assessment.windy_hours,
+            wind_action=assessment.action,
+            wind_reason=assessment.reason,
+            delayed_until=assessment.delayed_until,
+        )
+
+    async def _async_schedule_wind_delay(
+        self,
+        program: IrrigationProgram,
+        original_scheduled_at: datetime,
+        scheduled_at: datetime,
+        assessment: WindAssessment,
+        run_key: str | None,
+    ) -> None:
+        """Persist a wind-delayed run for a later same-day minute tick."""
+        if assessment.delayed_until is None:
+            return
+        key = run_key or (
+            f"{program.program_id}:{original_scheduled_at.date().isoformat()}:"
+            f"{program.start_time}"
+        )
+        delayed_runs = [
+            item
+            for item in list(self.store.runtime.get("delayed_runs") or [])
+            if item.get("run_key") != key
+        ]
+        delayed_runs.append(
+            {
+                "run_key": key,
+                "program_id": program.program_id,
+                "program_name": program.name,
+                "original_scheduled_at": original_scheduled_at.isoformat(),
+                "scheduled_at": assessment.delayed_until.isoformat(),
+                "previous_scheduled_at": scheduled_at.isoformat(),
+                "reason": assessment.reason,
+                "created_at": dt_util.utcnow().isoformat(),
+            }
+        )
+        self.store.runtime["delayed_runs"] = sorted(
+            delayed_runs,
+            key=lambda item: str(item.get("scheduled_at") or ""),
+        )
+        await self.store.async_save()
+        await self.async_notify(
+            (
+                f"{program.name} {scheduled_at.strftime('%H:%M')} helyett "
+                f"{assessment.delayed_until.strftime('%H:%M')}-kor próbál újra. "
+                f"{assessment.reason}"
+            ),
+            "Öntözés szél miatt halasztva",
+        )
+        self._notify_listeners()
 
     async def _async_execute_program(
         self,
@@ -1257,6 +1541,12 @@ class SmartYardianManager:
         """Return the next enabled program occurrence."""
         now = dt_util.as_local(now or dt_util.now())
         candidates: list[datetime] = []
+        for item in self.store.runtime.get("delayed_runs") or []:
+            delayed_at = _parse_runtime_datetime(item.get("scheduled_at"), None)
+            if delayed_at is not None:
+                delayed_at = delayed_at.astimezone(now.tzinfo)
+                if delayed_at > now:
+                    candidates.append(delayed_at)
         for offset in range(8):
             date = (now + timedelta(days=offset)).date()
             for program in self.store.programs:
@@ -1371,3 +1661,28 @@ class SmartYardianManager:
         if state == "unavailable":
             return f"A natív Yardian switch unavailable állapotban van: {entity_id}"
         return None
+
+
+def _parse_runtime_datetime(
+    value: Any,
+    default: datetime | None,
+) -> datetime | None:
+    """Parse a persisted runtime timestamp."""
+    try:
+        parsed = datetime.fromisoformat(str(value))
+    except (TypeError, ValueError):
+        return default
+    if parsed.tzinfo is None and default is not None:
+        parsed = parsed.replace(tzinfo=default.tzinfo)
+    return parsed
+
+
+def _validate_clock_time(value: Any, label: str) -> str:
+    """Validate and normalize a HH:MM setting."""
+    try:
+        hour, minute = (int(part) for part in str(value or "").split(":", 1))
+    except (TypeError, ValueError) as err:
+        raise ValueError(f"{label} HH:MM formátumú legyen.") from err
+    if not (0 <= hour <= 23 and 0 <= minute <= 59):
+        raise ValueError(f"{label} érvénytelen időpont.")
+    return f"{hour:02d}:{minute:02d}"

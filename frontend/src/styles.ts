@@ -248,7 +248,7 @@ export const panelStyles = css`
   .weather-band {
     min-height: 92px;
     display: grid;
-    grid-template-columns: minmax(270px, 1fr) repeat(5, minmax(96px, auto));
+    grid-template-columns: minmax(270px, 1fr) repeat(6, minmax(92px, auto));
     align-items: center;
     border: 1px solid color-mix(in srgb, var(--sy-amber) 72%, var(--sy-border));
     border-radius: 8px;
@@ -946,7 +946,7 @@ export const panelStyles = css`
   .forecast-table-head,
   .forecast-hour {
     display: grid;
-    grid-template-columns: 64px minmax(150px, 1fr) 120px 120px 100px;
+    grid-template-columns: 64px minmax(150px, 1fr) 110px 110px 90px 140px;
     align-items: center;
     gap: 12px;
   }
@@ -1010,6 +1010,10 @@ export const panelStyles = css`
   .forecast-hour[raining] .forecast-metric.precipitation strong,
   .forecast-hour[raining] .forecast-metric.probability strong {
     color: var(--sy-blue);
+  }
+
+  .forecast-hour[windy] .forecast-metric.wind strong {
+    color: var(--sy-amber);
   }
 
   .schedule-days {
@@ -1086,6 +1090,11 @@ export const panelStyles = css`
   }
 
   .schedule-status.weather_unavailable {
+    color: var(--sy-red);
+  }
+
+  .schedule-status.wind_skip,
+  .schedule-status.wind_unavailable {
     color: var(--sy-red);
   }
 
@@ -1795,14 +1804,14 @@ export const panelStyles = css`
     }
 
     .forecast-hour {
-      min-height: 78px;
+      min-height: 104px;
       grid-template-columns: 48px minmax(0, 1fr) auto;
-      grid-template-rows: auto auto;
+      grid-template-rows: auto auto auto;
       gap: 7px 10px;
     }
 
     .forecast-hour time {
-      grid-row: 1 / 3;
+      grid-row: 1 / 4;
       align-self: start;
       padding-top: 3px;
     }
@@ -1826,6 +1835,11 @@ export const panelStyles = css`
       grid-column: 3;
       grid-row: 2;
       text-align: right;
+    }
+
+    .forecast-metric.wind {
+      grid-column: 2 / 4;
+      grid-row: 3;
     }
 
     .forecast-metric > span {
