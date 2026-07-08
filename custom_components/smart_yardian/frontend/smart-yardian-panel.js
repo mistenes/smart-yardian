@@ -35,10 +35,10 @@ const pt = (r) => new rt(typeof r == "string" ? r : r + "", void 0, O), ht = (r,
   for (const a of t.cssRules) e += a.cssText;
   return pt(e);
 })(r) : r;
-const { is: mt, defineProperty: gt, getOwnPropertyDescriptor: _t, getOwnPropertyNames: bt, getOwnPropertySymbols: vt, getPrototypeOf: ft } = Object, N = globalThis, V = N.trustedTypes, yt = V ? V.emptyScript : "", xt = N.reactiveElementPolyfillSupport, k = (r, t) => r, F = { toAttribute(r, t) {
+const { is: mt, defineProperty: gt, getOwnPropertyDescriptor: _t, getOwnPropertyNames: bt, getOwnPropertySymbols: vt, getPrototypeOf: yt } = Object, N = globalThis, V = N.trustedTypes, ft = V ? V.emptyScript : "", xt = N.reactiveElementPolyfillSupport, k = (r, t) => r, L = { toAttribute(r, t) {
   switch (t) {
     case Boolean:
-      r = r ? yt : null;
+      r = r ? ft : null;
       break;
     case Object:
     case Array:
@@ -63,9 +63,9 @@ const { is: mt, defineProperty: gt, getOwnPropertyDescriptor: _t, getOwnProperty
       }
   }
   return e;
-} }, it = (r, t) => !mt(r, t), Y = { attribute: !0, type: String, converter: F, reflect: !1, useDefault: !1, hasChanged: it };
+} }, it = (r, t) => !mt(r, t), Y = { attribute: !0, type: String, converter: L, reflect: !1, useDefault: !1, hasChanged: it };
 Symbol.metadata ??= /* @__PURE__ */ Symbol("metadata"), N.litPropertyMetadata ??= /* @__PURE__ */ new WeakMap();
-let y = class extends HTMLElement {
+let f = class extends HTMLElement {
   static addInitializer(t) {
     this._$Ei(), (this.l ??= []).push(t);
   }
@@ -94,7 +94,7 @@ let y = class extends HTMLElement {
   }
   static _$Ei() {
     if (this.hasOwnProperty(k("elementProperties"))) return;
-    const t = ft(this);
+    const t = yt(this);
     t.finalize(), t.l !== void 0 && (this.l = [...t.l]), this.elementProperties = new Map(t.elementProperties);
   }
   static finalize() {
@@ -162,14 +162,14 @@ let y = class extends HTMLElement {
   _$ET(t, e) {
     const a = this.constructor.elementProperties.get(t), s = this.constructor._$Eu(t, a);
     if (s !== void 0 && a.reflect === !0) {
-      const i = (a.converter?.toAttribute !== void 0 ? a.converter : F).toAttribute(e, a.type);
+      const i = (a.converter?.toAttribute !== void 0 ? a.converter : L).toAttribute(e, a.type);
       this._$Em = t, i == null ? this.removeAttribute(s) : this.setAttribute(s, i), this._$Em = null;
     }
   }
   _$AK(t, e) {
     const a = this.constructor, s = a._$Eh.get(t);
     if (s !== void 0 && this._$Em !== s) {
-      const i = a.getPropertyOptions(s), o = typeof i.converter == "function" ? { fromAttribute: i.converter } : i.converter?.fromAttribute !== void 0 ? i.converter : F;
+      const i = a.getPropertyOptions(s), o = typeof i.converter == "function" ? { fromAttribute: i.converter } : i.converter?.fromAttribute !== void 0 ? i.converter : L;
       this._$Em = s;
       const c = o.fromAttribute(e, i.type);
       this[s] = c ?? this._$Ej?.get(s) ?? c, this._$Em = null;
@@ -246,10 +246,10 @@ let y = class extends HTMLElement {
   firstUpdated(t) {
   }
 };
-y.elementStyles = [], y.shadowRootOptions = { mode: "open" }, y[k("elementProperties")] = /* @__PURE__ */ new Map(), y[k("finalized")] = /* @__PURE__ */ new Map(), xt?.({ ReactiveElement: y }), (N.reactiveElementVersions ??= []).push("2.1.2");
-const I = globalThis, J = (r) => r, j = I.trustedTypes, G = j ? j.createPolicy("lit-html", { createHTML: (r) => r }) : void 0, nt = "$lit$", _ = `lit$${Math.random().toFixed(9).slice(2)}$`, ot = "?" + _, $t = `<${ot}>`, f = document, S = () => f.createComment(""), A = (r) => r === null || typeof r != "object" && typeof r != "function", K = Array.isArray, wt = (r) => K(r) || typeof r?.[Symbol.iterator] == "function", T = `[ 	
+f.elementStyles = [], f.shadowRootOptions = { mode: "open" }, f[k("elementProperties")] = /* @__PURE__ */ new Map(), f[k("finalized")] = /* @__PURE__ */ new Map(), xt?.({ ReactiveElement: f }), (N.reactiveElementVersions ??= []).push("2.1.2");
+const I = globalThis, J = (r) => r, j = I.trustedTypes, G = j ? j.createPolicy("lit-html", { createHTML: (r) => r }) : void 0, nt = "$lit$", _ = `lit$${Math.random().toFixed(9).slice(2)}$`, ot = "?" + _, $t = `<${ot}>`, y = document, S = () => y.createComment(""), A = (r) => r === null || typeof r != "object" && typeof r != "function", K = Array.isArray, wt = (r) => K(r) || typeof r?.[Symbol.iterator] == "function", T = `[ 	
 \f\r]`, w = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g, Q = /-->/g, X = />/g, b = RegExp(`>|${T}(?:([^\\s"'>=/]+)(${T}*=${T}*(?:[^ 	
-\f\r"'\`<>=]|("|')|))|$)`, "g"), tt = /'/g, et = /"/g, lt = /^(?:script|style|textarea|title)$/i, kt = (r) => (t, ...e) => ({ _$litType$: r, strings: t, values: e }), n = kt(1), x = /* @__PURE__ */ Symbol.for("lit-noChange"), d = /* @__PURE__ */ Symbol.for("lit-nothing"), at = /* @__PURE__ */ new WeakMap(), v = f.createTreeWalker(f, 129);
+\f\r"'\`<>=]|("|')|))|$)`, "g"), tt = /'/g, et = /"/g, lt = /^(?:script|style|textarea|title)$/i, kt = (r) => (t, ...e) => ({ _$litType$: r, strings: t, values: e }), n = kt(1), x = /* @__PURE__ */ Symbol.for("lit-noChange"), d = /* @__PURE__ */ Symbol.for("lit-nothing"), at = /* @__PURE__ */ new WeakMap(), v = y.createTreeWalker(y, 129);
 function dt(r, t) {
   if (!K(r) || !r.hasOwnProperty("raw")) throw Error("invalid template strings array");
   return G !== void 0 ? G.createHTML(t) : t;
@@ -299,7 +299,7 @@ class M {
     }
   }
   static createElement(t, e) {
-    const a = f.createElement("template");
+    const a = y.createElement("template");
     return a.innerHTML = t, a;
   }
 }
@@ -320,7 +320,7 @@ class St {
     return this._$AM._$AU;
   }
   u(t) {
-    const { el: { content: e }, parts: a } = this._$AD, s = (t?.creationScope ?? f).importNode(e, !0);
+    const { el: { content: e }, parts: a } = this._$AD, s = (t?.creationScope ?? y).importNode(e, !0);
     v.currentNode = s;
     let i = v.nextNode(), o = 0, c = 0, l = a[0];
     for (; l !== void 0; ) {
@@ -330,7 +330,7 @@ class St {
       }
       o !== l?.index && (i = v.nextNode(), o++);
     }
-    return v.currentNode = f, s;
+    return v.currentNode = y, s;
   }
   p(t) {
     let e = 0;
@@ -365,7 +365,7 @@ class P {
     this._$AH !== t && (this._$AR(), this._$AH = this.O(t));
   }
   _(t) {
-    this._$AH !== d && A(this._$AH) ? this._$AA.nextSibling.data = t : this.T(f.createTextNode(t)), this._$AH = t;
+    this._$AH !== d && A(this._$AH) ? this._$AA.nextSibling.data = t : this.T(y.createTextNode(t)), this._$AH = t;
   }
   $(t) {
     const { values: e, _$litType$: a } = t, s = typeof a == "number" ? this._$AC(t) : (a.el === void 0 && (a.el = M.createElement(dt(a.h, a.h[0]), this.options)), a);
@@ -473,7 +473,7 @@ const Ct = (r, t, e) => {
   return s._$AI(r), s;
 };
 const B = globalThis;
-class z extends y {
+class z extends f {
   constructor() {
     super(...arguments), this.renderOptions = { host: this }, this._$Do = void 0;
   }
@@ -505,16 +505,16 @@ const Nt = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
   type: "smart_yardian/weather/hourly"
 }), Rt = (r) => r.connection.sendMessagePromise({
   type: "smart_yardian/schedule/preview"
-}), L = (r, t) => r.connection.sendMessagePromise({
+}), F = (r, t) => r.connection.sendMessagePromise({
   type: "smart_yardian/program/save",
   program: t
 }), Zt = (r, t) => r.connection.sendMessagePromise({
   type: "smart_yardian/program/delete",
   program_id: t
-}), Ft = (r, t) => r.connection.sendMessagePromise({
+}), Lt = (r, t) => r.connection.sendMessagePromise({
   type: "smart_yardian/settings/update",
   settings: t
-}), Lt = (r, t) => r.connection.sendMessagePromise({
+}), Ft = (r, t) => r.connection.sendMessagePromise({
   type: "smart_yardian/rain/stations",
   city: t
 }), Ut = (r, t) => r.connection.sendMessagePromise({
@@ -528,7 +528,7 @@ const Nt = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
   program_id: t,
   apply_weather: !0
 }), Kt = async (r, t) => {
-  const e = await L(r, t);
+  const e = await F(r, t);
   return await It(r, e.program_id), e;
 }, Bt = (r, t, e) => r.connection.sendMessagePromise({
   type: "smart_yardian/run/manual_program",
@@ -1986,6 +1986,37 @@ const Nt = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
     border-radius: 6px;
   }
 
+  .ntfy-link-row {
+    min-height: 49px;
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    align-items: center;
+    gap: 16px;
+    border-bottom: 1px solid var(--sy-border);
+  }
+
+  .ntfy-link-row > div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ntfy-link-row input {
+    width: 100%;
+    min-width: 0;
+    height: 34px;
+    padding: 5px 8px;
+    color: var(--sy-text);
+    background: var(--sy-control);
+    border: 1px solid var(--sy-border);
+    border-radius: 6px;
+  }
+
+  .ntfy-help {
+    margin: 9px 0 14px;
+  }
+
   .forecast-settings,
   .rain-station-settings {
     grid-column: 1 / -1;
@@ -2274,6 +2305,13 @@ const Nt = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
 
     .settings-grid {
       grid-template-columns: 1fr;
+    }
+
+    .ntfy-link-row {
+      grid-template-columns: 1fr;
+      align-items: stretch;
+      gap: 8px;
+      padding: 12px 0;
     }
 
     .zone-profile-head {
@@ -2595,7 +2633,7 @@ const Nt = (r) => r.connection.sendMessagePromise({ type: "smart_yardian/summary
 };
 class Xt extends z {
   constructor() {
-    super(...arguments), this.narrow = !1, this._summary = null, this._tab = "overview", this._loading = !0, this._error = "", this._draft = null, this._saving = !1, this._zoneDurations = {}, this._expandedControllers = [], this._schedulePreview = null, this._scheduleLoading = !1, this._hourlyForecast = null, this._forecastLoading = !1, this._bulkMoistureSensor = "", this._settingsSaving = !1, this._settingsSaved = !1, this._rainStationSearching = !1, this._rainStationMatches = [], this._runExpanded = !1, this._now = Date.now(), this._manualDraft = Z(), this._manualRunning = !1, this._loadSchedule = async () => {
+    super(...arguments), this.narrow = !1, this._summary = null, this._tab = "overview", this._loading = !0, this._error = "", this._draft = null, this._saving = !1, this._zoneDurations = {}, this._expandedControllers = [], this._schedulePreview = null, this._scheduleLoading = !1, this._hourlyForecast = null, this._forecastLoading = !1, this._bulkMoistureSensor = "", this._settingsSaving = !1, this._settingsSaved = !1, this._ntfyCopied = !1, this._rainStationSearching = !1, this._rainStationMatches = [], this._runExpanded = !1, this._now = Date.now(), this._manualDraft = Z(), this._manualRunning = !1, this._loadSchedule = async () => {
       if (!(!this.hass || this._scheduleLoading)) {
         this._scheduleLoading = !0;
         try {
@@ -2686,7 +2724,7 @@ class Xt extends z {
         }
         this._saving = !0, this._error = "";
         try {
-          const e = await L(this.hass, this._draft);
+          const e = await F(this.hass, this._draft);
           await this._load(!1), this._draft = E(e);
         } catch (e) {
           this._error = this._errorMessage(e);
@@ -2722,7 +2760,7 @@ class Xt extends z {
     }, this._quickToggleProgram = async (t) => {
       if (this.hass)
         try {
-          await L(this.hass, { ...t, enabled: !t.enabled }), await this._load(!1);
+          await F(this.hass, { ...t, enabled: !t.enabled }), await this._load(!1);
         } catch (e) {
           this._error = this._errorMessage(e);
         }
@@ -2758,11 +2796,21 @@ class Xt extends z {
         } catch (t) {
           this._error = this._errorMessage(t);
         }
+    }, this._copyNtfyLink = async () => {
+      const t = this._summary?.settings.ntfy_link;
+      if (t)
+        try {
+          await navigator.clipboard.writeText(t), this._ntfyCopied = !0, window.setTimeout(() => {
+            this._ntfyCopied = !1;
+          }, 1600);
+        } catch {
+          this._error = "Nem sikerült automatikusan másolni. Jelöld ki a linket a mezőben.";
+        }
     }, this._saveSettings = async () => {
       if (!(!this.hass || !this._summary || this._settingsSaving)) {
         this._settingsSaving = !0, this._settingsSaved = !1;
         try {
-          await Ft(this.hass, this._summary.settings), await Ut(
+          await Lt(this.hass, this._summary.settings), await Ut(
             this.hass,
             this._allZones().map((t) => t.profile)
           ), await this._load(!1), this._settingsSaved = !0, this._error = "";
@@ -2778,7 +2826,7 @@ class Xt extends z {
       if (!(t.length < 2)) {
         this._rainStationSearching = !0;
         try {
-          const e = await Lt(this.hass, t);
+          const e = await Ft(this.hass, t);
           if (this._rainStationMatches = e.stations, !e.stations.length) {
             this._error = `Nem található Időkép automata „${t}” közelében.`;
             return;
@@ -2825,6 +2873,7 @@ class Xt extends z {
       _bulkMoistureSensor: { state: !0 },
       _settingsSaving: { state: !0 },
       _settingsSaved: { state: !0 },
+      _ntfyCopied: { state: !0 },
       _rainStationSearching: { state: !0 },
       _rainStationMatches: { state: !0 },
       _runExpanded: { state: !0 },
@@ -3883,6 +3932,28 @@ class Xt extends z {
               @click=${() => this._patchSettings({ notify_mobile: !t.notify_mobile })}
             ></button>
           </div>
+          <div class="ntfy-link-row">
+            <span>ntfy link</span>
+            <div>
+              <input
+                readonly
+                aria-label="ntfy értesítési link"
+                .value=${t.ntfy_link || "Még nincs létrehozva"}
+                @focus=${(e) => e.currentTarget.select()}
+              />
+              <button
+                class="button quiet"
+                ?disabled=${!t.ntfy_link}
+                @click=${this._copyNtfyLink}
+              >
+                ${this._ntfyCopied ? "Másolva" : "Másolás"}
+              </button>
+            </div>
+          </div>
+          <p class="settings-help ntfy-help">
+            Ez a topic a Home Assistant tárolójában marad, ezért HACS/frissítés
+            után sem változik. Az ntfy appban erre a linkre iratkozz fel.
+          </p>
           <div class="setting-row">
             <span>Automatika szüneteltetése 24 órára</span>
             <button class="button quiet" @click=${this._pauseDay}>Szünet</button>

@@ -10,6 +10,7 @@ from homeassistant.helpers.storage import Store
 from .const import DEFAULT_SETTINGS, MAX_HISTORY, STORE_KEY_PREFIX, STORE_VERSION
 from .irrigation import ZoneProfile
 from .models import IrrigationProgram
+from .ntfy import ensure_ntfy_settings
 
 
 class SmartYardianStore:
@@ -48,6 +49,10 @@ class SmartYardianStore:
             except (KeyError, TypeError, ValueError):
                 continue
         self.programs = programs
+
+    def ensure_generated_settings(self) -> bool:
+        """Create stable generated settings that must survive updates."""
+        return ensure_ntfy_settings(self.settings)
 
     async def async_save(self) -> None:
         """Persist current state immediately."""

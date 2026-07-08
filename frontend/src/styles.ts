@@ -1443,6 +1443,37 @@ export const panelStyles = css`
     border-radius: 6px;
   }
 
+  .ntfy-link-row {
+    min-height: 49px;
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    align-items: center;
+    gap: 16px;
+    border-bottom: 1px solid var(--sy-border);
+  }
+
+  .ntfy-link-row > div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ntfy-link-row input {
+    width: 100%;
+    min-width: 0;
+    height: 34px;
+    padding: 5px 8px;
+    color: var(--sy-text);
+    background: var(--sy-control);
+    border: 1px solid var(--sy-border);
+    border-radius: 6px;
+  }
+
+  .ntfy-help {
+    margin: 9px 0 14px;
+  }
+
   .forecast-settings,
   .rain-station-settings {
     grid-column: 1 / -1;
@@ -1731,6 +1762,13 @@ export const panelStyles = css`
 
     .settings-grid {
       grid-template-columns: 1fr;
+    }
+
+    .ntfy-link-row {
+      grid-template-columns: 1fr;
+      align-items: stretch;
+      gap: 8px;
+      padding: 12px 0;
     }
 
     .zone-profile-head {

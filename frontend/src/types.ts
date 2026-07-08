@@ -175,6 +175,9 @@ export type Settings = {
   factor_min: number;
   factor_max: number;
   notify_mobile: boolean;
+  ntfy_base_url: string;
+  ntfy_topic: string;
+  ntfy_link: string;
   rain_station_city: string;
   rain_station_id: string;
   rain_station_name: string;

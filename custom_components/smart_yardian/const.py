@@ -14,7 +14,7 @@ CONF_NOTIFY_SERVICE: Final = "notify_service"
 PANEL_URL: Final = "smart-yardian"
 PANEL_COMPONENT: Final = "smart-yardian-panel"
 PANEL_STATIC_URL: Final = "/smart_yardian/smart-yardian-panel.js"
-PANEL_MODULE_URL: Final = f"{PANEL_STATIC_URL}?v=0.13.0"
+PANEL_MODULE_URL: Final = f"{PANEL_STATIC_URL}?v=0.13.1"
 
 STORE_VERSION: Final = 1
 STORE_KEY_PREFIX: Final = "smart_yardian"
@@ -52,6 +52,8 @@ DEFAULT_SETTINGS: Final = {
     "factor_min": 0.5,
     "factor_max": 1.5,
     "notify_mobile": True,
+    "ntfy_base_url": "https://ntfy.sh",
+    "ntfy_topic": "",
     "rain_station_city": "",
     "rain_station_id": "",
     "rain_station_name": "",

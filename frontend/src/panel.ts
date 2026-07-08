@@ -111,6 +111,7 @@ export class SmartYardianPanel extends LitElement {
     _bulkMoistureSensor: { state: true },
     _settingsSaving: { state: true },
     _settingsSaved: { state: true },
+    _ntfyCopied: { state: true },
     _rainStationSearching: { state: true },
     _rainStationMatches: { state: true },
     _runExpanded: { state: true },
@@ -139,6 +140,7 @@ export class SmartYardianPanel extends LitElement {
   private _bulkMoistureSensor = "";
   private _settingsSaving = false;
   private _settingsSaved = false;
+  private _ntfyCopied = false;
   private _rainStationSearching = false;
   private _rainStationMatches: RainStation[] = [];
   private _runExpanded = false;
@@ -1391,6 +1393,29 @@ export class SmartYardianPanel extends LitElement {
                 this._patchSettings({ notify_mobile: !settings.notify_mobile })}
             ></button>
           </div>
+          <div class="ntfy-link-row">
+            <span>ntfy link</span>
+            <div>
+              <input
+                readonly
+                aria-label="ntfy értesítési link"
+                .value=${settings.ntfy_link || "Még nincs létrehozva"}
+                @focus=${(event: FocusEvent) =>
+                  (event.currentTarget as HTMLInputElement).select()}
+              />
+              <button
+                class="button quiet"
+                ?disabled=${!settings.ntfy_link}
+                @click=${this._copyNtfyLink}
+              >
+                ${this._ntfyCopied ? "Másolva" : "Másolás"}
+              </button>
+            </div>
+          </div>
+          <p class="settings-help ntfy-help">
+            Ez a topic a Home Assistant tárolójában marad, ezért HACS/frissítés
+            után sem változik. Az ntfy appban erre a linkre iratkozz fel.
+          </p>
           <div class="setting-row">
             <span>Automatika szüneteltetése 24 órára</span>
             <button class="button quiet" @click=${this._pauseDay}>Szünet</button>
@@ -2138,6 +2163,21 @@ export class SmartYardianPanel extends LitElement {
       settings: { ...this._summary.settings, ...patch },
     };
   }
+
+  private _copyNtfyLink = async (): Promise<void> => {
+    const link = this._summary?.settings.ntfy_link;
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      this._ntfyCopied = true;
+      window.setTimeout(() => {
+        this._ntfyCopied = false;
+      }, 1600);
+    } catch {
+      this._error =
+        "Nem sikerült automatikusan másolni. Jelöld ki a linket a mezőben.";
+    }
+  };
 
   private _patchZoneProfile(
     entityId: string,

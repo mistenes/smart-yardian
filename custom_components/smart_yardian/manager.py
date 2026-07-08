@@ -36,6 +36,7 @@ from .irrigation import (
     seasonal_target,
 )
 from .models import ForecastHour, IrrigationProgram, ProgramZone, RunRecord, WeatherDecision
+from .ntfy import ntfy_link
 from .planning import upcoming_occurrences
 from .rainfall import (
     IDOKEP_RAIN_MAP_URL,
@@ -95,12 +96,13 @@ class SmartYardianManager:
     async def async_setup(self) -> None:
         """Load storage, recover interrupted work and start scheduler."""
         await self.store.async_load()
+        generated_settings = self.store.ensure_generated_settings()
         added_profiles = False
         for entity_id in self.zone_entities:
             if entity_id not in self.store.zone_profiles:
                 self.store.zone_profiles[entity_id] = ZoneProfile.default(entity_id)
                 added_profiles = True
-        if added_profiles:
+        if added_profiles or generated_settings:
             await self.store.async_save()
         self._remove_time_listener = async_track_time_change(
             self.hass,
@@ -1636,6 +1638,7 @@ class SmartYardianManager:
         )
         settings = dict(self.store.settings)
         settings["idokep_location"] = self._idokep_location()
+        settings["ntfy_link"] = ntfy_link(settings)
         return {
             "status": self.status,
             "automation_enabled": self.store.settings.get("automation_enabled", True),
