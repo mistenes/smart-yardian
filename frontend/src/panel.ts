@@ -450,6 +450,14 @@ export class SmartYardianPanel extends LitElement {
         ${this._metric("mdi:weather-rainy", "Várható eső", `${weather.precipitation_mm ?? 0} mm`)}
         ${this._metric("mdi:water-percent", "Esély", `${weather.max_probability ?? 0}%`)}
         ${this._metric("mdi:white-balance-sunny", "Napos órák", `${weather.sunny_hours ?? 0}`, "sun")}
+        ${this._metric(
+          "mdi:water-thermometer-outline",
+          "Párolgás",
+          weather.adjusted_et0_mm === null || weather.adjusted_et0_mm === undefined
+            ? "nincs adat"
+            : `${this._formatForecastNumber(weather.adjusted_et0_mm)} mm`,
+          "et",
+        )}
         ${this._metric("mdi:weather-windy", "Szél max.", this._formatWeatherWind(weather), "wind")}
         ${this._metric("mdi:thermometer", "Maximum", `${weather.max_temperature ?? 0} °C`, "temp")}
       </section>
@@ -780,6 +788,15 @@ export class SmartYardianPanel extends LitElement {
                   ? html`
                       <span>
                         Szél: ${this._formatWeatherWind(program.weather)}
+                      </span>
+                    `
+                  : nothing}
+                ${program.weather.adjusted_et0_mm !== null &&
+                program.weather.adjusted_et0_mm !== undefined
+                  ? html`
+                      <span>
+                        Párolgás:
+                        ${this._formatForecastNumber(program.weather.adjusted_et0_mm)} mm
                       </span>
                     `
                   : nothing}
@@ -1310,6 +1327,14 @@ export class SmartYardianPanel extends LitElement {
                                       `
                                     : nothing}
                                   ${record.weather.max_temperature ?? "–"} °C
+                                  ${record.weather.adjusted_et0_mm !== null &&
+                                  record.weather.adjusted_et0_mm !== undefined
+                                    ? html`
+                                        · ${this._formatForecastNumber(
+                                          record.weather.adjusted_et0_mm,
+                                        )} mm párolgás
+                                      `
+                                    : nothing}
                                   ${record.weather.evaluated_at
                                     ? html` · ${this._formatDateTime(
                                         record.weather.evaluated_at,
@@ -1371,6 +1396,29 @@ export class SmartYardianPanel extends LitElement {
             "rain_reduce_low_mm",
             settings,
           )}
+        </section>
+        <section class="settings-section">
+          <h3>Párolgás alapú számítás</h3>
+          <div class="setting-row">
+            <span>Hargreaves–Samani ET használata</span>
+            <button
+              class="toggle"
+              ?on=${settings.evapotranspiration_enabled}
+              aria-label="Párolgás alapú számítás kapcsolása"
+              @click=${() =>
+                this._patchSettings({
+                  evapotranspiration_enabled: !settings.evapotranspiration_enabled,
+                })}
+            ></button>
+          </div>
+          <p class="settings-help">
+            Az Időkép napi hőmérsékleteiből és a Home Assistant helyének
+            szélességi fokából számított ET0 értéket a felhőzet, a naposság és a szél
+            finomítja. Az eső miatti kihagyás és a szélhalasztás ettől függetlenül
+            továbbra is érvényes.
+          </p>
+          ${this._settingNumber("Referencia ET0 (mm/nap)", "et_reference_mm", settings)}
+          ${this._settingNumber("Gyep növényi együttható (Kc)", "et_crop_coefficient", settings)}
         </section>
         <section class="settings-section">
           <h3>Biztonság és értesítés</h3>
@@ -1877,7 +1925,8 @@ export class SmartYardianPanel extends LitElement {
     if (!profile) return zone.duration_minutes;
     const temperature = weather?.max_temperature ?? 20;
     const targetMm =
-      temperature >= 35 ? 9 : temperature >= 25 ? 5.5 : temperature >= 20 ? 4.5 : 2.5;
+      weather?.irrigation_target_mm ??
+      (temperature >= 35 ? 9 : temperature >= 25 ? 5.5 : temperature >= 20 ? 4.5 : 2.5);
     const rainFactor = program.weather_adjustment
       ? (weather?.rain_factor ?? weather?.factor ?? 1)
       : 1;

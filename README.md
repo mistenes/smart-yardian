@@ -11,6 +11,8 @@ Időjárás-alapú, magyar nyelvű öntözésvezérlő Home Assistant 2026.6+ re
 - település alapján kiválasztható közeli Időkép automata, amelynek elmúlt
   24 órás mért csapadéka beleszámít az öntözési döntésbe;
 - átlátható, 0–150%-os időjárási korrekció;
+- Hargreaves–Samani napi ET0-becslés az Időkép hőmérsékleteiből, a HA
+  helyadataiból, naposság/felhőzet- és szélkorrekcióval;
 - zónánként választható manuális vagy szórófej-referencia alapján számolt idő;
 - programonként opcionális hőmérséklet-feltétel a program naptári napjának
   előrejelzett maximumára;
@@ -52,8 +54,8 @@ A program minden zónájánál két időtartammód választható:
 
 - **Manuális perc:** a beállított percet használja, majd – ha engedélyezett – az
   általános időjárási szorzót alkalmazza.
-- **Referencia alapján:** az előrejelzett maximum-hőmérséklethez tartozó
-  célzott vízmennyiségből és a zóna kijuttatási intenzitásából számol:
+- **Referencia alapján:** a becsült napi párolgásból, a gyep növényi
+  együtthatójából és a zóna kijuttatási intenzitásából számol:
   `perc = cél mm / mm/óra × 60`.
 
 A beépített kiinduló érték rotátornál 10 mm/óra, MP800-nál 20 mm/óra,
@@ -74,10 +76,17 @@ használata. Ebben a verzióban a hozzárendelés és az aktuális érték megje
 kész; automatikus kihagyás még nem történik, amíg nincs külön megadott,
 ellenőrizhető nedvességi küszöb.
 
-A hőmérsékleti célértékek a megadott táblázat középértékei: 20 °C alatt
-2,5 mm, 20–24,9 °C között 4,5 mm, 25–34,9 °C között 5,5 mm, 35 °C-tól
-9 mm. Referencia módban az esőkorrekció érvényesül, a meleg miatti szorzó
-nem számítódik rá még egyszer.
+Alapbeállításként a napi referencia-párolgás 5 mm, a gyep növényi együtthatója
+(`Kc`) 0,85. A referencia mód célja: `korrigált ET0 × Kc × területjelleg ×
+esőszorzó`. A manuális perces mód ugyanezt az ET0-t az 5 mm-es
+referenciaértékhez viszonyított időjárási szorzóként használja. A régi
+hőmérsékleti céltábla kikapcsolt ET-számításnál kompatibilitási tartalék marad.
+
+Az ET0 Hargreaves–Samani-becslésből készül a napi minimum, maximum és
+átlaghőmérséklettel. Az elméleti napsugárzást a dátum és a Home Assistantban
+beállított földrajzi szélesség adja; a végeredményt az Időkép felhőzet/naposság
+adata 0,75–1,10 között, a szél pedig legfeljebb +15%-kal módosítja. Ez még nem
+többnapos talaj-vízmérleg: minden program az adott nap előrejelzését használja.
 
 Gyártói támpont:
 [Hunter MP Rotator zónázás](https://www.hunterirrigation.com/support/mp-rotator-zoning),

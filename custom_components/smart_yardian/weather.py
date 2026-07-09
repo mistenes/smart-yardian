@@ -9,6 +9,7 @@ import re
 from typing import Any
 
 from .const import FORECAST_HORIZON_HOURS, MIN_FORECAST_HOURS
+from .evapotranspiration import estimate_daily_evapotranspiration
 from .models import ForecastHour, WeatherDecision
 
 RAINY_CONDITIONS = {
@@ -474,6 +475,7 @@ def evaluate_calendar_day(
     settings: dict[str, Any] | None = None,
     observed_precipitation_mm: float = 0.0,
     rain_station: str | None = None,
+    latitude: float = 47.5,
 ) -> WeatherDecision:
     """Evaluate one shared weather decision for a local calendar day."""
     if scheduled_at.tzinfo is None:
@@ -500,6 +502,7 @@ def evaluate_calendar_day(
         minimum_hours=1,
         observed_precipitation_mm=observed_precipitation_mm,
         rain_station=rain_station,
+        latitude=latitude,
     )
     return replace(
         decision,
@@ -515,6 +518,7 @@ def evaluate_green_lawn(
     minimum_hours: int = MIN_FORECAST_HOURS,
     observed_precipitation_mm: float = 0.0,
     rain_station: str | None = None,
+    latitude: float = 47.5,
 ) -> WeatherDecision:
     """Evaluate the explainable green-lawn watering preset."""
     now = now or datetime.now(UTC)
@@ -543,6 +547,18 @@ def evaluate_green_lawn(
         float(settings.get("wind_speed_threshold_rotator", 30.0)),
         float(settings.get("wind_gust_threshold_rotator", 45.0)),
     )
+    et_estimate = estimate_daily_evapotranspiration(hours, latitude)
+    et_reference_mm = max(0.1, float(settings.get("et_reference_mm", 5.0)))
+    crop_coefficient = max(
+        0.0,
+        float(settings.get("et_crop_coefficient", 0.85)),
+    )
+    et_enabled = bool(settings.get("evapotranspiration_enabled", True))
+    irrigation_target_mm = (
+        et_estimate.adjusted_et0_mm * crop_coefficient
+        if et_enabled
+        else None
+    )
 
     skip_mm = float(settings.get("rain_skip_mm", 8.0))
     skip_probability = float(settings.get("rain_skip_probability", 80))
@@ -560,7 +576,11 @@ def evaluate_green_lawn(
     if skip:
         factor = 0.0
         rain_factor = 0.0
-        climate_factor = 1.0
+        climate_factor = (
+            et_estimate.adjusted_et0_mm / et_reference_mm
+            if et_enabled
+            else 1.0
+        )
         if observed_precipitation > 0 and precipitation > 0:
             reason = (
                 "Az elmúlt 24 órában mért és a várható csapadék együtt "
@@ -596,27 +616,41 @@ def evaluate_green_lawn(
             rain_factor = 1.0
             rain_reason = "kevés csapadék"
 
-        if max_temperature >= 32 and sunny_hours >= 8:
-            climate_factor = 1.35
-            climate_reason = "forró és napos idő"
-        elif max_temperature >= 28 and sunny_hours >= 6:
-            climate_factor = 1.20
-            climate_reason = "meleg és többnyire napos idő"
-        elif max_temperature >= 24 and sunny_hours >= 4:
-            climate_factor = 1.10
-            climate_reason = "meleg, részben napos idő"
-        elif max_temperature < 20 and sunny_hours < 3:
-            climate_factor = 0.90
-            climate_reason = "hűvös és felhős idő"
+        if et_enabled:
+            climate_factor = max(
+                float(settings.get("factor_min", 0.5)),
+                min(
+                    float(settings.get("factor_max", 1.5)),
+                    et_estimate.adjusted_et0_mm / et_reference_mm,
+                ),
+            )
+            climate_reason = (
+                f"{et_estimate.adjusted_et0_mm:.1f} mm becsült napi "
+                "párolgás"
+            )
         else:
-            climate_factor = 1.0
-            climate_reason = "átlagos párolgás"
+            if max_temperature >= 32 and sunny_hours >= 8:
+                climate_factor = 1.35
+                climate_reason = "forró és napos idő"
+            elif max_temperature >= 28 and sunny_hours >= 6:
+                climate_factor = 1.20
+                climate_reason = "meleg és többnyire napos idő"
+            elif max_temperature >= 24 and sunny_hours >= 4:
+                climate_factor = 1.10
+                climate_reason = "meleg, részben napos idő"
+            elif max_temperature < 20 and sunny_hours < 3:
+                climate_factor = 0.90
+                climate_reason = "hűvös és felhős idő"
+            else:
+                climate_factor = 1.0
+                climate_reason = "átlagos párolgás"
 
         factor = rain_factor * climate_factor
-        factor = max(
-            float(settings.get("factor_min", 0.5)),
-            min(float(settings.get("factor_max", 1.5)), factor),
-        )
+        if not et_enabled:
+            factor = max(
+                float(settings.get("factor_min", 0.5)),
+                min(float(settings.get("factor_max", 1.5)), factor),
+            )
         reason = f"{rain_reason.capitalize()}, {climate_reason}."
 
     return WeatherDecision(
@@ -634,6 +668,16 @@ def evaluate_green_lawn(
         observed_precipitation_mm=round(observed_precipitation, 1),
         effective_precipitation_mm=round(effective_precipitation, 1),
         rain_station=rain_station,
+        et0_mm=round(et_estimate.et0_mm, 2),
+        adjusted_et0_mm=round(et_estimate.adjusted_et0_mm, 2),
+        et_cloud_factor=round(et_estimate.cloud_factor, 3),
+        et_wind_factor=round(et_estimate.wind_factor, 3),
+        et_reference_mm=round(et_reference_mm, 2),
+        irrigation_target_mm=(
+            round(irrigation_target_mm, 2)
+            if irrigation_target_mm is not None
+            else None
+        ),
         max_wind_speed_kmh=(
             round(max_wind_speed, 1) if max_wind_speed is not None else None
         ),

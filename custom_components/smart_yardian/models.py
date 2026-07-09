@@ -42,6 +42,12 @@ class WeatherDecision:
     observed_precipitation_mm: float = 0.0
     effective_precipitation_mm: float = 0.0
     rain_station: str | None = None
+    et0_mm: float | None = None
+    adjusted_et0_mm: float | None = None
+    et_cloud_factor: float = 1.0
+    et_wind_factor: float = 1.0
+    et_reference_mm: float = 5.0
+    irrigation_target_mm: float | None = None
     max_wind_speed_kmh: float | None = None
     max_wind_gust_kmh: float | None = None
     windy_hours: int = 0

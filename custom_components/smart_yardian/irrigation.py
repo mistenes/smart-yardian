@@ -143,6 +143,21 @@ def reference_duration_minutes(
     return max(1, min(180, minutes))
 
 
+def reference_duration_for_depth(
+    profile: ZoneProfile,
+    target_mm: float,
+    rain_factor: float = 1.0,
+) -> int:
+    """Convert an ET-derived target depth into a safe whole-minute runtime."""
+    adjusted_target_mm = (
+        max(0.0, float(target_mm))
+        * max(0.0, float(rain_factor))
+        * profile.exposure_factor
+    )
+    minutes = round(adjusted_target_mm / profile.effective_rate_mm_h * 60)
+    return max(1, min(180, minutes))
+
+
 def _bounded_float(value: Any, label: str, minimum: float, maximum: float) -> float:
     try:
         number = float(value)

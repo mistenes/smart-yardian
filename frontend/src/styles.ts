@@ -248,7 +248,7 @@ export const panelStyles = css`
   .weather-band {
     min-height: 92px;
     display: grid;
-    grid-template-columns: minmax(270px, 1fr) repeat(6, minmax(92px, auto));
+    grid-template-columns: minmax(270px, 1fr) repeat(7, minmax(88px, auto));
     align-items: center;
     border: 1px solid color-mix(in srgb, var(--sy-amber) 72%, var(--sy-border));
     border-radius: 8px;
@@ -304,6 +304,10 @@ export const panelStyles = css`
 
   .metric.temp ha-icon {
     color: var(--sy-red);
+  }
+
+  .metric.et ha-icon {
+    color: var(--sy-blue);
   }
 
   .metric-label {

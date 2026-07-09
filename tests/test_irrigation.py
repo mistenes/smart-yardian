@@ -2,6 +2,7 @@
 
 from custom_components.smart_yardian.irrigation import (
     ZoneProfile,
+    reference_duration_for_depth,
     reference_duration_minutes,
     seasonal_target,
 )
@@ -53,6 +54,22 @@ def test_shady_area_reduces_reference_duration() -> None:
     assert reference_duration_minutes(shady, 30) < reference_duration_minutes(
         sunny, 30
     )
+
+
+def test_et_target_depth_converts_to_zone_minutes() -> None:
+    sunny = ZoneProfile.default("switch.napos")
+    shady = ZoneProfile.from_dict(
+        {
+            "entity_id": "switch.arnyekos",
+            "head_type": "rotator",
+            "reference_rate_mm_h": 10,
+            "exposure": "shady",
+        }
+    )
+
+    assert reference_duration_for_depth(sunny, 4.25) == 26
+    assert reference_duration_for_depth(sunny, 4.25, rain_factor=0.85) == 22
+    assert reference_duration_for_depth(shady, 4.25) == 20
 
 
 def test_moisture_sensor_can_be_reused_across_zone_profiles() -> None:

@@ -6,6 +6,9 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from custom_components.smart_yardian.evapotranspiration import (
+    extraterrestrial_radiation_mj_m2_day,
+)
 from custom_components.smart_yardian.models import ForecastHour
 from custom_components.smart_yardian.weather import (
     WeatherUnavailableError,
@@ -21,6 +24,12 @@ from custom_components.smart_yardian.weather import (
 )
 
 NOW = datetime(2026, 7, 1, 4, 0, tzinfo=UTC)
+
+
+def test_budapest_summer_extraterrestrial_radiation_is_realistic() -> None:
+    radiation = extraterrestrial_radiation_mj_m2_day(47.5, 182)
+
+    assert 40 < radiation < 42
 
 
 def forecast(
@@ -78,6 +87,11 @@ def test_measured_rain_is_separate_but_counts_toward_skip() -> None:
 
 
 def test_measured_rain_alone_can_reduce_irrigation() -> None:
+    dry = evaluate_green_lawn(
+        forecast(temperature=22, cloud_cover=70),
+        "Időkép",
+        NOW,
+    )
     decision = evaluate_green_lawn(
         forecast(temperature=22, cloud_cover=70),
         "Időkép",
@@ -85,7 +99,8 @@ def test_measured_rain_alone_can_reduce_irrigation() -> None:
         observed_precipitation_mm=2.5,
     )
 
-    assert decision.factor == 0.85
+    assert decision.factor < dry.factor
+    assert decision.rain_factor == 0.85
     assert decision.precipitation_mm == 0
     assert decision.observed_precipitation_mm == 2.5
 
@@ -102,16 +117,24 @@ def test_rainy_conditions_without_precipitation_do_not_skip() -> None:
 
 
 def test_green_lawn_increases_hot_sunny_day() -> None:
-    decision = evaluate_green_lawn(
-        forecast(temperature=33, cloud_cover=5),
-        "Időkép",
-        NOW,
-    )
-    assert decision.factor == 1.35
+    hours = forecast(temperature=24, cloud_cover=5)
+    temperatures = [
+        22, 22, 23, 24, 26, 28, 31, 33, 35, 35, 34, 33,
+        31, 29, 27, 25, 24, 23, 22, 22, 22, 22, 22, 22,
+    ]
+    for hour, temperature in zip(hours, temperatures, strict=True):
+        hour.temperature = temperature
+    decision = evaluate_green_lawn(hours, "Időkép", NOW)
+    assert decision.factor > 1
     assert decision.rain_factor == 1
-    assert decision.climate_factor == 1.35
+    assert decision.adjusted_et0_mm is not None
+    assert decision.adjusted_et0_mm > decision.et_reference_mm
+    assert decision.irrigation_target_mm == pytest.approx(
+        decision.adjusted_et0_mm * 0.85,
+        abs=0.02,
+    )
     assert decision.sunny_hours >= 8
-    assert "forró" in decision.reason
+    assert "párolgás" in decision.reason
 
 
 def test_weather_decision_includes_daily_wind_stats() -> None:
@@ -127,13 +150,50 @@ def test_weather_decision_includes_daily_wind_stats() -> None:
 
 
 def test_green_lawn_reduces_for_light_rain() -> None:
+    dry = evaluate_green_lawn(
+        forecast(temperature=22, cloud_cover=70),
+        "Időkép",
+        NOW,
+    )
     decision = evaluate_green_lawn(
         forecast(precipitation=2.4, probability=45, temperature=22, cloud_cover=70),
         "Időkép",
         NOW,
     )
-    assert decision.factor == 0.85
+    assert decision.factor < dry.factor
     assert decision.rain_factor == 0.85
+
+
+def test_cloud_and_wind_adjust_hargreaves_et_with_safe_limits() -> None:
+    sunny = forecast(temperature=26, cloud_cover=5, wind_speed=5)
+    cloudy = forecast(temperature=26, cloud_cover=95, wind_speed=5)
+    windy = forecast(temperature=26, cloud_cover=5, wind_speed=80)
+    for hours in (sunny, cloudy, windy):
+        for index, hour in enumerate(hours):
+            hour.temperature = 20 + min(index, 12)
+
+    sunny_decision = evaluate_green_lawn(sunny, "Időkép", NOW)
+    cloudy_decision = evaluate_green_lawn(cloudy, "Időkép", NOW)
+    windy_decision = evaluate_green_lawn(windy, "Időkép", NOW)
+
+    assert sunny_decision.et0_mm == cloudy_decision.et0_mm
+    assert sunny_decision.adjusted_et0_mm > cloudy_decision.adjusted_et0_mm
+    assert windy_decision.adjusted_et0_mm > sunny_decision.adjusted_et0_mm
+    assert windy_decision.et_wind_factor == 1.15
+    assert 0.75 <= cloudy_decision.et_cloud_factor <= 1.1
+
+
+def test_et_can_be_disabled_to_use_legacy_temperature_bands() -> None:
+    decision = evaluate_green_lawn(
+        forecast(temperature=33, cloud_cover=5),
+        "Időkép",
+        NOW,
+        settings={"evapotranspiration_enabled": False},
+    )
+
+    assert decision.factor == 1.35
+    assert decision.irrigation_target_mm is None
+    assert decision.et0_mm is not None
 
 
 def test_green_lawn_requires_twelve_hours() -> None:

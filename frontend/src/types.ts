@@ -78,6 +78,12 @@ export type WeatherDecision = {
   observed_precipitation_mm?: number;
   effective_precipitation_mm?: number;
   rain_station?: string | null;
+  et0_mm?: number | null;
+  adjusted_et0_mm?: number | null;
+  et_cloud_factor?: number;
+  et_wind_factor?: number;
+  et_reference_mm?: number;
+  irrigation_target_mm?: number | null;
   max_wind_speed_kmh?: number | null;
   max_wind_gust_kmh?: number | null;
   windy_hours?: number;
@@ -174,6 +180,9 @@ export type Settings = {
   rain_factor_low: number;
   factor_min: number;
   factor_max: number;
+  evapotranspiration_enabled: boolean;
+  et_reference_mm: number;
+  et_crop_coefficient: number;
   notify_mobile: boolean;
   ntfy_base_url: string;
   ntfy_topic: string;

@@ -32,6 +32,7 @@ from .const import (
 )
 from .irrigation import (
     ZoneProfile,
+    reference_duration_for_depth,
     reference_duration_minutes,
     seasonal_target,
 )
@@ -307,6 +308,7 @@ class SmartYardianManager:
                     and target.date() == dt_util.as_local(dt_util.now()).date()
                     else None
                 ),
+                latitude=float(self.hass.config.latitude),
             )
             self.last_decision = decision
             self.last_error = None
@@ -561,6 +563,7 @@ class SmartYardianManager:
                             and scheduled_at.date() == now.date()
                             else None
                         ),
+                        latitude=float(self.hass.config.latitude),
                     )
                 except WeatherUnavailableError as err:
                     idokep_day_error = str(err)
@@ -688,15 +691,20 @@ class SmartYardianManager:
         if apply_weather and decision is not None and decision.factor == 0:
             duration = 0
         elif zone.duration_mode == "reference":
-            duration = (
-                reference_duration_minutes(
+            if decision is None:
+                duration = None
+            elif decision.irrigation_target_mm is not None:
+                duration = reference_duration_for_depth(
+                    self.zone_profile(zone.entity_id),
+                    decision.irrigation_target_mm,
+                    decision.rain_factor if apply_weather else 1.0,
+                )
+            else:
+                duration = reference_duration_minutes(
                     self.zone_profile(zone.entity_id),
                     decision.max_temperature,
                     decision.rain_factor if apply_weather else 1.0,
                 )
-                if decision
-                else None
-            )
         elif apply_weather and decision is None:
             duration = None
         else:
@@ -797,6 +805,8 @@ class SmartYardianManager:
             "rain_factor_low": (0, 2),
             "factor_min": (0, 2),
             "factor_max": (0, 2),
+            "et_reference_mm": (0.1, 20),
+            "et_crop_coefficient": (0.1, 2),
             "wind_delay_step_minutes": (5, 120),
             "wind_speed_threshold_spray": (0, 150),
             "wind_gust_threshold_spray": (0, 180),
@@ -810,6 +820,7 @@ class SmartYardianManager:
         for key, value in settings.items():
             if key in {
                 "notify_mobile",
+                "evapotranspiration_enabled",
                 "wind_adjustment_enabled",
                 "wind_delay_enabled",
             }:
@@ -1017,7 +1028,7 @@ class SmartYardianManager:
                 reason_parts = []
                 if uses_reference:
                     reason_parts.append(
-                        "referenciaidő az előrejelzett hőmérsékletből"
+                        "referenciaidő a becsült napi párolgásból"
                     )
                 if uses_temperature_condition:
                     reason_parts.append("hőmérséklet-feltétel ellenőrizve")
@@ -1314,16 +1325,27 @@ class SmartYardianManager:
         """Build one planned zone result before program execution."""
         if zone.duration_mode == "reference":
             profile = self.zone_profile(zone.entity_id)
-            target = seasonal_target(decision.max_temperature)
-            duration = reference_duration_minutes(
-                profile,
-                decision.max_temperature,
-                decision.rain_factor,
-            )
-            base_minutes = reference_duration_minutes(
-                profile,
-                decision.max_temperature,
-            )
+            if decision.irrigation_target_mm is not None:
+                target_mm = decision.irrigation_target_mm
+                duration = reference_duration_for_depth(
+                    profile,
+                    target_mm,
+                    decision.rain_factor,
+                )
+                base_minutes = reference_duration_for_depth(profile, target_mm)
+                target_source = "Hargreaves-Samani ET"
+            else:
+                target_mm = seasonal_target(decision.max_temperature).depth_mm
+                duration = reference_duration_minutes(
+                    profile,
+                    decision.max_temperature,
+                    decision.rain_factor,
+                )
+                base_minutes = reference_duration_minutes(
+                    profile,
+                    decision.max_temperature,
+                )
+                target_source = "hőmérsékleti táblázat"
             calculation = {
                 "duration_mode": "reference",
                 "head_type": profile.head_type,
@@ -1331,7 +1353,8 @@ class SmartYardianManager:
                 "exposure_factor": profile.exposure_factor,
                 "application_rate_mm_h": round(profile.effective_rate_mm_h, 2),
                 "rate_source": profile.rate_source,
-                "target_mm": target.depth_mm,
+                "target_mm": round(target_mm, 2),
+                "target_source": target_source,
                 "rain_factor": decision.rain_factor,
             }
         else:
