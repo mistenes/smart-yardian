@@ -124,7 +124,7 @@ const profileFor = (entityId: string, index: number): ZoneProfile => {
     exposure_factor: index % 4 === 0 ? 0.8 : 1,
     moisture_sensor_entity_id:
       index < 2 ? "sensor.elso_kert_talajnedvesseg" : null,
-    moisture_sensor_state: index < 2 ? "43" : undefined,
+    moisture_sensor_state: index === 0 ? "94" : index === 1 ? "43" : undefined,
     moisture_sensor_unit: index < 2 ? "%" : undefined,
     effective_rate_mm_h: reference_rate_mm_h,
     rate_source: "fejtípus referencia",
@@ -301,6 +301,10 @@ const summary = (): Summary => ({
     evapotranspiration_enabled: true,
     et_reference_mm: 5,
     et_crop_coefficient: 0.85,
+    soil_moisture_dry_percent: 30,
+    soil_moisture_target_percent: 55,
+    soil_moisture_skip_percent: 80,
+    soil_moisture_max_factor: 1.2,
     notify_mobile: true,
     ntfy_base_url: "https://ntfy.sh",
     ntfy_topic: "smart-yardian-devtopic",
@@ -418,11 +422,39 @@ const schedulePreview = (): SchedulePreview => {
   const plannedZones = (program: Program) =>
     program.zones.map((zone, index) => {
       const details = zones.find(([entityId]) => entityId === zone.entity_id);
+      const baseMinutes = [23, 28, 16, 16, 8, 24, 46, 18, 12][index] ?? 15;
+      const moisturePercent =
+        program.soil_moisture_enabled && index < 2 ? (index === 0 ? 94 : 43) : null;
+      const moistureFactor =
+        moisturePercent === null
+          ? 1
+          : moisturePercent >= 80
+            ? 0
+            : moisturePercent < 55
+              ? 1 + ((55 - moisturePercent) / 25) * 0.2
+              : (80 - moisturePercent) / 25;
       return {
         entity_id: zone.entity_id,
         name: details?.[1] ?? zone.entity_id,
         duration_mode: zone.duration_mode,
-        planned_minutes: [23, 28, 16, 16, 8, 24, 46, 18, 12][index] ?? 15,
+        planned_minutes:
+          moistureFactor === 0 ? 0 : Math.max(1, Math.round(baseMinutes * moistureFactor)),
+        moisture_sensor_entity_id:
+          moisturePercent === null ? null : "sensor.elso_kert_talajnedvesseg",
+        moisture_sensor_name: moisturePercent === null ? null : "Első kert talajnedvesség",
+        moisture_percent: moisturePercent,
+        moisture_factor: moistureFactor,
+        moisture_action:
+          moisturePercent === null
+            ? program.soil_moisture_enabled
+              ? "not_configured" as const
+              : "disabled" as const
+            : moistureFactor === 0
+              ? "skip" as const
+              : moistureFactor > 1
+                ? "increase" as const
+                : "reduce" as const,
+        moisture_reason: moisturePercent === null ? "" : `${moisturePercent}% talajnedvesség`,
       };
     });
   const weather = summary().weather!;
@@ -437,8 +469,8 @@ const schedulePreview = (): SchedulePreview => {
             program_name: morning.name,
             scheduled_at: occurrence(0, 5, 30),
             status: "will_run",
-            reason: "A jelenlegi számítás szerint a program lefut.",
-            total_minutes: 91,
+            reason: "Talajnedvesség alapján 1 zóna kimarad; a többi zóna lefut.",
+            total_minutes: 71,
             zones: plannedZones(morning),
             weather,
           },
@@ -464,7 +496,7 @@ const schedulePreview = (): SchedulePreview => {
             status: "condition_skip",
             reason:
               "A program napjának maximuma 24 °C, ami nem magasabb 26 °C-nál.",
-            total_minutes: 70,
+            total_minutes: 71,
             zones: plannedZones(morning),
             weather: { ...weather, max_temperature: 24, factor: 0.9, percent: 90 },
           },
@@ -538,7 +570,7 @@ const hass: Hass = {
   themes: { darkMode: forceDark },
   states: {
     "sensor.elso_kert_talajnedvesseg": {
-      state: "43",
+      state: "94",
       attributes: {
         friendly_name: "Első kert talajnedvesség",
         device_class: "moisture",

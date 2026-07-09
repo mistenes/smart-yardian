@@ -137,6 +137,7 @@ export type ScheduleStatus =
   | "weather_unavailable"
   | "condition_skip"
   | "rain_skip"
+  | "moisture_skip"
   | "wind_delayed"
   | "wind_skip"
   | "wind_unavailable";
@@ -146,6 +147,19 @@ export type ScheduleZone = {
   name: string;
   duration_mode: "manual" | "reference";
   planned_minutes: number | null;
+  moisture_sensor_entity_id?: string | null;
+  moisture_sensor_name?: string | null;
+  moisture_percent?: number | null;
+  moisture_factor?: number;
+  moisture_action?:
+    | "disabled"
+    | "not_configured"
+    | "unavailable"
+    | "normal"
+    | "increase"
+    | "reduce"
+    | "skip";
+  moisture_reason?: string;
 };
 
 export type ScheduleProgram = {
@@ -183,6 +197,10 @@ export type Settings = {
   evapotranspiration_enabled: boolean;
   et_reference_mm: number;
   et_crop_coefficient: number;
+  soil_moisture_dry_percent: number;
+  soil_moisture_target_percent: number;
+  soil_moisture_skip_percent: number;
+  soil_moisture_max_factor: number;
   notify_mobile: boolean;
   ntfy_base_url: string;
   ntfy_topic: string;

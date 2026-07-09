@@ -24,7 +24,7 @@ Időjárás-alapú, magyar nyelvű öntözésvezérlő Home Assistant 2026.6+ re
   vízhozam- és területméréssel;
 - napos vagy árnyékos területjelleg, amely referencia módban módosítja az időt;
 - Home Assistant/Zigbee talajnedvességmérő hozzárendelése egy, több vagy minden
-  zónához, programonkénti engedélyezésre előkészítve;
+  zónához, programonként kapcsolható időtartam-korrekcióval és zónakihagyással;
 - futás közben minden nézetből elérhető sticky állapotsáv program- és
   kör-visszaszámlálóval, előző/aktuális/következő körrel, körkihagyással és
   azonnali leállítással;
@@ -72,9 +72,12 @@ percet nem írja felül.
 A zónákhoz Home Assistant `sensor.*` talajnedvesség-entitás rendelhető.
 Ugyanaz az érzékelő több vagy a „Hozzárendelés mindhez” művelettel minden
 zónához használható. A programban külön engedélyezhető a zónák érzékelőinek
-használata. Ebben a verzióban a hozzárendelés és az aktuális érték megjelenítése
-kész; automatikus kihagyás még nem történik, amíg nincs külön megadott,
-ellenőrizhető nedvességi küszöb.
+használata. Az alapgörbe 30% alatt legfeljebb 120%-ra növeli az időt, 55%-nál
+100%-ot használ, 55–80% között lineárisan rövidít, 80%-tól pedig kihagyja a
+zónát. A négy érték a Beállításokban módosítható. Hiányzó, nem százalékos vagy
+érvénytelen szenzoradat nem blokkolja a zónát, hanem korrekció nélkül hagyja.
+Azok a zónák, amelyekhez nincs talajnedvességmérő rendelve, szintén változatlan,
+ET- és időjárás-alapú időtartammal futnak tovább.
 
 Alapbeállításként a napi referencia-párolgás 5 mm, a gyep növényi együtthatója
 (`Kc`) 0,85. A referencia mód célja: `korrigált ET0 × Kc × területjelleg ×

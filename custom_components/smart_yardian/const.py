@@ -14,7 +14,7 @@ CONF_NOTIFY_SERVICE: Final = "notify_service"
 PANEL_URL: Final = "smart-yardian"
 PANEL_COMPONENT: Final = "smart-yardian-panel"
 PANEL_STATIC_URL: Final = "/smart_yardian/smart-yardian-panel.js"
-PANEL_MODULE_URL: Final = f"{PANEL_STATIC_URL}?v=0.14.0"
+PANEL_MODULE_URL: Final = f"{PANEL_STATIC_URL}?v=0.15.0"
 
 STORE_VERSION: Final = 1
 STORE_KEY_PREFIX: Final = "smart_yardian"
@@ -54,6 +54,10 @@ DEFAULT_SETTINGS: Final = {
     "evapotranspiration_enabled": True,
     "et_reference_mm": 5.0,
     "et_crop_coefficient": 0.85,
+    "soil_moisture_dry_percent": 30.0,
+    "soil_moisture_target_percent": 55.0,
+    "soil_moisture_skip_percent": 80.0,
+    "soil_moisture_max_factor": 1.2,
     "notify_mobile": True,
     "ntfy_base_url": "https://ntfy.sh",
     "ntfy_topic": "",

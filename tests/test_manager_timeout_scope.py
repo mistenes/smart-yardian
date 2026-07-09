@@ -26,7 +26,8 @@ def _function_body(source: str, name: str) -> str:
     function = next(
         node
         for node in ast.walk(module)
-        if isinstance(node, ast.AsyncFunctionDef) and node.name == name
+        if isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef))
+        and node.name == name
     )
     return ast.get_source_segment(source, function) or ""
 
@@ -63,3 +64,17 @@ def test_state_confirmation_forces_refresh_and_safety_stop_tracks_current_zone()
     assert "blocking=False" in wait_state
     assert "state.state not in UNAVAILABLE_STATES" in wait_state
     assert 'self.active_run.get("current_zone")' in stop_all
+
+
+def test_zone_runtime_applies_moisture_and_zero_minutes_never_start_hardware() -> None:
+    source = MANAGER_PATH.read_text()
+
+    zone_details = _function_body(source, "_zone_run_details")
+    execute_program = _function_body(source, "_async_execute_program")
+    moisture_context = _function_body(source, "_soil_moisture_context")
+
+    assert "adjust_duration_for_soil_moisture" in zone_details
+    assert '"moisture_action": "not_configured"' in moisture_context
+    assert '"moisture_factor": 1.0' in moisture_context
+    assert 'if duration <= 0:' in execute_program
+    assert 'result["outcome"] = "skipped"' in execute_program

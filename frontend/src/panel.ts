@@ -18,6 +18,7 @@ import {
   updateZoneProfiles,
 } from "./api";
 import { createProgramId } from "./ids";
+import { soilMoisturePreview, type SoilMoisturePreview } from "./moisture";
 import { panelStyles } from "./styles";
 import type {
   Hass,
@@ -808,7 +809,24 @@ export class SmartYardianPanel extends LitElement {
           ${program.zones.map(
             (zone) => html`
               <div>
-                <span>${zone.name}</span>
+                <span class="schedule-zone-name">
+                  <span>${zone.name}</span>
+                  ${zone.moisture_percent !== null &&
+                  zone.moisture_percent !== undefined
+                    ? html`
+                        <small>
+                          Talaj ${this._formatForecastNumber(zone.moisture_percent)}% ·
+                          ${zone.moisture_action === "skip"
+                            ? "kimarad"
+                            : `${Math.round((zone.moisture_factor ?? 1) * 100)}% idő`}
+                        </small>
+                      `
+                    : zone.moisture_action === "unavailable"
+                      ? html`<small>Talaj: nincs használható szenzoradat</small>`
+                      : zone.moisture_action === "not_configured"
+                        ? html`<small>Talaj: nincs szenzor rendelve</small>`
+                    : nothing}
+                </span>
                 <strong>
                   ${zone.planned_minutes === null
                     ? "nincs adat"
@@ -869,17 +887,30 @@ export class SmartYardianPanel extends LitElement {
                 })}
             />
           </label>
-          <label class="manual-weather">
-            <input
-              type="checkbox"
-              .checked=${draft.weather_adjustment}
-              @change=${(event: Event) =>
-                this._patchManual({
-                  weather_adjustment: (event.target as HTMLInputElement).checked,
-                })}
-            />
-            Időjárás-korrekció
-          </label>
+          <div class="manual-adjustments">
+            <label class="manual-weather">
+              <input
+                type="checkbox"
+                .checked=${draft.weather_adjustment}
+                @change=${(event: Event) =>
+                  this._patchManual({
+                    weather_adjustment: (event.target as HTMLInputElement).checked,
+                  })}
+              />
+              Időjárás-korrekció
+            </label>
+            <label class="manual-weather">
+              <input
+                type="checkbox"
+                .checked=${draft.soil_moisture_enabled}
+                @change=${(event: Event) =>
+                  this._patchManual({
+                    soil_moisture_enabled: (event.target as HTMLInputElement).checked,
+                  })}
+              />
+              Talajnedvesség-korrekció
+            </label>
+          </div>
         </div>
         <div class="manual-zone-list">
           ${draft.zones.map((zone, index) => {
@@ -922,6 +953,7 @@ export class SmartYardianPanel extends LitElement {
                 </label>
                 <span class="manual-calculated">
                   ${this._programZoneMinutes(draft, zone)} perc
+                  ${this._programZoneMoistureText(draft, zone)}
                 </span>
                 <div class="manual-zone-actions">
                   <button
@@ -1173,8 +1205,8 @@ export class SmartYardianPanel extends LitElement {
                 ${draft.zones.filter(
                   (zone) => this._zoneProfile(zone.entity_id)?.moisture_sensor_entity_id,
                 ).length}
-                programzónához van érzékelő rendelve. A kihagyási küszöböt a
-                következő fejlesztési lépésben lehet majd megadni.
+                programzónához van érzékelő rendelve. A nedves zónák rövidebb
+                ideig futnak, a kihagyási küszöb felett pedig kimaradnak.
               </div>
             `
           : nothing}
@@ -1204,6 +1236,7 @@ export class SmartYardianPanel extends LitElement {
                     ? html`
                         <span class="calculated-duration">
                           ≈ ${this._programZoneMinutes(draft, zone)} perc
+                          ${this._programZoneMoistureText(draft, zone)}
                         </span>
                       `
                     : html`
@@ -1343,6 +1376,13 @@ export class SmartYardianPanel extends LitElement {
                                 </div>
                               `
                             : nothing}
+                          ${this._historyMoistureText(record)
+                            ? html`
+                                <div class="history-weather">
+                                  Talajnedvesség: ${this._historyMoistureText(record)}
+                                </div>
+                              `
+                            : nothing}
                         </td>
                       </tr>
                     `,
@@ -1419,6 +1459,19 @@ export class SmartYardianPanel extends LitElement {
           </p>
           ${this._settingNumber("Referencia ET0 (mm/nap)", "et_reference_mm", settings)}
           ${this._settingNumber("Gyep növényi együttható (Kc)", "et_crop_coefficient", settings)}
+        </section>
+        <section class="settings-section">
+          <h3>Talajnedvesség-korrekció</h3>
+          <p class="settings-help">
+            A programban engedélyezett, zónához rendelt százalékos szenzor
+            módosítja az időjárás és ET alapján már kiszámolt időt. A célérték
+            felett arányosan rövidít, a kihagyási küszöbtől pedig nem indítja el
+            az adott zónát.
+          </p>
+          ${this._settingNumber("Száraz talaj küszöbe (%)", "soil_moisture_dry_percent", settings)}
+          ${this._settingNumber("Célérték (%)", "soil_moisture_target_percent", settings)}
+          ${this._settingNumber("Zóna kihagyása ettől (%)", "soil_moisture_skip_percent", settings)}
+          ${this._settingNumber("Maximális szárazsági szorzó", "soil_moisture_max_factor", settings)}
         </section>
         <section class="settings-section">
           <h3>Biztonság és értesítés</h3>
@@ -1639,8 +1692,9 @@ export class SmartYardianPanel extends LitElement {
           intenzitással. Ha a teljes zónavízhozam és a terület is ki van töltve,
           azok felülírják a fejtípus referenciaértékét. Az árnyékos terület 20%-kal
           rövidebb referenciaidőt kap. Egy talajnedvességmérő több zónához is
-          hozzárendelhető; az automatikus kihagyási küszöb egy következő lépésben
-          kapcsolható rá biztonságosan.
+          hozzárendelhető. Ha a programban engedélyezed a talajnedvesség
+          használatát, az aktuális százalék rövidíti vagy növeli az időt, a
+          kihagyási küszöb felett pedig a zóna nem indul el.
         </p>
         <div class="moisture-bulk">
           <label>
@@ -1917,9 +1971,19 @@ export class SmartYardianPanel extends LitElement {
 
   private _programZoneMinutes(program: Program, zone: ProgramZone): number {
     const weather = this._summary?.weather;
+    const moisture = this._programZoneMoisture(program, zone);
+    const withMoisture = (minutes: number): number => {
+      if (minutes <= 0 || moisture?.factor === 0) return 0;
+      return Math.max(
+        1,
+        Math.min(180, Math.round(minutes * (moisture?.factor ?? 1))),
+      );
+    };
     if (zone.duration_mode !== "reference") {
       const factor = program.weather_adjustment ? (weather?.factor ?? 1) : 1;
-      return Math.max(1, Math.round(zone.duration_minutes * factor));
+      return withMoisture(
+        factor <= 0 ? 0 : Math.max(1, Math.round(zone.duration_minutes * factor)),
+      );
     }
     const profile = this._zoneProfile(zone.entity_id);
     if (!profile) return zone.duration_minutes;
@@ -1931,7 +1995,7 @@ export class SmartYardianPanel extends LitElement {
       ? (weather?.rain_factor ?? weather?.factor ?? 1)
       : 1;
     const exposureFactor = profile.exposure === "shady" ? 0.8 : 1;
-    return Math.max(
+    const minutes = Math.max(
       1,
       Math.min(
         180,
@@ -1941,6 +2005,29 @@ export class SmartYardianPanel extends LitElement {
         ),
       ),
     );
+    return withMoisture(minutes);
+  }
+
+  private _programZoneMoisture(
+    program: Program,
+    zone: ProgramZone,
+  ): SoilMoisturePreview | null {
+    if (!program.soil_moisture_enabled) return null;
+    const profile = this._zoneProfile(zone.entity_id);
+    if (!profile?.moisture_sensor_entity_id) return null;
+    const settings = this._summary?.settings;
+    if (!settings) return null;
+    return soilMoisturePreview(profile.moisture_sensor_state, settings);
+  }
+
+  private _programZoneMoistureText(
+    program: Program,
+    zone: ProgramZone,
+  ): string {
+    const moisture = this._programZoneMoisture(program, zone);
+    if (!moisture) return "";
+    if (moisture.action === "skip") return `· ${moisture.percent}% → kihagyás`;
+    return `· ${moisture.percent}% → ${Math.round(moisture.factor * 100)}%`;
   }
 
   private _allZones(): Zone[] {
@@ -2343,6 +2430,21 @@ export class SmartYardianPanel extends LitElement {
     return days.map((day) => DAY_LONG[day] ?? "").join(", ");
   }
 
+  private _historyMoistureText(record: RunRecord): string {
+    return record.zones
+      .filter((zone) => typeof zone.moisture_percent === "number")
+      .map((zone) => {
+        const name = String(zone.name ?? zone.entity_id ?? "Zóna");
+        const percent = Number(zone.moisture_percent);
+        const adjustment =
+          zone.moisture_action === "skip"
+            ? "kimaradt"
+            : `${Math.round(Number(zone.moisture_factor ?? 1) * 100)}% idő`;
+        return `${name} ${this._formatForecastNumber(percent)}% → ${adjustment}`;
+      })
+      .join(" · ");
+  }
+
   private _temperatureConditionText(program: Program): string {
     const relation =
       program.temperature_condition_operator === "above"
@@ -2478,6 +2580,7 @@ export class SmartYardianPanel extends LitElement {
       weather_unavailable: "Nincs forecast",
       condition_skip: "Feltétel nem teljesül",
       rain_skip: "Eső miatt kimarad",
+      moisture_skip: "Talajnedvesség miatt kimarad",
       wind_delayed: program.weather?.delayed_until
         ? `Halasztva ${this._formatTime(program.weather.delayed_until)}-ra`
         : "Szél miatt halasztva",

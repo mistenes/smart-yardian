@@ -45,6 +45,10 @@ from .rainfall import (
     find_rain_stations,
     parse_idokep_rain_map,
 )
+from .soil_moisture import (
+    adjust_duration_for_soil_moisture,
+    assess_soil_moisture,
+)
 from .storage import SmartYardianStore
 from .weather import (
     WindAssessment,
@@ -595,7 +599,12 @@ class SmartYardianManager:
                 )
 
             zones = [
-                self._preview_zone(zone, decision, program.weather_adjustment)
+                self._preview_zone(
+                    zone,
+                    decision,
+                    program.weather_adjustment,
+                    program.soil_moisture_enabled,
+                )
                 for zone in program.zones
             ]
             planned_minutes = [
@@ -609,6 +618,7 @@ class SmartYardianManager:
                 and idokep_forecast is not None
                 and self._program_uses_wind_guard(program)
                 and len(planned_minutes) == len(zones)
+                and sum(planned_minutes) > 0
             ):
                 wind_assessment = find_wind_delay(
                     idokep_forecast,
@@ -645,6 +655,13 @@ class SmartYardianManager:
             elif decision and program.weather_adjustment and decision.factor == 0:
                 status = "rain_skip"
                 reason = decision.reason
+            elif (
+                program.soil_moisture_enabled
+                and zones
+                and all(zone["moisture_action"] == "skip" for zone in zones)
+            ):
+                status = "moisture_skip"
+                reason = self._soil_moisture_skip_reason(zones)
             elif wind_assessment and wind_assessment.action == "delay":
                 status = "wind_delayed"
                 reason = wind_assessment.reason
@@ -655,6 +672,10 @@ class SmartYardianManager:
                     else "wind_skip"
                 )
                 reason = wind_assessment.reason
+            elif program.soil_moisture_enabled and any(
+                zone["moisture_action"] == "skip" for zone in zones
+            ):
+                reason = self._soil_moisture_skip_reason(zones, partial=True)
 
             item = {
                 "program_id": program.program_id,
@@ -684,6 +705,7 @@ class SmartYardianManager:
         zone: ProgramZone,
         decision: WeatherDecision | None,
         apply_weather: bool,
+        apply_soil_moisture: bool,
     ) -> dict[str, Any]:
         """Calculate one zone without starting hardware."""
         state = self.hass.states.get(zone.entity_id)
@@ -710,12 +732,108 @@ class SmartYardianManager:
         else:
             factor = decision.factor if decision and apply_weather else 1.0
             duration = max(1, min(180, round(zone.duration_minutes * factor)))
+        moisture = self._soil_moisture_context(zone, apply_soil_moisture)
+        if duration is not None:
+            duration = adjust_duration_for_soil_moisture(
+                duration,
+                float(moisture["moisture_factor"]),
+            )
         return {
             "entity_id": zone.entity_id,
             "name": state.name if state else zone.entity_id,
             "duration_mode": zone.duration_mode,
             "planned_minutes": duration,
+            **moisture,
         }
+
+    def _soil_moisture_context(
+        self,
+        zone: ProgramZone,
+        enabled: bool,
+    ) -> dict[str, Any]:
+        """Return the current sensor reading and runtime adjustment for a zone."""
+        profile = self.zone_profile(zone.entity_id)
+        sensor_entity_id = profile.moisture_sensor_entity_id
+        if not enabled:
+            return {
+                "moisture_sensor_entity_id": sensor_entity_id,
+                "moisture_sensor_name": None,
+                "moisture_percent": None,
+                "moisture_factor": 1.0,
+                "moisture_action": "disabled",
+                "moisture_reason": "A program nem használ talajnedvesség-korrekciót.",
+            }
+        if not sensor_entity_id:
+            return {
+                "moisture_sensor_entity_id": None,
+                "moisture_sensor_name": None,
+                "moisture_percent": None,
+                "moisture_factor": 1.0,
+                "moisture_action": "not_configured",
+                "moisture_reason": "A zónához nincs talajnedvességmérő rendelve.",
+            }
+        state = self.hass.states.get(sensor_entity_id)
+        sensor_name = state.name if state else sensor_entity_id
+        unit = (
+            str(state.attributes.get("unit_of_measurement") or "").strip()
+            if state
+            else ""
+        )
+        if unit and unit != "%":
+            return {
+                "moisture_sensor_entity_id": sensor_entity_id,
+                "moisture_sensor_name": sensor_name,
+                "moisture_percent": None,
+                "moisture_factor": 1.0,
+                "moisture_action": "unavailable",
+                "moisture_reason": (
+                    f"A szenzor mértékegysége {unit}, nem százalék; "
+                    "az időtartam nem módosul."
+                ),
+            }
+        assessment = assess_soil_moisture(
+            (
+                state.state
+                if state and state.state not in UNAVAILABLE_STATES
+                else None
+            ),
+            self.store.settings,
+        )
+        return {
+            "moisture_sensor_entity_id": sensor_entity_id,
+            "moisture_sensor_name": sensor_name,
+            "moisture_percent": (
+                round(assessment.percent, 1)
+                if assessment.percent is not None
+                else None
+            ),
+            "moisture_factor": round(assessment.factor, 3),
+            "moisture_action": assessment.action,
+            "moisture_reason": assessment.reason,
+        }
+
+    @staticmethod
+    def _soil_moisture_skip_reason(
+        zones: list[dict[str, Any]],
+        *,
+        partial: bool = False,
+    ) -> str:
+        """Summarize moisture-skipped zones for previews and history."""
+        skipped = [
+            zone for zone in zones if zone.get("moisture_action") == "skip"
+        ]
+        readings = ", ".join(
+            f"{zone['name']}: {zone['moisture_percent']:g}%"
+            for zone in skipped
+            if zone.get("moisture_percent") is not None
+        )
+        suffix = f" ({readings})" if readings else ""
+        if partial:
+            return (
+                f"Talajnedvesség alapján {len(skipped)} zóna kimarad{suffix}; "
+                "a többi zóna lefut."
+            )
+        return f"Minden programzóna kimarad a talajnedvesség alapján{suffix}."
 
     def _paused_at(self, scheduled_at: datetime) -> bool:
         """Return whether a future occurrence is inside the pause window."""
@@ -807,6 +925,10 @@ class SmartYardianManager:
             "factor_max": (0, 2),
             "et_reference_mm": (0.1, 20),
             "et_crop_coefficient": (0.1, 2),
+            "soil_moisture_dry_percent": (0, 100),
+            "soil_moisture_target_percent": (0, 100),
+            "soil_moisture_skip_percent": (0, 100),
+            "soil_moisture_max_factor": (1, 2),
             "wind_delay_step_minutes": (5, 120),
             "wind_speed_threshold_spray": (0, 150),
             "wind_gust_threshold_spray": (0, 180),
@@ -855,6 +977,15 @@ class SmartYardianManager:
             candidate[key] = int(number) if key == "rainy_hours_skip" else number
         if candidate["factor_min"] > candidate["factor_max"]:
             raise ValueError("A minimum szorzó nem lehet nagyobb a maximumnál.")
+        if not (
+            candidate["soil_moisture_dry_percent"]
+            < candidate["soil_moisture_target_percent"]
+            < candidate["soil_moisture_skip_percent"]
+        ):
+            raise ValueError(
+                "A talajnedvesség értékei növekvő sorrendben legyenek: "
+                "száraz küszöb, célérték, kihagyási küszöb."
+            )
         if (
             candidate["rain_reduce_low_mm"]
             > candidate["rain_reduce_high_mm"]
@@ -910,7 +1041,7 @@ class SmartYardianManager:
                 url,
                 headers={
                     "User-Agent": (
-                        "HomeAssistant SmartYardian/0.13 "
+                        "HomeAssistant SmartYardian/0.15 "
                         "(https://github.com/mistenes/smart-yardian)"
                     )
                 },
@@ -1057,13 +1188,40 @@ class SmartYardianManager:
                     program, scheduled_at, decision.reason, decision
                 )
                 return
+            zone_results = [
+                self._zone_run_details(
+                    zone,
+                    decision,
+                    program.soil_moisture_enabled,
+                )
+                for zone in program.zones
+            ]
+            if (
+                program.soil_moisture_enabled
+                and zone_results
+                and all(
+                    result["moisture_action"] == "skip"
+                    for result in zone_results
+                )
+            ):
+                await self._async_record_skip(
+                    program,
+                    scheduled_at,
+                    self._soil_moisture_skip_reason(zone_results),
+                    decision,
+                    zones=zone_results,
+                )
+                return
             if uses_wind_guard and (allow_wind_delay or apply_weather):
                 try:
                     forecast = await self._async_idokep_forecast()
                     wind_assessment = find_wind_delay(
                         forecast,
                         scheduled_at,
-                        self._planned_program_minutes(program, decision),
+                        sum(
+                            int(result["planned_minutes"])
+                            for result in zone_results
+                        ),
                         self._program_head_types(program),
                         self.store.settings,
                     )
@@ -1115,7 +1273,11 @@ class SmartYardianManager:
                         )
                     decision = self._decision_with_wind(decision, wind_assessment)
             await self._async_execute_program(
-                run_id, program, scheduled_at, decision
+                run_id,
+                program,
+                scheduled_at,
+                decision,
+                zone_results,
             )
         except WeatherUnavailableError as err:
             await self._async_record_skip(
@@ -1140,17 +1302,6 @@ class SmartYardianManager:
             self.zone_profile(zone.entity_id).head_type
             for zone in program.zones
         ]
-
-    def _planned_program_minutes(
-        self,
-        program: IrrigationProgram,
-        decision: WeatherDecision,
-    ) -> int:
-        """Calculate the program length used for wind-window checks."""
-        return sum(
-            int(self._zone_run_details(zone, decision)["planned_minutes"])
-            for zone in program.zones
-        )
 
     @staticmethod
     def _decision_with_wind(
@@ -1221,13 +1372,19 @@ class SmartYardianManager:
         program: IrrigationProgram,
         scheduled_at: datetime,
         decision: WeatherDecision,
+        zone_results: list[dict[str, Any]] | None = None,
     ) -> None:
         """Execute the program while holding the run lock."""
         self._stop_event.clear()
         self._skip_zone_event.clear()
         started = dt_util.utcnow()
-        zone_results = [
-            self._zone_run_details(zone, decision) for zone in program.zones
+        zone_results = zone_results or [
+            self._zone_run_details(
+                zone,
+                decision,
+                program.soil_moisture_enabled,
+            )
+            for zone in program.zones
         ]
         total_minutes = sum(
             int(item["planned_minutes"]) for item in zone_results
@@ -1262,6 +1419,9 @@ class SmartYardianManager:
                     reason = "A futást a felhasználó leállította."
                     break
                 duration = int(result["planned_minutes"])
+                if duration <= 0:
+                    result["outcome"] = "skipped"
+                    continue
                 result["outcome"] = "running"
                 self._skip_zone_event.clear()
                 self.active_run["current_zone"] = zone.entity_id
@@ -1286,6 +1446,16 @@ class SmartYardianManager:
                 )
                 await self.store.async_save()
                 self._notify_listeners()
+            moisture_skips = sum(
+                1
+                for result in zone_results
+                if result.get("moisture_action") == "skip"
+            )
+            if outcome == "completed" and moisture_skips:
+                reason = (
+                    f"{decision.reason} "
+                    f"Talajnedvesség alapján {moisture_skips} zóna kimaradt."
+                )
         except Exception as err:  # noqa: BLE001 - device failures must become audit records
             _LOGGER.exception("Smart Yardian run failed")
             outcome = "failed"
@@ -1321,6 +1491,7 @@ class SmartYardianManager:
         self,
         zone: ProgramZone,
         decision: WeatherDecision,
+        apply_soil_moisture: bool,
     ) -> dict[str, Any]:
         """Build one planned zone result before program execution."""
         if zone.duration_mode == "reference":
@@ -1363,14 +1534,22 @@ class SmartYardianManager:
             )
             base_minutes = zone.duration_minutes
             calculation = {"duration_mode": "manual"}
+        pre_moisture_minutes = duration
+        moisture = self._soil_moisture_context(zone, apply_soil_moisture)
+        duration = adjust_duration_for_soil_moisture(
+            duration,
+            float(moisture["moisture_factor"]),
+        )
         state = self.hass.states.get(zone.entity_id)
         return {
             "entity_id": zone.entity_id,
             "name": state.name if state else zone.entity_id,
             "base_minutes": base_minutes,
+            "pre_moisture_minutes": pre_moisture_minutes,
             "planned_minutes": duration,
             "outcome": "pending",
             **calculation,
+            **moisture,
         }
 
     async def async_run_manual_zone(self, entity_id: str, duration: int) -> None:
@@ -1518,6 +1697,8 @@ class SmartYardianManager:
         scheduled_at: datetime,
         reason: str,
         decision: WeatherDecision | None = None,
+        *,
+        zones: list[dict[str, Any]] | None = None,
     ) -> None:
         record = RunRecord(
             run_id=str(uuid4()),
@@ -1530,7 +1711,7 @@ class SmartYardianManager:
             reason=reason,
             factor=decision.factor if decision else 0,
             weather_source=decision.source if decision else "nem elérhető",
-            zones=[],
+            zones=zones or [],
             weather=decision.as_dict() if decision else None,
         )
         await self.store.async_add_history(record.as_dict())

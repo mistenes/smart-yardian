@@ -638,6 +638,11 @@ export const panelStyles = css`
     gap: 8px;
   }
 
+  .manual-adjustments {
+    display: grid;
+    gap: 2px;
+  }
+
   .manual-zone-list {
     margin: 14px 0;
     border: 1px solid var(--sy-border);
@@ -1135,6 +1140,16 @@ export const panelStyles = css`
 
   .schedule-zones > div strong {
     white-space: nowrap;
+  }
+
+  .schedule-zone-name {
+    display: grid;
+    gap: 1px;
+  }
+
+  .schedule-zone-name small {
+    color: var(--sy-muted);
+    font-size: 10px;
   }
 
   .schedule-total {
