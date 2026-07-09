@@ -125,19 +125,42 @@ def normalize_ha_forecast(items: Iterable[dict[str, Any]]) -> list[ForecastHour]
                     ),
                     is_daylight=condition != "clear-night" and 6 <= local_hour < 20,
                     wind_speed_kmh=_non_negative_optional(
-                        item.get("wind_speed")
+                        _first_present(
+                            item,
+                            "wind_speed",
+                            "native_wind_speed",
+                            "wind_speed_kmh",
+                        )
                     ),
                     wind_gust_kmh=_non_negative_optional(
-                        item.get("wind_gust")
-                        if item.get("wind_gust") is not None
-                        else item.get("wind_gust_speed")
+                        _first_present(
+                            item,
+                            "wind_gust",
+                            "wind_gust_speed",
+                            "native_wind_gust_speed",
+                            "wind_gust_kmh",
+                        )
                     ),
-                    wind_bearing_deg=_wind_bearing(item.get("wind_bearing")),
+                    wind_bearing_deg=_wind_bearing(
+                        _first_present(
+                            item,
+                            "wind_bearing",
+                            "wind_bearing_deg",
+                        )
+                    ),
                 )
             )
         except (KeyError, TypeError, ValueError):
             continue
     return normalized
+
+
+def _first_present(item: dict[str, Any], *keys: str) -> Any:
+    for key in keys:
+        value = item.get(key)
+        if value is not None:
+            return value
+    return None
 
 
 def _non_negative_optional(value: Any) -> float | None:

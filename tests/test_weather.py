@@ -350,6 +350,27 @@ def test_idokep_wind_fields_are_normalized() -> None:
     assert forecast[0].wind_bearing_deg == 10
 
 
+def test_home_assistant_native_wind_fields_are_normalized() -> None:
+    forecast = normalize_ha_forecast(
+        [
+            {
+                "datetime": NOW.isoformat(),
+                "temperature": 24,
+                "condition": "sunny",
+                "precipitation": 0,
+                "precipitation_probability": 0,
+                "native_wind_speed": 25,
+                "native_wind_gust_speed": 40,
+                "wind_bearing_deg": 180,
+            }
+        ]
+    )
+
+    assert forecast[0].wind_speed_kmh == 25
+    assert forecast[0].wind_gust_kmh == 40
+    assert forecast[0].wind_bearing_deg == 180
+
+
 def test_wind_delay_selects_later_same_day_window() -> None:
     hours = forecast(wind_speed=12, wind_gust=20)
     hours[0].wind_speed_kmh = 36

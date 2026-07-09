@@ -25,10 +25,17 @@ from .const import (
     CONF_WEATHER_ENTITY,
     CONF_ZONE_ENTITIES,
     DOMAIN,
+    IDOKEP_WIND_CACHE_SECONDS,
     MAX_QUEUE_DELAY_SECONDS,
     RAIN_MAP_CACHE_SECONDS,
     START_CONFIRM_SECONDS,
     STOP_CONFIRM_SECONDS,
+)
+from .idokep_wind import (
+    IDOKEP_FORECAST_URL,
+    IdokepWindHour,
+    merge_idokep_hourly_wind,
+    parse_idokep_hourly_wind,
 )
 from .irrigation import (
     ZoneProfile,
@@ -86,6 +93,9 @@ class SmartYardianManager:
         self.last_rain_error: str | None = None
         self._rain_observations: list[RainObservation] = []
         self._rain_observations_at: datetime | None = None
+        self._idokep_wind_hours: list[IdokepWindHour] = []
+        self._idokep_wind_attempted_at: datetime | None = None
+        self._idokep_wind_error: str | None = None
         self._run_lock = asyncio.Lock()
         self._stop_event = asyncio.Event()
         self._skip_zone_event = asyncio.Event()
@@ -446,7 +456,83 @@ class SmartYardianManager:
             raise WeatherUnavailableError(
                 "Az Időkép nem adott használható órás előrejelzést."
             )
+        if any(hour.wind_speed_kmh is None for hour in forecast):
+            forecast = await self._async_enrich_idokep_wind(forecast)
         return forecast
+
+    async def _async_enrich_idokep_wind(
+        self,
+        forecast: list[ForecastHour],
+    ) -> list[ForecastHour]:
+        """Fill missing HA wind values from the same Időkép hourly page."""
+        try:
+            wind_hours = await self._async_idokep_wind_forecast()
+        except WeatherUnavailableError as err:
+            _LOGGER.warning("Időkép wind fallback unavailable: %s", err)
+            return forecast
+        return merge_idokep_hourly_wind(forecast, wind_hours)
+
+    async def _async_idokep_wind_forecast(
+        self,
+        *,
+        force: bool = False,
+    ) -> list[IdokepWindHour]:
+        """Fetch and cache numeric wind values from Időkép hourly cards."""
+        utc_now = dt_util.utcnow()
+        if (
+            not force
+            and self._idokep_wind_attempted_at is not None
+            and (utc_now - self._idokep_wind_attempted_at).total_seconds()
+            < IDOKEP_WIND_CACHE_SECONDS
+        ):
+            if self._idokep_wind_hours:
+                return self._idokep_wind_hours
+            raise WeatherUnavailableError(
+                self._idokep_wind_error
+                or "Az Időkép órás széladata átmenetileg nem érhető el."
+            )
+
+        self._idokep_wind_attempted_at = utc_now
+        location = self._idokep_location()
+        if not location:
+            self._idokep_wind_error = (
+                "Nincs beállítva az Időkép-előrejelzés települése."
+            )
+            raise WeatherUnavailableError(self._idokep_wind_error)
+
+        session = async_get_clientsession(self.hass)
+        url = IDOKEP_FORECAST_URL.format(location=quote(location, safe=""))
+        try:
+            async with session.get(
+                url,
+                headers={
+                    "User-Agent": (
+                        "HomeAssistant SmartYardian/0.15.1 "
+                        "(https://github.com/mistenes/smart-yardian)"
+                    )
+                },
+                timeout=15,
+            ) as response:
+                response.raise_for_status()
+                document = await response.text()
+        except Exception as err:  # noqa: BLE001
+            self._idokep_wind_error = (
+                f"Az Időkép órás széladata nem tölthető le: {err}"
+            )
+            self._idokep_wind_hours = []
+            raise WeatherUnavailableError(self._idokep_wind_error) from err
+
+        wind_hours = parse_idokep_hourly_wind(document, dt_util.now())
+        if not wind_hours:
+            self._idokep_wind_error = (
+                "Az Időkép órás oldala nem tartalmazott feldolgozható széladatot."
+            )
+            self._idokep_wind_hours = []
+            raise WeatherUnavailableError(self._idokep_wind_error)
+
+        self._idokep_wind_hours = wind_hours
+        self._idokep_wind_error = None
+        return wind_hours
 
     async def async_preview_weather(self) -> dict[str, Any]:
         """Return current decision or a structured unavailable response."""
