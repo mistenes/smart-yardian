@@ -415,7 +415,7 @@ def test_drip_zone_ignores_wind() -> None:
     assert assessment.action == "none"
 
 
-def test_missing_wind_data_blocks_automatic_overhead_window() -> None:
+def test_missing_wind_data_warns_but_allows_automatic_overhead_window() -> None:
     assessment = assess_program_wind(
         forecast(wind_speed=None, wind_gust=None),
         NOW + timedelta(hours=1),
@@ -423,8 +423,21 @@ def test_missing_wind_data_blocks_automatic_overhead_window() -> None:
         ["spray"],
     )
 
-    assert assessment.action == "skip"
+    assert assessment.action == "warn"
     assert "Nincs széladat" in assessment.reason
+    assert "lefut" in assessment.reason
+
+
+def test_missing_wind_data_does_not_create_a_delay_or_skip() -> None:
+    assessment = find_wind_delay(
+        forecast(wind_speed=None, wind_gust=None),
+        NOW + timedelta(hours=1),
+        60,
+        ["spray"],
+    )
+
+    assert assessment.action == "warn"
+    assert assessment.delayed_until is None
 
 
 def test_idokep_location_accepts_hungarian_settlement_names() -> None:

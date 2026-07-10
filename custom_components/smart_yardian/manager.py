@@ -507,7 +507,7 @@ class SmartYardianManager:
                 url,
                 headers={
                     "User-Agent": (
-                        "HomeAssistant SmartYardian/0.15.1 "
+                        "HomeAssistant SmartYardian/0.15.2 "
                         "(https://github.com/mistenes/smart-yardian)"
                     )
                 },
@@ -757,6 +757,8 @@ class SmartYardianManager:
                     if "Nincs széladat" in wind_assessment.reason
                     else "wind_skip"
                 )
+                reason = wind_assessment.reason
+            elif wind_assessment and wind_assessment.action == "warn":
                 reason = wind_assessment.reason
             elif program.soil_moisture_enabled and any(
                 zone["moisture_action"] == "skip" for zone in zones

@@ -353,9 +353,9 @@ def assess_program_wind(
     )
     if not hours or not has_data:
         return WindAssessment(
-            "skip",
-            "Nincs széladat az öntözési időablakra, ezért az automata overhead "
-            "öntözés nem indul vakon.",
+            "warn",
+            "Nincs széladat az öntözési időablakra. A program ennek ellenére "
+            "lefut, de szél miatti halasztás nem alkalmazható.",
             max_speed,
             max_gust,
             0,
