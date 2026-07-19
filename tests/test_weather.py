@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -18,6 +20,7 @@ from custom_components.smart_yardian.weather import (
     find_wind_delay,
     forecast_day_max_temperature,
     is_plausible_celsius,
+    merge_hourly_forecast_snapshots,
     normalize_ha_forecast,
     rebase_idokep_timeline,
     validate_idokep_location,
@@ -312,6 +315,201 @@ def test_idokep_timeline_keeps_normal_current_hour_sequence() -> None:
 
     assert rebased[0].timestamp.isoformat() == "2026-07-01T07:00:00+00:00"
     assert rebased[-1].timestamp.isoformat() == "2026-07-02T05:00:00+00:00"
+
+
+def test_idokep_timeline_keeps_next_midnight_at_2302_in_budapest() -> None:
+    timezone = ZoneInfo("Europe/Budapest")
+    local_now = datetime(2026, 7, 1, 23, 2, tzinfo=timezone)
+    raw = [
+        ForecastHour(
+            timestamp=datetime(2026, 7, 2, hour, tzinfo=timezone),
+            temperature=24,
+            precipitation_mm=0,
+            precipitation_probability=0,
+            condition="clear-night",
+            wind_speed_kmh=18,
+        )
+        for hour in range(3)
+    ]
+
+    rebased = rebase_idokep_timeline(raw, local_now)
+
+    assert [hour.timestamp.isoformat() for hour in rebased] == [
+        "2026-07-02T00:00:00+02:00",
+        "2026-07-02T01:00:00+02:00",
+        "2026-07-02T02:00:00+02:00",
+    ]
+
+
+@pytest.mark.parametrize("current_hour", [22, 23])
+def test_idokep_timeline_rotates_malformed_full_day_across_midnight(
+    current_hour: int,
+) -> None:
+    timezone = ZoneInfo("Europe/Budapest")
+    local_now = datetime(2026, 7, 1, current_hour, 2, tzinfo=timezone)
+    raw = [
+        ForecastHour(
+            timestamp=datetime(2026, 7, 2, hour, tzinfo=timezone),
+            temperature=20 + hour,
+            precipitation_mm=0,
+            precipitation_probability=0,
+            condition="sunny",
+            wind_speed_kmh=15,
+        )
+        for hour in range(24)
+    ]
+
+    rebased = rebase_idokep_timeline(raw, local_now)
+
+    expected_hours = list(range(current_hour, 24)) + list(range(current_hour))
+    assert [hour.timestamp.hour for hour in rebased] == expected_hours
+    assert rebased[0].timestamp.date() == local_now.date()
+    midnight_index = 24 - current_hour
+    assert rebased[midnight_index].timestamp == datetime(
+        2026,
+        7,
+        2,
+        0,
+        tzinfo=timezone,
+    )
+
+
+def test_forecast_snapshot_keeps_current_hour_after_provider_rolls_it_off() -> None:
+    scheduled_at = datetime(2026, 7, 1, 19, 0, tzinfo=UTC)
+    cached = [
+        ForecastHour(
+            timestamp=scheduled_at,
+            temperature=28,
+            precipitation_mm=0,
+            precipitation_probability=0,
+            condition="sunny",
+            wind_speed_kmh=38,
+            wind_gust_kmh=52,
+        )
+    ]
+    fresh = [
+        ForecastHour(
+            timestamp=scheduled_at + timedelta(hours=1),
+            temperature=27,
+            precipitation_mm=0,
+            precipitation_probability=0,
+            condition="sunny",
+            wind_speed_kmh=12,
+            wind_gust_kmh=20,
+        )
+    ]
+
+    merged = merge_hourly_forecast_snapshots(
+        cached,
+        fresh,
+        scheduled_at + timedelta(minutes=2),
+    )
+    assessment = assess_program_wind(
+        merged,
+        scheduled_at,
+        60,
+        ["rotator"],
+    )
+
+    assert [hour.timestamp.hour for hour in merged] == [19, 20]
+    assert assessment.action == "delay"
+    assert assessment.max_wind_speed_kmh == 38
+
+
+def test_forecast_snapshot_drops_an_hour_after_its_window_has_ended() -> None:
+    cached_hour = ForecastHour(
+        timestamp=datetime(2026, 7, 1, 19, 0, tzinfo=UTC),
+        temperature=28,
+        precipitation_mm=0,
+        precipitation_probability=0,
+        condition="sunny",
+        wind_speed_kmh=38,
+    )
+
+    merged = merge_hourly_forecast_snapshots(
+        [cached_hour],
+        [],
+        datetime(2026, 7, 1, 20, 0, tzinfo=UTC),
+    )
+
+    assert merged == []
+
+
+def test_forecast_snapshot_drops_absent_future_hours() -> None:
+    future_hour = ForecastHour(
+        timestamp=datetime(2026, 7, 2, 19, 0, tzinfo=UTC),
+        temperature=28,
+        precipitation_mm=0,
+        precipitation_probability=0,
+        condition="sunny",
+        wind_speed_kmh=38,
+    )
+
+    merged = merge_hourly_forecast_snapshots(
+        [future_hour],
+        [],
+        datetime(2026, 7, 1, 19, 2, tzinfo=UTC),
+    )
+
+    assert merged == []
+
+
+def test_forecast_snapshot_keeps_cached_wind_when_fresh_hour_omits_it() -> None:
+    timestamp = datetime(2026, 7, 1, 19, 0, tzinfo=UTC)
+    cached_hour = ForecastHour(
+        timestamp=timestamp,
+        temperature=27,
+        precipitation_mm=0,
+        precipitation_probability=0,
+        condition="partlycloudy",
+        wind_speed_kmh=35,
+        wind_gust_kmh=49,
+        wind_bearing_deg=225,
+    )
+    fresh_hour = ForecastHour(
+        timestamp=timestamp,
+        temperature=28,
+        precipitation_mm=0,
+        precipitation_probability=0,
+        condition="sunny",
+    )
+
+    merged = merge_hourly_forecast_snapshots(
+        [cached_hour],
+        [fresh_hour],
+        timestamp + timedelta(minutes=2),
+    )
+
+    assert merged[0].temperature == 28
+    assert merged[0].condition == "sunny"
+    assert merged[0].wind_speed_kmh == 35
+    assert merged[0].wind_gust_kmh == 49
+    assert merged[0].wind_bearing_deg == 225
+
+
+def test_forecast_snapshot_distinguishes_repeated_dst_hour() -> None:
+    timezone = ZoneInfo("Europe/Budapest")
+    first_0200 = ForecastHour(
+        timestamp=datetime(2026, 10, 25, 2, 0, tzinfo=timezone, fold=0),
+        temperature=12,
+        precipitation_mm=0,
+        precipitation_probability=0,
+        condition="cloudy",
+        wind_speed_kmh=38,
+    )
+    second_0200 = replace(
+        first_0200,
+        timestamp=datetime(2026, 10, 25, 2, 0, tzinfo=timezone, fold=1),
+        wind_speed_kmh=12,
+    )
+
+    merged = merge_hourly_forecast_snapshots(
+        [first_0200, second_0200],
+        [],
+        datetime(2026, 10, 25, 2, 30, tzinfo=timezone, fold=1),
+    )
+
+    assert merged == [second_0200]
 
 
 def test_idokep_implausible_temperature_is_rejected() -> None:

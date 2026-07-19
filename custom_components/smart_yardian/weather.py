@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, time, timedelta
-import re
 from typing import Any
 
 from .const import FORECAST_HORIZON_HOURS, MIN_FORECAST_HOURS
@@ -190,11 +190,17 @@ def rebase_idokep_timeline(
     timezone = now.tzinfo
     current_hour = now.hour
 
+    def local_hour(item: ForecastHour) -> int:
+        timestamp = item.timestamp
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=UTC)
+        return timestamp.astimezone(timezone).hour
+
     start_index = next(
         (
             index
             for index, hour in enumerate(hours)
-            if hour.timestamp.astimezone(timezone).hour >= current_hour
+            if local_hour(hour) >= current_hour
         ),
         None,
     )
@@ -204,11 +210,20 @@ def rebase_idokep_timeline(
     else:
         selected = hours[start_index:]
         current_date = now.date()
+        has_rollover = any(
+            local_hour(current) < local_hour(previous)
+            for previous, current in zip(selected, selected[1:], strict=False)
+        )
+        if start_index > 0 and not has_rollover:
+            selected = [*selected, *hours[:start_index]]
 
     rebased: list[ForecastHour] = []
     previous_hour: int | None = None
     for hour in selected:
-        local = hour.timestamp.astimezone(timezone)
+        timestamp = hour.timestamp
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=UTC)
+        local = timestamp.astimezone(timezone)
         if previous_hour is not None and local.hour < previous_hour:
             current_date += timedelta(days=1)
         timestamp = datetime.combine(
@@ -219,6 +234,62 @@ def rebase_idokep_timeline(
         rebased.append(replace(hour, timestamp=timestamp))
         previous_hour = local.hour
     return rebased
+
+
+def merge_hourly_forecast_snapshots(
+    previous: Iterable[ForecastHour],
+    current: Iterable[ForecastHour],
+    now: datetime,
+) -> list[ForecastHour]:
+    """Keep the last valid current-hour sample when providers roll it off."""
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=UTC)
+    now_utc = now.astimezone(UTC)
+
+    def timestamp_utc(hour: ForecastHour) -> datetime:
+        timestamp = hour.timestamp
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=UTC)
+        return timestamp.astimezone(UTC)
+
+    def key(hour: ForecastHour) -> datetime:
+        return timestamp_utc(hour).replace(second=0, microsecond=0)
+
+    current_hours = list(current)
+    current_keys = {key(hour) for hour in current_hours}
+    merged: dict[datetime, ForecastHour] = {}
+    for hour in previous:
+        timestamp = timestamp_utc(hour)
+        hour_key = key(hour)
+        is_current_hour = timestamp <= now_utc < timestamp + timedelta(hours=1)
+        if hour_key in current_keys or is_current_hour:
+            merged[hour_key] = hour
+
+    for hour in current_hours:
+        hour_key = key(hour)
+        cached = merged.get(hour_key)
+        if cached is not None:
+            hour = replace(
+                hour,
+                wind_speed_kmh=(
+                    hour.wind_speed_kmh
+                    if hour.wind_speed_kmh is not None
+                    else cached.wind_speed_kmh
+                ),
+                wind_gust_kmh=(
+                    hour.wind_gust_kmh
+                    if hour.wind_gust_kmh is not None
+                    else cached.wind_gust_kmh
+                ),
+                wind_bearing_deg=(
+                    hour.wind_bearing_deg
+                    if hour.wind_bearing_deg is not None
+                    else cached.wind_bearing_deg
+                ),
+            )
+        merged[hour_key] = hour
+
+    return sorted(merged.values(), key=key)
 
 
 def _is_rainy(hour: ForecastHour) -> bool:

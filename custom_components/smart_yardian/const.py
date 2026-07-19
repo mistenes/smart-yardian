@@ -14,7 +14,7 @@ CONF_NOTIFY_SERVICE: Final = "notify_service"
 PANEL_URL: Final = "smart-yardian"
 PANEL_COMPONENT: Final = "smart-yardian-panel"
 PANEL_STATIC_URL: Final = "/smart_yardian/smart-yardian-panel.js"
-PANEL_MODULE_URL: Final = f"{PANEL_STATIC_URL}?v=0.15.2"
+PANEL_MODULE_URL: Final = f"{PANEL_STATIC_URL}?v=0.15.3"
 
 STORE_VERSION: Final = 1
 STORE_KEY_PREFIX: Final = "smart_yardian"
@@ -33,6 +33,9 @@ MIN_FORECAST_HOURS: Final = 12
 FORECAST_HORIZON_HOURS: Final = 24
 RAIN_MAP_CACHE_SECONDS: Final = 60 * 60
 IDOKEP_WIND_CACHE_SECONDS: Final = 20 * 60
+IDOKEP_FORECAST_PRIME_SECONDS: Final = 15 * 60
+IDOKEP_FORECAST_RETRY_SECONDS: Final = 60
+IDOKEP_FORECAST_LEAD_SECONDS: Final = 2 * 60 * 60
 
 START_CONFIRM_SECONDS: Final = 45
 STOP_CONFIRM_SECONDS: Final = 45

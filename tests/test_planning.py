@@ -1,6 +1,7 @@
 """Tests for the three-day program occurrence planner."""
 
 from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 from custom_components.smart_yardian.models import IrrigationProgram
 from custom_components.smart_yardian.planning import upcoming_occurrences
@@ -54,3 +55,23 @@ def test_upcoming_occurrences_respect_weekdays() -> None:
     )
     assert len(occurrences) == 1
     assert occurrences[0].scheduled_at.weekday() == 2
+
+
+def test_upcoming_occurrences_include_next_midnight_from_2302() -> None:
+    timezone = ZoneInfo("Europe/Budapest")
+    now = datetime(2026, 7, 1, 23, 1, tzinfo=timezone)
+
+    occurrences = upcoming_occurrences(
+        [program("midnight", list(range(7)), "00:00")],
+        now,
+        days=2,
+    )
+
+    assert occurrences[0].scheduled_at == datetime(
+        2026,
+        7,
+        2,
+        0,
+        0,
+        tzinfo=timezone,
+    )

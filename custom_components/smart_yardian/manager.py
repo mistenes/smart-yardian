@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from urllib.parse import quote
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from urllib.parse import quote
 from uuid import uuid4
 
 from homeassistant.components import persistent_notification
@@ -25,6 +25,9 @@ from .const import (
     CONF_WEATHER_ENTITY,
     CONF_ZONE_ENTITIES,
     DOMAIN,
+    IDOKEP_FORECAST_LEAD_SECONDS,
+    IDOKEP_FORECAST_PRIME_SECONDS,
+    IDOKEP_FORECAST_RETRY_SECONDS,
     IDOKEP_WIND_CACHE_SECONDS,
     MAX_QUEUE_DELAY_SECONDS,
     RAIN_MAP_CACHE_SECONDS,
@@ -58,11 +61,12 @@ from .soil_moisture import (
 )
 from .storage import SmartYardianStore
 from .weather import (
-    WindAssessment,
     WeatherUnavailableError,
+    WindAssessment,
     evaluate_calendar_day,
     find_wind_delay,
     is_plausible_celsius,
+    merge_hourly_forecast_snapshots,
     normalize_ha_forecast,
     rebase_idokep_timeline,
     validate_idokep_location,
@@ -96,6 +100,9 @@ class SmartYardianManager:
         self._idokep_wind_hours: list[IdokepWindHour] = []
         self._idokep_wind_attempted_at: datetime | None = None
         self._idokep_wind_error: str | None = None
+        self._idokep_forecast_snapshot: list[ForecastHour] = []
+        self._idokep_forecast_attempted_at: datetime | None = None
+        self._idokep_forecast_refreshed_at: datetime | None = None
         self._run_lock = asyncio.Lock()
         self._stop_event = asyncio.Event()
         self._skip_zone_event = asyncio.Event()
@@ -144,6 +151,10 @@ class SmartYardianManager:
             self.store.runtime.pop("active_run", None)
             await self.store.async_add_history(record.as_dict())
             await self.async_notify(record.reason, "Öntözés megszakítva")
+        self._create_task(
+            self._async_prime_idokep_forecast(dt_util.as_local(dt_util.now())),
+            f"{DOMAIN}_forecast_prime",
+        )
 
     async def async_unload(self) -> None:
         """Stop callbacks and running tasks."""
@@ -175,6 +186,10 @@ class SmartYardianManager:
         local_now = dt_util.as_local(now).replace(second=0, microsecond=0)
         if not self.automation_available(local_now):
             return
+        self._create_task(
+            self._async_prime_idokep_forecast(local_now),
+            f"{DOMAIN}_forecast_prime_{int(local_now.timestamp())}",
+        )
         key_date = local_now.date().isoformat()
         executed = self.store.runtime.setdefault("executed", [])
         if len(executed) > 500:
@@ -208,6 +223,63 @@ class SmartYardianManager:
                     ),
                     f"{DOMAIN}_program_{program.program_id}",
                 )
+
+    async def _async_prime_idokep_forecast(self, local_now: datetime) -> None:
+        """Capture wind shortly before a run so the current hour is retained."""
+        if not self.automation_available(local_now):
+            return
+        if not self._wind_forecast_needed_soon(local_now):
+            return
+        utc_now = dt_util.utcnow()
+        if (
+            self._idokep_forecast_refreshed_at is not None
+            and (utc_now - self._idokep_forecast_refreshed_at).total_seconds()
+            < IDOKEP_FORECAST_PRIME_SECONDS
+        ):
+            return
+        if (
+            self._idokep_forecast_attempted_at is not None
+            and (utc_now - self._idokep_forecast_attempted_at).total_seconds()
+            < IDOKEP_FORECAST_RETRY_SECONDS
+        ):
+            return
+        self._idokep_forecast_attempted_at = utc_now
+        try:
+            await self._async_idokep_forecast()
+        except WeatherUnavailableError as err:
+            _LOGGER.debug("Időkép forecast prefetch unavailable: %s", err)
+        except Exception:  # noqa: BLE001
+            _LOGGER.exception("Időkép forecast prefetch failed unexpectedly")
+
+    def _wind_forecast_needed_soon(self, local_now: datetime) -> bool:
+        """Return whether a regular or delayed overhead run is due soon."""
+        horizon = local_now + timedelta(seconds=IDOKEP_FORECAST_LEAD_SECONDS)
+        planning_now = local_now - timedelta(minutes=1)
+        for occurrence in upcoming_occurrences(
+            self.store.programs,
+            planning_now,
+            days=2,
+        ):
+            if occurrence.scheduled_at > horizon:
+                break
+            if self._program_uses_wind_guard(occurrence.program):
+                return True
+
+        for item in self.store.runtime.get("delayed_runs") or []:
+            try:
+                delayed_at = datetime.fromisoformat(str(item["scheduled_at"]))
+                if delayed_at.tzinfo is None:
+                    delayed_at = delayed_at.replace(tzinfo=local_now.tzinfo)
+                delayed_at = delayed_at.astimezone(local_now.tzinfo)
+                program = self.get_program(str(item["program_id"]))
+            except (KeyError, TypeError, ValueError):
+                continue
+            if (
+                planning_now < delayed_at <= horizon
+                and self._program_uses_wind_guard(program)
+            ):
+                return True
+        return False
 
     async def _async_run_due_delayed(
         self,
@@ -448,9 +520,10 @@ class SmartYardianManager:
             return_response=True,
         )
         items = (response or {}).get(weather_entity, {}).get("forecast", [])
+        now = dt_util.now()
         forecast = rebase_idokep_timeline(
             normalize_ha_forecast(items),
-            dt_util.now(),
+            now,
         )
         if not forecast:
             raise WeatherUnavailableError(
@@ -458,6 +531,13 @@ class SmartYardianManager:
             )
         if any(hour.wind_speed_kmh is None for hour in forecast):
             forecast = await self._async_enrich_idokep_wind(forecast)
+        forecast = merge_hourly_forecast_snapshots(
+            self._idokep_forecast_snapshot,
+            forecast,
+            now,
+        )
+        self._idokep_forecast_snapshot = forecast
+        self._idokep_forecast_refreshed_at = dt_util.utcnow()
         return forecast
 
     async def _async_enrich_idokep_wind(
@@ -507,7 +587,7 @@ class SmartYardianManager:
                 url,
                 headers={
                     "User-Agent": (
-                        "HomeAssistant SmartYardian/0.15.2 "
+                        "HomeAssistant SmartYardian/0.15.3 "
                         "(https://github.com/mistenes/smart-yardian)"
                     )
                 },

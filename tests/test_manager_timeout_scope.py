@@ -78,3 +78,17 @@ def test_zone_runtime_applies_moisture_and_zero_minutes_never_start_hardware() -
     assert '"moisture_factor": 1.0' in moisture_context
     assert 'if duration <= 0:' in execute_program
     assert 'result["outcome"] = "skipped"' in execute_program
+
+
+def test_scheduler_primes_and_retains_forecast_before_program_start() -> None:
+    source = MANAGER_PATH.read_text()
+
+    minute_tick = _function_body(source, "_async_minute_tick")
+    prime_forecast = _function_body(source, "_async_prime_idokep_forecast")
+    idokep_forecast = _function_body(source, "_async_idokep_forecast")
+
+    assert "self._async_prime_idokep_forecast(local_now)" in minute_tick
+    assert "await self._async_prime_idokep_forecast(local_now)" not in minute_tick
+    assert "_idokep_forecast_attempted_at" in prime_forecast
+    assert "except Exception" in prime_forecast
+    assert "merge_hourly_forecast_snapshots" in idokep_forecast
