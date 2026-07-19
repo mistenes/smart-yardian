@@ -106,6 +106,9 @@ class IrrigationProgram:
     temperature_condition_operator: str = "above"
     temperature_condition_value: float = 30.0
     soil_moisture_enabled: bool = False
+    schedule_mode: str = "fixed"
+    window_start_time: str | None = None
+    window_end_time: str | None = None
     program_id: str = field(default_factory=lambda: str(uuid4()))
     skip_next: bool = False
 
@@ -120,13 +123,43 @@ class IrrigationProgram:
         if not weekdays or any(day < 0 or day > 6 for day in weekdays):
             raise ValueError("Legalább egy érvényes napot ki kell választani.")
 
-        start_time = str(data.get("start_time", ""))
-        try:
-            hour, minute = (int(part) for part in start_time.split(":", 1))
-        except (TypeError, ValueError) as err:
-            raise ValueError("A kezdési idő HH:MM formátumú legyen.") from err
-        if not (0 <= hour <= 23 and 0 <= minute <= 59):
-            raise ValueError("Érvénytelen kezdési idő.")
+        schedule_mode = str(data.get("schedule_mode") or "fixed")
+        if schedule_mode not in {"fixed", "smart_window"}:
+            raise ValueError("Az ütemezési mód fix vagy intelligens időablak lehet.")
+
+        raw_window_start = data.get("window_start_time")
+        raw_window_end = data.get("window_end_time")
+        window_start_time: str | None = None
+        window_end_time: str | None = None
+        if schedule_mode == "smart_window":
+            if raw_window_start in (None, "") or raw_window_end in (None, ""):
+                raise ValueError("Intelligens időablaknál a kezdő és záró idő kötelező.")
+            window_start_time = _clock_time(
+                raw_window_start,
+                "Az öntözési ablak kezdete",
+            )
+            window_end_time = _clock_time(
+                raw_window_end,
+                "Az öntözési ablak vége",
+            )
+            _validate_window_duration(window_start_time, window_end_time)
+        elif raw_window_start not in (None, "") or raw_window_end not in (None, ""):
+            if raw_window_start in (None, "") or raw_window_end in (None, ""):
+                raise ValueError("Az öntözési ablak kezdő és záró idejét együtt kell megadni.")
+            window_start_time = _clock_time(
+                raw_window_start,
+                "Az öntözési ablak kezdete",
+            )
+            window_end_time = _clock_time(
+                raw_window_end,
+                "Az öntözési ablak vége",
+            )
+            _validate_window_duration(window_start_time, window_end_time)
+
+        raw_start_time = data.get("start_time")
+        if raw_start_time in (None, "") and schedule_mode == "smart_window":
+            raw_start_time = window_start_time
+        start_time = _clock_time(raw_start_time, "A kezdési idő")
 
         zones = [ProgramZone.from_dict(zone) for zone in data.get("zones", [])]
         if not zones:
@@ -134,37 +167,30 @@ class IrrigationProgram:
         if len({zone.entity_id for zone in zones}) != len(zones):
             raise ValueError("Egy zóna csak egyszer szerepelhet a programban.")
 
-        temperature_operator = str(
-            data.get("temperature_condition_operator") or "above"
-        )
+        temperature_operator = str(data.get("temperature_condition_operator") or "above")
         if temperature_operator not in {"above", "below"}:
             raise ValueError("A hőmérséklet-feltétel felette vagy alatta lehet.")
         try:
-            temperature_value = float(
-                data.get("temperature_condition_value", 30)
-            )
+            temperature_value = float(data.get("temperature_condition_value", 30))
         except (TypeError, ValueError) as err:
             raise ValueError("A hőmérsékleti küszöb szám legyen.") from err
         if not -30 <= temperature_value <= 60:
-            raise ValueError(
-                "A hőmérsékleti küszöb -30 és 60 °C közötti lehet."
-            )
+            raise ValueError("A hőmérsékleti küszöb -30 és 60 °C közötti lehet.")
 
         return cls(
             program_id=str(data.get("program_id") or uuid4()),
             name=name,
             enabled=bool(data.get("enabled", True)),
             weekdays=weekdays,
-            start_time=f"{hour:02d}:{minute:02d}",
+            start_time=start_time,
             weather_adjustment=bool(data.get("weather_adjustment", True)),
-            temperature_condition_enabled=bool(
-                data.get("temperature_condition_enabled", False)
-            ),
+            temperature_condition_enabled=bool(data.get("temperature_condition_enabled", False)),
             temperature_condition_operator=temperature_operator,
             temperature_condition_value=temperature_value,
-            soil_moisture_enabled=bool(
-                data.get("soil_moisture_enabled", False)
-            ),
+            soil_moisture_enabled=bool(data.get("soil_moisture_enabled", False)),
+            schedule_mode=schedule_mode,
+            window_start_time=window_start_time,
+            window_end_time=window_end_time,
             zones=zones,
             skip_next=bool(data.get("skip_next", False)),
         )
@@ -180,9 +206,7 @@ class IrrigationProgram:
     def temperature_condition_reason(self, max_temperature: float) -> str:
         """Explain why a temperature-conditioned program was skipped."""
         relation = (
-            "nem magasabb"
-            if self.temperature_condition_operator == "above"
-            else "nem alacsonyabb"
+            "nem magasabb" if self.temperature_condition_operator == "above" else "nem alacsonyabb"
         )
         return (
             f"A program napjának maximuma {max_temperature:g} °C, ami {relation} "
@@ -192,6 +216,34 @@ class IrrigationProgram:
     def as_dict(self) -> dict[str, Any]:
         """Return a JSON-safe representation."""
         return asdict(self)
+
+
+def _clock_time(value: Any, label: str) -> str:
+    """Normalize a user supplied clock time to HH:MM."""
+    raw = str(value or "")
+    try:
+        parts = raw.split(":")
+        if len(parts) != 2:
+            raise ValueError
+        hour, minute = (int(part) for part in parts)
+    except (TypeError, ValueError) as err:
+        raise ValueError(f"{label} HH:MM formátumú legyen.") from err
+    if not (0 <= hour <= 23 and 0 <= minute <= 59):
+        raise ValueError(f"{label} érvénytelen.")
+    return f"{hour:02d}:{minute:02d}"
+
+
+def _validate_window_duration(start: str, end: str) -> None:
+    """Validate a same-day or overnight smart watering window."""
+    start_hour, start_minute = (int(part) for part in start.split(":"))
+    end_hour, end_minute = (int(part) for part in end.split(":"))
+    start_total = start_hour * 60 + start_minute
+    end_total = end_hour * 60 + end_minute
+    duration = (end_total - start_total) % (24 * 60)
+    if duration == 0:
+        raise ValueError("Az öntözési ablak kezdete és vége nem lehet azonos.")
+    if duration < 30 or duration > 18 * 60:
+        raise ValueError("Az öntözési ablak 30 perc és 18 óra közötti lehet.")
 
 
 @dataclass(slots=True)

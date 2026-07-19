@@ -31,8 +31,89 @@ def test_program_roundtrip_preserves_zone_order() -> None:
     ]
     assert program.temperature_condition_enabled is False
     assert program.soil_moisture_enabled is False
+    assert program.schedule_mode == "fixed"
+    assert program.window_start_time is None
+    assert program.window_end_time is None
     assert IrrigationProgram.from_dict(program.as_dict()).as_dict() == program.as_dict()
     assert all(zone.duration_mode == "manual" for zone in program.zones)
+
+
+def test_smart_window_roundtrip_normalizes_times_and_uses_opening_fallback() -> None:
+    program = IrrigationProgram.from_dict(
+        {
+            "program_id": "smart-night",
+            "name": "Intelligens éjszakai öntözés",
+            "weekdays": [0, 2],
+            "schedule_mode": "smart_window",
+            "window_start_time": "22:30",
+            "window_end_time": "5:30",
+            "zones": [
+                {
+                    "entity_id": "switch.gyep",
+                    "duration_minutes": 15,
+                    "duration_mode": "reference",
+                }
+            ],
+        }
+    )
+
+    assert program.schedule_mode == "smart_window"
+    assert program.start_time == "22:30"
+    assert program.window_start_time == "22:30"
+    assert program.window_end_time == "05:30"
+    assert IrrigationProgram.from_dict(program.as_dict()).as_dict() == program.as_dict()
+
+
+@pytest.mark.parametrize(
+    ("start", "end", "message"),
+    [
+        ("05:00", "05:00", "nem lehet azonos"),
+        ("05:00", "05:15", "30 perc és 18 óra"),
+        ("05:00", "00:00", "30 perc és 18 óra"),
+    ],
+)
+def test_smart_window_rejects_invalid_duration(
+    start: str,
+    end: str,
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        IrrigationProgram.from_dict(
+            {
+                "name": "Hibás intelligens ablak",
+                "weekdays": [0],
+                "schedule_mode": "smart_window",
+                "window_start_time": start,
+                "window_end_time": end,
+                "zones": [{"entity_id": "switch.gyep", "duration_minutes": 10}],
+            }
+        )
+
+
+def test_smart_window_requires_both_bounds() -> None:
+    with pytest.raises(ValueError, match="kezdő és záró idő kötelező"):
+        IrrigationProgram.from_dict(
+            {
+                "name": "Hiányos intelligens ablak",
+                "weekdays": [0],
+                "schedule_mode": "smart_window",
+                "window_start_time": "05:00",
+                "zones": [{"entity_id": "switch.gyep", "duration_minutes": 10}],
+            }
+        )
+
+
+def test_smart_window_rejects_unknown_schedule_mode() -> None:
+    with pytest.raises(ValueError, match="ütemezési mód"):
+        IrrigationProgram.from_dict(
+            {
+                "name": "Ismeretlen mód",
+                "weekdays": [0],
+                "start_time": "05:00",
+                "schedule_mode": "automatic",
+                "zones": [{"entity_id": "switch.gyep", "duration_minutes": 10}],
+            }
+        )
 
 
 def test_reference_duration_mode_roundtrip() -> None:
@@ -63,12 +144,8 @@ def test_temperature_condition_above_and_below() -> None:
         "temperature_condition_enabled": True,
         "temperature_condition_value": 30,
     }
-    above = IrrigationProgram.from_dict(
-        {**base, "temperature_condition_operator": "above"}
-    )
-    below = IrrigationProgram.from_dict(
-        {**base, "temperature_condition_operator": "below"}
-    )
+    above = IrrigationProgram.from_dict({**base, "temperature_condition_operator": "above"})
+    below = IrrigationProgram.from_dict({**base, "temperature_condition_operator": "below"})
 
     assert above.temperature_condition_matches(31)
     assert not above.temperature_condition_matches(30)
@@ -86,9 +163,7 @@ def test_temperature_condition_rejects_unsafe_threshold() -> None:
                 "start_time": "05:30",
                 "temperature_condition_enabled": True,
                 "temperature_condition_value": 80,
-                "zones": [
-                    {"entity_id": "switch.gyep", "duration_minutes": 15}
-                ],
+                "zones": [{"entity_id": "switch.gyep", "duration_minutes": 15}],
             }
         )
 

@@ -49,12 +49,22 @@ export type ProgramZone = {
   duration_mode: "manual" | "reference";
 };
 
+export type ScheduleMode = "fixed" | "smart_window";
+export type PlanningStatus =
+  | "fixed"
+  | "smart_planned"
+  | "smart_waiting_forecast"
+  | "smart_no_fit";
+
 export type Program = {
   program_id: string;
   name: string;
   enabled: boolean;
   weekdays: number[];
+  schedule_mode: ScheduleMode;
   start_time: string;
+  window_start_time: string | null;
+  window_end_time: string | null;
   weather_adjustment: boolean;
   temperature_condition_enabled: boolean;
   temperature_condition_operator: "above" | "below";
@@ -140,7 +150,8 @@ export type ScheduleStatus =
   | "moisture_skip"
   | "wind_delayed"
   | "wind_skip"
-  | "wind_unavailable";
+  | "wind_unavailable"
+  | "smart_no_fit";
 
 export type ScheduleZone = {
   entity_id: string;
@@ -166,6 +177,12 @@ export type ScheduleProgram = {
   program_id: string;
   program_name: string;
   scheduled_at: string;
+  schedule_mode?: ScheduleMode;
+  planned_end_at?: string | null;
+  window_start_at?: string | null;
+  window_end_at?: string | null;
+  planning_status?: PlanningStatus | null;
+  selection_reason?: string | null;
   status: ScheduleStatus;
   reason: string;
   total_minutes: number | null;
@@ -248,6 +265,17 @@ export type Summary = {
   rain_observation_error: string | null;
   last_error: string | null;
   next_run: string | null;
+  next_run_plan?: {
+    program_id: string;
+    program_name: string;
+    schedule_mode: ScheduleMode;
+    scheduled_at: string;
+    planned_end_at?: string | null;
+    window_start_at?: string | null;
+    window_end_at?: string | null;
+    planning_status?: PlanningStatus | null;
+    selection_reason?: string | null;
+  } | null;
   seasonal_target: {
     depth_mm: number;
     cadence: string;

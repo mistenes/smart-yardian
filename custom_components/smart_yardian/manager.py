@@ -7,6 +7,7 @@ import logging
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from math import ceil
 from typing import Any
 from urllib.parse import quote
 from uuid import uuid4
@@ -48,7 +49,12 @@ from .irrigation import (
 )
 from .models import ForecastHour, IrrigationProgram, ProgramZone, RunRecord, WeatherDecision
 from .ntfy import ntfy_link
-from .planning import upcoming_occurrences
+from .planning import (
+    ProgramOccurrence,
+    SmartSlotChoice,
+    select_smart_watering_slot,
+    upcoming_occurrences,
+)
 from .rainfall import (
     IDOKEP_RAIN_MAP_URL,
     RainObservation,
@@ -119,12 +125,13 @@ class SmartYardianManager:
         """Load storage, recover interrupted work and start scheduler."""
         await self.store.async_load()
         generated_settings = self.store.ensure_generated_settings()
+        recovered_claims = self._recover_delayed_claims(self.store.runtime.get("active_run"))
         added_profiles = False
         for entity_id in self.zone_entities:
             if entity_id not in self.store.zone_profiles:
                 self.store.zone_profiles[entity_id] = ZoneProfile.default(entity_id)
                 added_profiles = True
-        if added_profiles or generated_settings:
+        if added_profiles or generated_settings or recovered_claims:
             await self.store.async_save()
         self._remove_time_listener = async_track_time_change(
             self.hass,
@@ -155,6 +162,44 @@ class SmartYardianManager:
             self._async_prime_idokep_forecast(dt_util.as_local(dt_util.now())),
             f"{DOMAIN}_forecast_prime",
         )
+
+    def _recover_delayed_claims(
+        self,
+        interrupted: dict[str, Any] | None,
+    ) -> bool:
+        """Release stale task claims and discard an interrupted active claim."""
+        delayed_runs = list(self.store.runtime.get("delayed_runs") or [])
+        if not delayed_runs:
+            return False
+        interrupted_key = str((interrupted or {}).get("run_key") or "")
+        interrupted_program = str((interrupted or {}).get("program_id") or "")
+        recovered: list[dict[str, Any]] = []
+        changed = False
+        for raw in delayed_runs:
+            item = dict(raw)
+            if not item.get("claim_id"):
+                recovered.append(item)
+                continue
+            same_interrupted_run = bool(
+                interrupted
+                and (
+                    (interrupted_key and item.get("run_key") == interrupted_key)
+                    or (
+                        not interrupted_key
+                        and interrupted_program
+                        and item.get("program_id") == interrupted_program
+                    )
+                )
+            )
+            changed = True
+            if same_interrupted_run:
+                continue
+            item.pop("claim_id", None)
+            item.pop("claimed_at", None)
+            recovered.append(item)
+        if changed:
+            self.store.runtime["delayed_runs"] = recovered
+        return changed
 
     async def async_unload(self) -> None:
         """Stop callbacks and running tasks."""
@@ -190,39 +235,146 @@ class SmartYardianManager:
             self._async_prime_idokep_forecast(local_now),
             f"{DOMAIN}_forecast_prime_{int(local_now.timestamp())}",
         )
-        key_date = local_now.date().isoformat()
         executed = self.store.runtime.setdefault("executed", [])
         if len(executed) > 500:
             executed[:] = executed[-250:]
         await self._async_run_due_delayed(local_now, executed)
 
         for program in self.store.programs:
-            run_key = f"{program.program_id}:{key_date}:{program.start_time}"
-            if (
-                program.enabled
-                and local_now.weekday() in program.weekdays
-                and local_now.strftime("%H:%M") == program.start_time
-                and run_key not in executed
+            occurrence = self._due_program_occurrence(program, local_now)
+            if occurrence is None:
+                continue
+            run_key = self._program_run_key(occurrence)
+            if run_key in executed:
+                continue
+            if any(
+                str(item.get("run_key") or "") == run_key
+                for item in self.store.runtime.get("delayed_runs") or []
             ):
                 executed.append(run_key)
                 await self.store.async_save()
-                if program.skip_next:
-                    program.skip_next = False
-                    await self.store.async_save()
-                    await self._async_record_skip(
-                        program, local_now, "A következő futást a felhasználó kihagyta."
-                    )
-                    continue
+                continue
+            if program.skip_next:
+                executed.append(run_key)
+                program.skip_next = False
+                await self.store.async_save()
+                await self._async_record_skip(
+                    program,
+                    local_now,
+                    "A következő futást a felhasználó kihagyta.",
+                )
+                continue
+            if program.schedule_mode == "smart_window":
+                claim_id = self._claim_smart_occurrence(
+                    occurrence,
+                    local_now,
+                    run_key,
+                )
+                executed.append(run_key)
+                await self.store.async_save()
                 self._create_task(
-                    self.async_run_program(
+                    self._async_run_claimed_delayed(
                         program,
                         local_now,
-                        allow_wind_delay=True,
-                        run_key=run_key,
-                        original_scheduled_at=local_now,
+                        run_key,
+                        claim_id,
+                        occurrence.scheduled_at,
+                        occurrence.window_end_at,
                     ),
-                    f"{DOMAIN}_program_{program.program_id}",
+                    f"{DOMAIN}_smart_{program.program_id}",
                 )
+                continue
+            executed.append(run_key)
+            await self.store.async_save()
+            self._create_task(
+                self.async_run_program(
+                    program,
+                    local_now,
+                    allow_wind_delay=True,
+                    run_key=run_key,
+                    original_scheduled_at=occurrence.scheduled_at,
+                    window_end_at=occurrence.window_end_at,
+                ),
+                f"{DOMAIN}_program_{program.program_id}",
+            )
+
+    def _claim_smart_occurrence(
+        self,
+        occurrence: ProgramOccurrence,
+        evaluated_at: datetime,
+        run_key: str,
+    ) -> str:
+        """Persist a recoverable smart planning claim before task creation."""
+        claim_id = str(uuid4())
+        delayed_runs = [
+            item
+            for item in list(self.store.runtime.get("delayed_runs") or [])
+            if str(item.get("run_key") or "") != run_key
+        ]
+        delayed_runs.append(
+            {
+                "kind": "smart_window",
+                "run_key": run_key,
+                "claim_id": claim_id,
+                "claimed_at": dt_util.utcnow().isoformat(),
+                "program_id": occurrence.program.program_id,
+                "program_name": occurrence.program.name,
+                "original_scheduled_at": occurrence.scheduled_at.isoformat(),
+                "scheduled_at": evaluated_at.isoformat(),
+                "window_end_at": (
+                    occurrence.window_end_at.isoformat() if occurrence.window_end_at else None
+                ),
+                "planning_status": "smart_waiting_forecast",
+                "selection_reason": "Az intelligens kezdési idő számítása folyamatban.",
+                "created_at": dt_util.utcnow().isoformat(),
+            }
+        )
+        self.store.runtime["delayed_runs"] = sorted(
+            delayed_runs,
+            key=lambda item: str(item.get("scheduled_at") or ""),
+        )
+        return claim_id
+
+    def _due_program_occurrence(
+        self,
+        program: IrrigationProgram,
+        local_now: datetime,
+    ) -> ProgramOccurrence | None:
+        """Return the fixed minute or currently open smart service window."""
+        if not program.enabled:
+            return None
+        occurrences = upcoming_occurrences(
+            [program],
+            local_now - timedelta(minutes=1),
+            days=1,
+        )
+        for occurrence in occurrences:
+            if program.schedule_mode == "fixed":
+                if occurrence.scheduled_at == local_now:
+                    return occurrence
+                continue
+            if (
+                occurrence.window_start_at is not None
+                and occurrence.window_end_at is not None
+                and (
+                    occurrence.window_start_at <= local_now < occurrence.window_end_at
+                    or (
+                        occurrence.window_start_at == occurrence.window_end_at
+                        and local_now == occurrence.window_start_at
+                    )
+                )
+            ):
+                return occurrence
+        return None
+
+    @staticmethod
+    def _program_run_key(occurrence: ProgramOccurrence) -> str:
+        """Return a stable key that does not change when a smart start moves."""
+        program = occurrence.program
+        service_date = occurrence.service_date or occurrence.scheduled_at.date()
+        if program.schedule_mode == "smart_window":
+            return f"{program.program_id}:{service_date.isoformat()}:smart_window"
+        return f"{program.program_id}:{service_date.isoformat()}:{program.start_time}"
 
     async def _async_prime_idokep_forecast(self, local_now: datetime) -> None:
         """Capture wind shortly before a run so the current hour is retained."""
@@ -262,7 +414,9 @@ class SmartYardianManager:
         ):
             if occurrence.scheduled_at > horizon:
                 break
-            if self._program_uses_wind_guard(occurrence.program):
+            if occurrence.program.schedule_mode == "smart_window" or self._program_uses_wind_guard(
+                occurrence.program
+            ):
                 return True
 
         for item in self.store.runtime.get("delayed_runs") or []:
@@ -274,9 +428,8 @@ class SmartYardianManager:
                 program = self.get_program(str(item["program_id"]))
             except (KeyError, TypeError, ValueError):
                 continue
-            if (
-                planning_now < delayed_at <= horizon
-                and self._program_uses_wind_guard(program)
+            if planning_now < delayed_at <= horizon and (
+                program.schedule_mode == "smart_window" or self._program_uses_wind_guard(program)
             ):
                 return True
         return False
@@ -286,13 +439,23 @@ class SmartYardianManager:
         local_now: datetime,
         executed: list[str],
     ) -> None:
-        """Start persisted wind-delayed runs that are due."""
+        """Claim and start persisted delayed runs that are due."""
         delayed_runs = list(self.store.runtime.get("delayed_runs") or [])
         if not delayed_runs:
             return
         remaining: list[dict[str, Any]] = []
+        claimed: list[
+            tuple[
+                IrrigationProgram,
+                str,
+                str,
+                datetime,
+                datetime | None,
+            ]
+        ] = []
         changed = False
-        for item in delayed_runs:
+        for raw in delayed_runs:
+            item = dict(raw)
             try:
                 delayed_at = datetime.fromisoformat(str(item["scheduled_at"]))
                 if delayed_at.tzinfo is None:
@@ -304,16 +467,33 @@ class SmartYardianManager:
                 changed = True
                 continue
 
+            if item.get("claim_id"):
+                remaining.append(item)
+                continue
             if delayed_at > local_now:
                 remaining.append(item)
                 continue
 
-            changed = True
-            if delayed_at.date() != local_now.date():
+            window_end_at = _parse_runtime_datetime(
+                item.get("window_end_at"),
+                None,
+            )
+            is_smart = item.get("kind") == "smart_window"
+            expired = (
+                window_end_at is not None and local_now >= window_end_at
+                if is_smart
+                else delayed_at.date() != local_now.date()
+            )
+            if expired:
+                changed = True
                 await self._async_record_skip(
                     program,
                     delayed_at,
-                    "A szél miatt halasztott futás már nem aktuális.",
+                    (
+                        "Az intelligens öntözési időablak bezárult."
+                        if is_smart
+                        else "A szél miatt halasztott futás már nem aktuális."
+                    ),
                 )
                 continue
 
@@ -323,19 +503,97 @@ class SmartYardianManager:
                 item.get("original_scheduled_at"),
                 delayed_at,
             )
-            self._create_task(
-                self.async_run_program(
+            claim_id = str(uuid4())
+            item["claim_id"] = claim_id
+            item["claimed_at"] = dt_util.utcnow().isoformat()
+            remaining.append(item)
+            claimed.append(
+                (
                     program,
-                    delayed_at,
-                    allow_wind_delay=True,
-                    run_key=run_key,
-                    original_scheduled_at=original_scheduled_at,
+                    run_key,
+                    claim_id,
+                    original_scheduled_at or delayed_at,
+                    window_end_at,
+                )
+            )
+            changed = True
+
+        if changed:
+            self.store.runtime["delayed_runs"] = remaining
+            await self.store.async_save()
+            self._notify_listeners()
+        for program, run_key, claim_id, original_at, window_end_at in claimed:
+            self._create_task(
+                self._async_run_claimed_delayed(
+                    program,
+                    local_now,
+                    run_key,
+                    claim_id,
+                    original_at,
+                    window_end_at,
                 ),
                 f"{DOMAIN}_delayed_{program.program_id}",
             )
 
+    async def _async_run_claimed_delayed(
+        self,
+        program: IrrigationProgram,
+        evaluation_at: datetime,
+        run_key: str,
+        claim_id: str,
+        original_scheduled_at: datetime,
+        window_end_at: datetime | None,
+    ) -> None:
+        """Run one durable claim and only remove the exact claimed record."""
+        remove_claim = False
+        cancelled = False
+        try:
+            await self.async_run_program(
+                program,
+                evaluation_at,
+                allow_wind_delay=True,
+                run_key=run_key,
+                original_scheduled_at=original_scheduled_at,
+                window_end_at=window_end_at,
+            )
+            remove_claim = True
+        except asyncio.CancelledError:
+            cancelled = True
+            raise
+        except Exception:  # noqa: BLE001
+            _LOGGER.exception("Smart Yardian delayed run failed before completion")
+        finally:
+            if not cancelled:
+                await self._async_finish_delayed_claim(
+                    run_key,
+                    claim_id,
+                    remove=remove_claim,
+                )
+
+    async def _async_finish_delayed_claim(
+        self,
+        run_key: str,
+        claim_id: str,
+        *,
+        remove: bool,
+    ) -> None:
+        """Remove or release one exact persisted claim without touching replans."""
+        changed = False
+        delayed_runs: list[dict[str, Any]] = []
+        for raw in list(self.store.runtime.get("delayed_runs") or []):
+            item = dict(raw)
+            if (
+                str(item.get("run_key") or "") == run_key
+                and str(item.get("claim_id") or "") == claim_id
+            ):
+                changed = True
+                if remove:
+                    continue
+                item.pop("claim_id", None)
+                item.pop("claimed_at", None)
+            delayed_runs.append(item)
         if changed:
-            self.store.runtime["delayed_runs"] = remaining
+            self.store.runtime["delayed_runs"] = delayed_runs
             await self.store.async_save()
             self._notify_listeners()
 
@@ -384,14 +642,12 @@ class SmartYardianManager:
                 settings=self.store.settings,
                 observed_precipitation_mm=(
                     observation.measured_mm
-                    if observation
-                    and target.date() == dt_util.as_local(dt_util.now()).date()
+                    if observation and target.date() == dt_util.as_local(dt_util.now()).date()
                     else 0.0
                 ),
                 rain_station=(
                     f"{observation.location} ({observation.station_id})"
-                    if observation
-                    and target.date() == dt_util.as_local(dt_util.now()).date()
+                    if observation and target.date() == dt_util.as_local(dt_util.now()).date()
                     else None
                 ),
                 latitude=float(self.hass.config.latitude),
@@ -417,8 +673,7 @@ class SmartYardianManager:
             not force
             and self._rain_observations
             and self._rain_observations_at is not None
-            and (now - self._rain_observations_at).total_seconds()
-            < RAIN_MAP_CACHE_SECONDS
+            and (now - self._rain_observations_at).total_seconds() < RAIN_MAP_CACHE_SECONDS
         ):
             return self._rain_observations
 
@@ -428,7 +683,7 @@ class SmartYardianManager:
                 IDOKEP_RAIN_MAP_URL,
                 headers={
                     "User-Agent": (
-                        "HomeAssistant SmartYardian/0.11 "
+                        "HomeAssistant SmartYardian/0.16.0 "
                         "(https://github.com/mistenes/smart-yardian)"
                     )
                 },
@@ -445,8 +700,7 @@ class SmartYardianManager:
         observations = parse_idokep_rain_map(document)
         if not observations:
             self.last_rain_error = (
-                "Az Időkép csapadéktérképe nem tartalmazott feldolgozható "
-                "automataadatot."
+                "Az Időkép csapadéktérképe nem tartalmazott feldolgozható automataadatot."
             )
             if self._rain_observations:
                 return self._rain_observations
@@ -487,16 +741,12 @@ class SmartYardianManager:
         )
         if observation is None:
             self.last_rain_observation = None
-            self.last_rain_error = (
-                f"A kiválasztott Időkép automata nem található: {station_id}."
-            )
+            self.last_rain_error = f"A kiválasztott Időkép automata nem található: {station_id}."
             return None
         self.last_rain_observation = {
             **observation.as_dict(),
             "fetched_at": (
-                self._rain_observations_at.isoformat()
-                if self._rain_observations_at
-                else None
+                self._rain_observations_at.isoformat() if self._rain_observations_at else None
             ),
         }
         self.last_rain_error = None
@@ -526,9 +776,7 @@ class SmartYardianManager:
             now,
         )
         if not forecast:
-            raise WeatherUnavailableError(
-                "Az Időkép nem adott használható órás előrejelzést."
-            )
+            raise WeatherUnavailableError("Az Időkép nem adott használható órás előrejelzést.")
         if any(hour.wind_speed_kmh is None for hour in forecast):
             forecast = await self._async_enrich_idokep_wind(forecast)
         forecast = merge_hourly_forecast_snapshots(
@@ -568,16 +816,13 @@ class SmartYardianManager:
             if self._idokep_wind_hours:
                 return self._idokep_wind_hours
             raise WeatherUnavailableError(
-                self._idokep_wind_error
-                or "Az Időkép órás széladata átmenetileg nem érhető el."
+                self._idokep_wind_error or "Az Időkép órás széladata átmenetileg nem érhető el."
             )
 
         self._idokep_wind_attempted_at = utc_now
         location = self._idokep_location()
         if not location:
-            self._idokep_wind_error = (
-                "Nincs beállítva az Időkép-előrejelzés települése."
-            )
+            self._idokep_wind_error = "Nincs beállítva az Időkép-előrejelzés települése."
             raise WeatherUnavailableError(self._idokep_wind_error)
 
         session = async_get_clientsession(self.hass)
@@ -587,7 +832,7 @@ class SmartYardianManager:
                 url,
                 headers={
                     "User-Agent": (
-                        "HomeAssistant SmartYardian/0.15.3 "
+                        "HomeAssistant SmartYardian/0.16.0 "
                         "(https://github.com/mistenes/smart-yardian)"
                     )
                 },
@@ -596,9 +841,7 @@ class SmartYardianManager:
                 response.raise_for_status()
                 document = await response.text()
         except Exception as err:  # noqa: BLE001
-            self._idokep_wind_error = (
-                f"Az Időkép órás széladata nem tölthető le: {err}"
-            )
+            self._idokep_wind_error = f"Az Időkép órás széladata nem tölthető le: {err}"
             self._idokep_wind_hours = []
             raise WeatherUnavailableError(self._idokep_wind_error) from err
 
@@ -638,30 +881,20 @@ class SmartYardianManager:
                     "timestamp": hour.timestamp.isoformat(),
                     "temperature": round(hour.temperature, 1),
                     "precipitation_mm": round(hour.precipitation_mm, 1),
-                    "precipitation_probability": round(
-                        hour.precipitation_probability
-                    ),
+                    "precipitation_probability": round(hour.precipitation_probability),
                     "condition": hour.condition,
                     "cloud_cover": (
-                        round(hour.cloud_cover)
-                        if hour.cloud_cover is not None
-                        else None
+                        round(hour.cloud_cover) if hour.cloud_cover is not None else None
                     ),
                     "is_daylight": hour.is_daylight,
                     "wind_speed_kmh": (
-                        round(hour.wind_speed_kmh, 1)
-                        if hour.wind_speed_kmh is not None
-                        else None
+                        round(hour.wind_speed_kmh, 1) if hour.wind_speed_kmh is not None else None
                     ),
                     "wind_gust_kmh": (
-                        round(hour.wind_gust_kmh, 1)
-                        if hour.wind_gust_kmh is not None
-                        else None
+                        round(hour.wind_gust_kmh, 1) if hour.wind_gust_kmh is not None else None
                     ),
                     "wind_bearing_deg": (
-                        round(hour.wind_bearing_deg)
-                        if hour.wind_bearing_deg is not None
-                        else None
+                        round(hour.wind_bearing_deg) if hour.wind_bearing_deg is not None else None
                     ),
                 }
                 for hour in forecast
@@ -672,6 +905,20 @@ class SmartYardianManager:
         """Calculate a read-only preview of the next three calendar days."""
         now = dt_util.as_local(dt_util.now())
         occurrences = upcoming_occurrences(self.store.programs, now, days=3)
+        executed = set(self.store.runtime.get("executed") or [])
+        delayed_keys = {
+            str(item.get("run_key") or "") for item in self.store.runtime.get("delayed_runs") or []
+        }
+        active_key = str((self.active_run or {}).get("run_key") or "")
+        occurrences = [
+            occurrence
+            for occurrence in occurrences
+            if (
+                self._program_run_key(occurrence) not in executed
+                or self._program_run_key(occurrence) in delayed_keys
+                or self._program_run_key(occurrence) == active_key
+            )
+        ]
         days = [
             {
                 "date": (now + timedelta(days=offset)).date().isoformat(),
@@ -691,23 +938,48 @@ class SmartYardianManager:
 
         day_decisions: dict[str, WeatherDecision | None] = {}
         day_errors: dict[str, str] = {}
+        occurrence_targets: dict[tuple[str, str], datetime] = {}
+        occurrence_days: dict[tuple[str, str], str] = {}
 
         weather_days: dict[str, datetime] = {}
         for occurrence in occurrences:
             program = occurrence.program
+            occurrence_key = (
+                program.program_id,
+                (occurrence.service_date or occurrence.scheduled_at.date()).isoformat(),
+            )
+            target_at = occurrence.scheduled_at
+            display_date = occurrence.scheduled_at.date()
             if (
-                program.weather_adjustment
+                occurrence.window_start_at is not None
+                and occurrence.window_end_at is not None
+                and occurrence.window_start_at <= now < occurrence.window_end_at
+            ):
+                target_at = now
+                display_date = now.date()
+            occurrence_targets[occurrence_key] = target_at
+            occurrence_days[occurrence_key] = display_date.isoformat()
+            if (
+                program.schedule_mode == "smart_window"
+                or program.weather_adjustment
                 or program.temperature_condition_enabled
-                or any(
-                    zone.duration_mode == "reference"
-                    for zone in program.zones
-                )
+                or any(zone.duration_mode == "reference" for zone in program.zones)
                 or self._program_uses_wind_guard(program)
             ):
                 weather_days.setdefault(
-                    occurrence.scheduled_at.date().isoformat(),
-                    occurrence.scheduled_at,
+                    target_at.date().isoformat(),
+                    target_at,
                 )
+                if (
+                    program.schedule_mode == "smart_window"
+                    and occurrence.window_end_at is not None
+                    and occurrence.window_end_at.date() != target_at.date()
+                ):
+                    closing_day_target = occurrence.window_end_at - timedelta(minutes=1)
+                    weather_days.setdefault(
+                        closing_day_target.date().isoformat(),
+                        closing_day_target,
+                    )
 
         for day_key, scheduled_at in weather_days.items():
             decision: WeatherDecision | None = None
@@ -722,15 +994,12 @@ class SmartYardianManager:
                         settings=self.store.settings,
                         observed_precipitation_mm=(
                             rain_observation.measured_mm
-                            if rain_observation
-                            and scheduled_at.date() == now.date()
+                            if rain_observation and scheduled_at.date() == now.date()
                             else 0.0
                         ),
                         rain_station=(
-                            f"{rain_observation.location} "
-                            f"({rain_observation.station_id})"
-                            if rain_observation
-                            and scheduled_at.date() == now.date()
+                            f"{rain_observation.location} ({rain_observation.station_id})"
+                            if rain_observation and scheduled_at.date() == now.date()
                             else None
                         ),
                         latitude=float(self.hass.config.latitude),
@@ -743,18 +1012,26 @@ class SmartYardianManager:
                 day_errors[day_key] = f"Időkép: {idokep_day_error}"
 
         skip_next_consumed: set[str] = set()
+        preview_smart_intervals: list[tuple[datetime, datetime]] = []
 
         for occurrence in occurrences:
             program = occurrence.program
-            day_key = occurrence.scheduled_at.date().isoformat()
+            occurrence_key = (
+                program.program_id,
+                (occurrence.service_date or occurrence.scheduled_at.date()).isoformat(),
+            )
+            target_at = occurrence_targets[occurrence_key]
+            day_key = target_at.date().isoformat()
             needs_weather = (
-                program.weather_adjustment
+                program.schedule_mode == "smart_window"
+                or program.weather_adjustment
                 or program.temperature_condition_enabled
                 or any(zone.duration_mode == "reference" for zone in program.zones)
                 or self._program_uses_wind_guard(program)
             )
             decision = day_decisions.get(day_key) if needs_weather else None
             weather_error = day_errors.get(day_key) if needs_weather else None
+            smart_day_floor: datetime | None = None
 
             if decision is not None and not program.weather_adjustment:
                 decision = replace(
@@ -762,6 +1039,35 @@ class SmartYardianManager:
                     factor=1.0,
                     rain_factor=1.0,
                     climate_factor=1.0,
+                )
+            if (
+                program.schedule_mode == "smart_window"
+                and decision is not None
+                and occurrence.window_end_at is not None
+                and occurrence.window_end_at.date() != target_at.date()
+                and (
+                    not program.temperature_condition_matches(
+                        decision.max_temperature
+                    )
+                    or decision.factor == 0
+                )
+            ):
+                next_day_key = occurrence.window_end_at.date().isoformat()
+                next_day_decision = day_decisions.get(next_day_key)
+                if next_day_decision is not None and not program.weather_adjustment:
+                    next_day_decision = replace(
+                        next_day_decision,
+                        factor=1.0,
+                        rain_factor=1.0,
+                        climate_factor=1.0,
+                    )
+                decision = next_day_decision
+                weather_error = day_errors.get(next_day_key)
+                smart_day_floor = occurrence.window_end_at.replace(
+                    hour=0,
+                    minute=0,
+                    second=0,
+                    microsecond=0,
                 )
 
             zones = [
@@ -778,8 +1084,185 @@ class SmartYardianManager:
                 for zone in zones
                 if zone["planned_minutes"] is not None
             ]
+            total_minutes = sum(planned_minutes) if len(planned_minutes) == len(zones) else None
             wind_assessment: WindAssessment | None = None
-            if (
+            smart_choice: SmartSlotChoice | None = None
+            planning_status: str | None = None
+            planned_at = occurrence.scheduled_at
+            planned_end_at: datetime | None = None
+            selection_reason: str | None = None
+            if program.schedule_mode == "smart_window":
+                planning_status = "smart_waiting_forecast"
+                if (
+                    decision is not None
+                    and idokep_forecast is not None
+                    and total_minutes is not None
+                    and total_minutes > 0
+                    and occurrence.window_start_at is not None
+                    and occurrence.window_end_at is not None
+                ):
+                    run_key = self._program_run_key(occurrence)
+                    blocked_intervals = [
+                        *self._smart_blocked_intervals(
+                            run_key,
+                            occurrence.window_start_at,
+                            occurrence.window_end_at,
+                        ),
+                        *preview_smart_intervals,
+                    ]
+                    planning_not_before = (
+                        now if occurrence.window_start_at <= now else occurrence.window_start_at
+                    )
+                    paused_until = self._pause_until_at(occurrence.window_start_at.tzinfo)
+                    if paused_until is not None:
+                        planning_not_before = max(
+                            planning_not_before,
+                            paused_until,
+                        )
+                    if smart_day_floor is not None:
+                        planning_not_before = max(
+                            planning_not_before,
+                            smart_day_floor,
+                        )
+                    smart_choice = select_smart_watering_slot(
+                        idokep_forecast,
+                        occurrence.window_start_at,
+                        occurrence.window_end_at,
+                        total_minutes,
+                        self._program_head_types(program),
+                        self.store.settings,
+                        now=planning_not_before,
+                        blocked_intervals=blocked_intervals,
+                        transition_buffer_minutes=(
+                            self._program_transition_buffer_minutes(program)
+                        ),
+                    )
+                    selection_reason = smart_choice.reason
+                    if (
+                        smart_choice.status == "planned"
+                        and smart_choice.scheduled_at is not None
+                        and smart_choice.planned_end_at is not None
+                    ):
+                        planning_status = "smart_planned"
+                        planned_at = smart_choice.scheduled_at
+                        planned_end_at = smart_choice.planned_end_at
+                        if planned_at.date() != target_at.date():
+                            selected_day_key = planned_at.date().isoformat()
+                            selected_decision = day_decisions.get(selected_day_key)
+                            if selected_decision is not None and not program.weather_adjustment:
+                                selected_decision = replace(
+                                    selected_decision,
+                                    factor=1.0,
+                                    rain_factor=1.0,
+                                    climate_factor=1.0,
+                                )
+                            if selected_decision is None:
+                                decision = None
+                                weather_error = day_errors.get(selected_day_key)
+                                zones = [
+                                    self._preview_zone(
+                                        zone,
+                                        None,
+                                        program.weather_adjustment,
+                                        program.soil_moisture_enabled,
+                                    )
+                                    for zone in program.zones
+                                ]
+                                total_minutes = None
+                                smart_choice = None
+                                planning_status = "smart_waiting_forecast"
+                                selection_reason = None
+                                planned_at = occurrence.scheduled_at
+                                planned_end_at = None
+                            else:
+                                decision = selected_decision
+                                zones = [
+                                    self._preview_zone(
+                                        zone,
+                                        decision,
+                                        program.weather_adjustment,
+                                        program.soil_moisture_enabled,
+                                    )
+                                    for zone in program.zones
+                                ]
+                                selected_minutes = [
+                                    int(zone["planned_minutes"])
+                                    for zone in zones
+                                    if zone["planned_minutes"] is not None
+                                ]
+                                total_minutes = (
+                                    sum(selected_minutes)
+                                    if len(selected_minutes) == len(zones)
+                                    else None
+                                )
+                                if total_minutes and total_minutes > 0:
+                                    selected_day_start = planned_at.replace(
+                                        hour=0,
+                                        minute=0,
+                                        second=0,
+                                        microsecond=0,
+                                    )
+                                    smart_choice = select_smart_watering_slot(
+                                        idokep_forecast,
+                                        occurrence.window_start_at,
+                                        occurrence.window_end_at,
+                                        total_minutes,
+                                        self._program_head_types(program),
+                                        self.store.settings,
+                                        now=max(
+                                            planning_not_before,
+                                            selected_day_start,
+                                        ),
+                                        blocked_intervals=blocked_intervals,
+                                        transition_buffer_minutes=(
+                                            self._program_transition_buffer_minutes(program)
+                                        ),
+                                    )
+                                    selection_reason = smart_choice.reason
+                                    if (
+                                        smart_choice.status == "planned"
+                                        and smart_choice.scheduled_at is not None
+                                        and smart_choice.planned_end_at is not None
+                                    ):
+                                        planned_at = smart_choice.scheduled_at
+                                        planned_end_at = smart_choice.planned_end_at
+                                    else:
+                                        planning_status = "smart_no_fit"
+                                        planned_at = occurrence.scheduled_at
+                                        planned_end_at = None
+                                else:
+                                    smart_choice = None
+                                    planning_status = None
+                                    selection_reason = None
+                                    planned_at = occurrence.scheduled_at
+                                    planned_end_at = None
+                    else:
+                        planning_status = "smart_no_fit"
+                elif decision is not None and total_minutes == 0:
+                    planning_status = None
+                if (
+                    smart_choice is not None
+                    and smart_choice.status == "planned"
+                    and smart_choice.scheduled_at is not None
+                    and smart_choice.planned_end_at is not None
+                ):
+                    planning_status = "smart_planned"
+                    planned_at = smart_choice.scheduled_at
+                    planned_end_at = smart_choice.planned_end_at
+                    preview_smart_intervals.append((planned_at, planned_end_at))
+                    wind_assessment = WindAssessment(
+                        smart_choice.wind_action or "none",
+                        smart_choice.wind_reason or smart_choice.reason,
+                        smart_choice.max_wind_speed_kmh,
+                        smart_choice.max_wind_gust_kmh,
+                        0,
+                    )
+                    if decision is not None:
+                        decision = self._decision_with_wind(
+                            decision,
+                            wind_assessment,
+                        )
+            elif (
                 decision is not None
                 and idokep_forecast is not None
                 and self._program_uses_wind_guard(program)
@@ -801,7 +1284,7 @@ class SmartYardianManager:
             if not self.store.settings.get("automation_enabled", True):
                 status = "automation_off"
                 reason = "Az automatika ki van kapcsolva."
-            elif self._paused_at(occurrence.scheduled_at):
+            elif self._paused_at(planned_at):
                 status = "paused"
                 reason = "Az automatika ekkor még szünetel."
             elif program.skip_next and program.program_id not in skip_next_consumed:
@@ -811,13 +1294,9 @@ class SmartYardianManager:
             elif weather_error:
                 status = "weather_unavailable"
                 reason = f"Nincs elég megbízható előrejelzés. {weather_error}"
-            elif decision and not program.temperature_condition_matches(
-                decision.max_temperature
-            ):
+            elif decision and not program.temperature_condition_matches(decision.max_temperature):
                 status = "condition_skip"
-                reason = program.temperature_condition_reason(
-                    decision.max_temperature
-                )
+                reason = program.temperature_condition_reason(decision.max_temperature)
             elif decision and program.weather_adjustment and decision.factor == 0:
                 status = "rain_skip"
                 reason = decision.reason
@@ -828,6 +1307,9 @@ class SmartYardianManager:
             ):
                 status = "moisture_skip"
                 reason = self._soil_moisture_skip_reason(zones)
+            elif smart_choice and smart_choice.status != "planned":
+                status = "smart_no_fit"
+                reason = smart_choice.reason
             elif wind_assessment and wind_assessment.action == "delay":
                 status = "wind_delayed"
                 reason = wind_assessment.reason
@@ -840,6 +1322,8 @@ class SmartYardianManager:
                 reason = wind_assessment.reason
             elif wind_assessment and wind_assessment.action == "warn":
                 reason = wind_assessment.reason
+            elif smart_choice and smart_choice.status == "planned":
+                reason = smart_choice.reason
             elif program.soil_moisture_enabled and any(
                 zone["moisture_action"] == "skip" for zone in zones
             ):
@@ -848,20 +1332,24 @@ class SmartYardianManager:
             item = {
                 "program_id": program.program_id,
                 "program_name": program.name,
-                "scheduled_at": occurrence.scheduled_at.isoformat(),
+                "schedule_mode": program.schedule_mode,
+                "scheduled_at": planned_at.isoformat(),
+                "planned_end_at": (planned_end_at.isoformat() if planned_end_at else None),
+                "window_start_at": (
+                    occurrence.window_start_at.isoformat() if occurrence.window_start_at else None
+                ),
+                "window_end_at": (
+                    occurrence.window_end_at.isoformat() if occurrence.window_end_at else None
+                ),
+                "planning_status": planning_status,
+                "selection_reason": selection_reason,
                 "status": status,
                 "reason": reason,
-                "total_minutes": (
-                    sum(planned_minutes)
-                    if len(planned_minutes) == len(zones)
-                    else None
-                ),
+                "total_minutes": total_minutes,
                 "zones": zones,
                 "weather": decision.as_dict() if decision else None,
             }
-            days_by_date[occurrence.scheduled_at.date().isoformat()][
-                "programs"
-            ].append(item)
+            days_by_date[occurrence_days[occurrence_key]]["programs"].append(item)
 
         return {
             "generated_at": now.isoformat(),
@@ -942,11 +1430,7 @@ class SmartYardianManager:
             }
         state = self.hass.states.get(sensor_entity_id)
         sensor_name = state.name if state else sensor_entity_id
-        unit = (
-            str(state.attributes.get("unit_of_measurement") or "").strip()
-            if state
-            else ""
-        )
+        unit = str(state.attributes.get("unit_of_measurement") or "").strip() if state else ""
         if unit and unit != "%":
             return {
                 "moisture_sensor_entity_id": sensor_entity_id,
@@ -955,25 +1439,18 @@ class SmartYardianManager:
                 "moisture_factor": 1.0,
                 "moisture_action": "unavailable",
                 "moisture_reason": (
-                    f"A szenzor mértékegysége {unit}, nem százalék; "
-                    "az időtartam nem módosul."
+                    f"A szenzor mértékegysége {unit}, nem százalék; az időtartam nem módosul."
                 ),
             }
         assessment = assess_soil_moisture(
-            (
-                state.state
-                if state and state.state not in UNAVAILABLE_STATES
-                else None
-            ),
+            (state.state if state and state.state not in UNAVAILABLE_STATES else None),
             self.store.settings,
         )
         return {
             "moisture_sensor_entity_id": sensor_entity_id,
             "moisture_sensor_name": sensor_name,
             "moisture_percent": (
-                round(assessment.percent, 1)
-                if assessment.percent is not None
-                else None
+                round(assessment.percent, 1) if assessment.percent is not None else None
             ),
             "moisture_factor": round(assessment.factor, 3),
             "moisture_action": assessment.action,
@@ -987,9 +1464,7 @@ class SmartYardianManager:
         partial: bool = False,
     ) -> str:
         """Summarize moisture-skipped zones for previews and history."""
-        skipped = [
-            zone for zone in zones if zone.get("moisture_action") == "skip"
-        ]
+        skipped = [zone for zone in zones if zone.get("moisture_action") == "skip"]
         readings = ", ".join(
             f"{zone['name']}: {zone['moisture_percent']:g}%"
             for zone in skipped
@@ -998,23 +1473,27 @@ class SmartYardianManager:
         suffix = f" ({readings})" if readings else ""
         if partial:
             return (
-                f"Talajnedvesség alapján {len(skipped)} zóna kimarad{suffix}; "
-                "a többi zóna lefut."
+                f"Talajnedvesség alapján {len(skipped)} zóna kimarad{suffix}; a többi zóna lefut."
             )
         return f"Minden programzóna kimarad a talajnedvesség alapján{suffix}."
 
     def _paused_at(self, scheduled_at: datetime) -> bool:
         """Return whether a future occurrence is inside the pause window."""
+        until = self._pause_until_at(scheduled_at.tzinfo)
+        return until is not None and scheduled_at < until
+
+    def _pause_until_at(self, timezone: Any) -> datetime | None:
+        """Return the configured pause timestamp in the requested timezone."""
         paused_until = self.store.settings.get("paused_until")
         if not paused_until:
-            return False
+            return None
         try:
             until = datetime.fromisoformat(str(paused_until))
             if until.tzinfo is None:
                 until = until.replace(tzinfo=UTC)
-            return scheduled_at < until.astimezone(scheduled_at.tzinfo)
+            return until.astimezone(timezone)
         except ValueError:
-            return False
+            return None
 
     def get_program(self, program_id: str) -> IrrigationProgram:
         """Find a program or raise."""
@@ -1037,24 +1516,19 @@ class SmartYardianManager:
                 break
         else:
             self.store.programs.append(program)
+        self._remove_delayed_program_runs(program.program_id)
         await self.store.async_save()
         self._notify_listeners()
         return program
 
-    def manual_program_from_dict(
-        self, raw: dict[str, Any]
-    ) -> IrrigationProgram:
+    def manual_program_from_dict(self, raw: dict[str, Any]) -> IrrigationProgram:
         """Validate an ephemeral program without storing it."""
         program = IrrigationProgram.from_dict(raw)
         unknown = {
-            zone.entity_id
-            for zone in program.zones
-            if zone.entity_id not in self.zone_entities
+            zone.entity_id for zone in program.zones if zone.entity_id not in self.zone_entities
         }
         if unknown:
-            raise ValueError(
-                f"Ismeretlen Yardian zóna: {', '.join(sorted(unknown))}"
-            )
+            raise ValueError(f"Ismeretlen Yardian zóna: {', '.join(sorted(unknown))}")
         program.enabled = False
         program.skip_next = False
         return program
@@ -1063,14 +1537,21 @@ class SmartYardianManager:
         """Delete a program."""
         original = len(self.store.programs)
         self.store.programs = [
-            program
-            for program in self.store.programs
-            if program.program_id != program_id
+            program for program in self.store.programs if program.program_id != program_id
         ]
         if len(self.store.programs) == original:
             raise ValueError("A program nem található.")
+        self._remove_delayed_program_runs(program_id)
         await self.store.async_save()
         self._notify_listeners()
+
+    def _remove_delayed_program_runs(self, program_id: str) -> None:
+        """Cancel future wind or smart starts when a program changes."""
+        self.store.runtime["delayed_runs"] = [
+            item
+            for item in list(self.store.runtime.get("delayed_runs") or [])
+            if str(item.get("program_id") or "") != program_id
+        ]
 
     async def async_skip_next(self, program_id: str) -> None:
         """Mark the next scheduled execution as skipped."""
@@ -1154,18 +1635,14 @@ class SmartYardianManager:
                 "A talajnedvesség értékei növekvő sorrendben legyenek: "
                 "száraz küszöb, célérték, kihagyási küszöb."
             )
-        if (
-            candidate["rain_reduce_low_mm"]
-            > candidate["rain_reduce_high_mm"]
-        ):
+        if candidate["rain_reduce_low_mm"] > candidate["rain_reduce_high_mm"]:
             raise ValueError(
                 "Az enyhe eső küszöbe nem lehet nagyobb az erős csökkentés küszöbénél."
             )
         current_location = self._idokep_location()
         if (
             requested_idokep_location is not None
-            and requested_idokep_location.casefold()
-            != current_location.casefold()
+            and requested_idokep_location.casefold() != current_location.casefold()
         ):
             await self._async_update_idokep_location(requested_idokep_location)
         self.store.settings = candidate
@@ -1178,14 +1655,10 @@ class SmartYardianManager:
         registry_entry = er.async_get(self.hass).async_get(weather_entity)
         config_entry_id = registry_entry.config_entry_id if registry_entry else None
         config_entry = (
-            self.hass.config_entries.async_get_entry(config_entry_id)
-            if config_entry_id
-            else None
+            self.hass.config_entries.async_get_entry(config_entry_id) if config_entry_id else None
         )
         if config_entry is None or config_entry.domain != "idokep":
-            raise ValueError(
-                "A kiválasztott weather entitás nem az Időkép integrációhoz tartozik."
-            )
+            raise ValueError("A kiválasztott weather entitás nem az Időkép integrációhoz tartozik.")
         return config_entry
 
     def _idokep_location(self) -> str:
@@ -1195,9 +1668,7 @@ class SmartYardianManager:
         except ValueError:
             return str(self.store.settings.get("idokep_location") or "")
         return str(
-            entry.data.get("location_name")
-            or self.store.settings.get("idokep_location")
-            or ""
+            entry.data.get("location_name") or self.store.settings.get("idokep_location") or ""
         ).strip()
 
     async def _async_update_idokep_location(self, location: str) -> None:
@@ -1209,7 +1680,7 @@ class SmartYardianManager:
                 url,
                 headers={
                     "User-Agent": (
-                        "HomeAssistant SmartYardian/0.15 "
+                        "HomeAssistant SmartYardian/0.16.0 "
                         "(https://github.com/mistenes/smart-yardian)"
                     )
                 },
@@ -1218,13 +1689,9 @@ class SmartYardianManager:
                 response.raise_for_status()
                 document = await response.text()
         except Exception as err:  # noqa: BLE001
-            raise ValueError(
-                f"Az Időkép település-ellenőrzése nem sikerült: {err}"
-            ) from err
+            raise ValueError(f"Az Időkép település-ellenőrzése nem sikerült: {err}") from err
         if "wide-hourly-forecast-card" not in document:
-            raise ValueError(
-                f"Az Időkép nem adott órás előrejelzést ehhez: {location}."
-            )
+            raise ValueError(f"Az Időkép nem adott órás előrejelzést ehhez: {location}.")
 
         entry = self._idokep_config_entry()
         old_data = dict(entry.data)
@@ -1235,17 +1702,13 @@ class SmartYardianManager:
         except Exception as err:  # noqa: BLE001
             self.hass.config_entries.async_update_entry(entry, data=old_data)
             await self.hass.config_entries.async_reload(entry.entry_id)
-            raise ValueError(
-                "Az Időkép integráció nem tudott átállni az új településre."
-            ) from err
+            raise ValueError("Az Időkép integráció nem tudott átállni az új településre.") from err
 
     def zone_profile(self, entity_id: str) -> ZoneProfile:
         """Return a configured profile or a safe in-memory default."""
         return self.store.zone_profiles.get(entity_id) or ZoneProfile.default(entity_id)
 
-    async def async_update_zone_profiles(
-        self, profiles: list[dict[str, Any]]
-    ) -> None:
+    async def async_update_zone_profiles(self, profiles: list[dict[str, Any]]) -> None:
         """Validate and persist hydraulic profiles for configured zones."""
         updated = dict(self.store.zone_profiles)
         for raw in profiles:
@@ -1266,19 +1729,21 @@ class SmartYardianManager:
         allow_wind_delay: bool = False,
         run_key: str | None = None,
         original_scheduled_at: datetime | None = None,
+        window_end_at: datetime | None = None,
     ) -> None:
         """Run every zone safely under one global lock."""
         scheduled_at = scheduled_at or dt_util.now()
         original_scheduled_at = original_scheduled_at or scheduled_at
-        apply_weather = (
-            program.weather_adjustment if apply_weather is None else apply_weather
-        )
+        apply_weather = program.weather_adjustment if apply_weather is None else apply_weather
         run_id = str(uuid4())
-        uses_reference = any(
-            zone.duration_mode == "reference" for zone in program.zones
-        )
+        uses_reference = any(zone.duration_mode == "reference" for zone in program.zones)
         uses_temperature_condition = program.temperature_condition_enabled
         uses_wind_guard = self._program_uses_wind_guard(program)
+        smart_automatic = bool(
+            allow_wind_delay
+            and program.schedule_mode == "smart_window"
+            and window_end_at is not None
+        )
 
         lock_acquired = False
         try:
@@ -1297,8 +1762,46 @@ class SmartYardianManager:
                 )
                 return
 
+            evaluation_now = dt_util.as_local(dt_util.now()).replace(
+                second=0,
+                microsecond=0,
+            )
+            if allow_wind_delay:
+                try:
+                    current_program = self.get_program(program.program_id)
+                except ValueError:
+                    current_program = None
+                if not self.automation_available(evaluation_now):
+                    await self._async_record_skip(
+                        program,
+                        scheduled_at,
+                        "Az automatika a várakozás közben kikapcsolt vagy szünetel.",
+                    )
+                    return
+                if (
+                    current_program is None
+                    or not current_program.enabled
+                    or current_program.as_dict() != program.as_dict()
+                ):
+                    await self._async_record_skip(
+                        program,
+                        scheduled_at,
+                        "A program a várakozás közben módosult vagy le lett tiltva.",
+                    )
+                    return
+                if current_program.skip_next:
+                    current_program.skip_next = False
+                    await self.store.async_save()
+                    await self._async_record_skip(
+                        program,
+                        scheduled_at,
+                        "A következő futást a felhasználó a várakozás közben kihagyta.",
+                    )
+                    return
+
+            decision_at = evaluation_now if allow_wind_delay else scheduled_at
             decision = (
-                await self.async_weather_decision(scheduled_at)
+                await self.async_weather_decision(decision_at)
                 if apply_weather or uses_reference or uses_temperature_condition
                 else WeatherDecision(
                     factor=1.0,
@@ -1321,14 +1824,10 @@ class SmartYardianManager:
                     evaluated_at=dt_util.utcnow(),
                 )
             )
-            if not apply_weather and (
-                uses_reference or uses_temperature_condition
-            ):
+            if not apply_weather and (uses_reference or uses_temperature_condition):
                 reason_parts = []
                 if uses_reference:
-                    reason_parts.append(
-                        "referenciaidő a becsült napi párolgásból"
-                    )
+                    reason_parts.append("referenciaidő a becsült napi párolgásból")
                 if uses_temperature_condition:
                     reason_parts.append("hőmérséklet-feltétel ellenőrizve")
                 decision = replace(
@@ -1336,25 +1835,51 @@ class SmartYardianManager:
                     factor=1.0,
                     rain_factor=1.0,
                     climate_factor=1.0,
-                    reason=f"{', '.join(reason_parts).capitalize()}, "
-                    "esőkorrekció nélkül.",
+                    reason=f"{', '.join(reason_parts).capitalize()}, esőkorrekció nélkül.",
                 )
-            if not program.temperature_condition_matches(
-                decision.max_temperature
+            slot_not_before = evaluation_now
+            current_day_blocks = (
+                not program.temperature_condition_matches(decision.max_temperature)
+                or decision.factor == 0
+            )
+            if (
+                smart_automatic
+                and window_end_at is not None
+                and window_end_at.date() != evaluation_now.date()
+                and current_day_blocks
             ):
+                next_day_target = window_end_at - timedelta(minutes=1)
+                decision = await self.async_weather_decision(next_day_target)
+                if not apply_weather and (uses_reference or uses_temperature_condition):
+                    decision = replace(
+                        decision,
+                        factor=1.0,
+                        rain_factor=1.0,
+                        climate_factor=1.0,
+                        reason=(
+                            "Az éjfél utáni időpont időtartama újraszámítva, "
+                            "esőkorrekció nélkül."
+                        ),
+                    )
+                slot_not_before = max(
+                    evaluation_now,
+                    next_day_target.replace(
+                        hour=0,
+                        minute=0,
+                        second=0,
+                        microsecond=0,
+                    ),
+                )
+            if not program.temperature_condition_matches(decision.max_temperature):
                 await self._async_record_skip(
                     program,
                     scheduled_at,
-                    program.temperature_condition_reason(
-                        decision.max_temperature
-                    ),
+                    program.temperature_condition_reason(decision.max_temperature),
                     decision,
                 )
                 return
             if decision.factor == 0:
-                await self._async_record_skip(
-                    program, scheduled_at, decision.reason, decision
-                )
+                await self._async_record_skip(program, scheduled_at, decision.reason, decision)
                 return
             zone_results = [
                 self._zone_run_details(
@@ -1367,10 +1892,7 @@ class SmartYardianManager:
             if (
                 program.soil_moisture_enabled
                 and zone_results
-                and all(
-                    result["moisture_action"] == "skip"
-                    for result in zone_results
-                )
+                and all(result["moisture_action"] == "skip" for result in zone_results)
             ):
                 await self._async_record_skip(
                     program,
@@ -1380,16 +1902,61 @@ class SmartYardianManager:
                     zones=zone_results,
                 )
                 return
-            if uses_wind_guard and (allow_wind_delay or apply_weather):
+            total_minutes = sum(int(result["planned_minutes"]) for result in zone_results)
+            if smart_automatic:
+                forecast = await self._async_idokep_forecast()
+                choice = select_smart_watering_slot(
+                    forecast,
+                    original_scheduled_at,
+                    window_end_at,
+                    total_minutes,
+                    self._program_head_types(program),
+                    self.store.settings,
+                    now=slot_not_before,
+                    blocked_intervals=self._smart_blocked_intervals(
+                        run_key,
+                        original_scheduled_at,
+                        window_end_at,
+                    ),
+                    transition_buffer_minutes=(self._program_transition_buffer_minutes(program)),
+                )
+                if choice.status != "planned" or choice.scheduled_at is None:
+                    await self._async_record_skip(
+                        program,
+                        scheduled_at,
+                        choice.reason,
+                        decision,
+                        zones=zone_results,
+                    )
+                    return
+                smart_wind = WindAssessment(
+                    choice.wind_action or "none",
+                    choice.wind_reason or choice.reason,
+                    choice.max_wind_speed_kmh,
+                    choice.max_wind_gust_kmh,
+                    0,
+                )
+                decision = self._decision_with_wind(decision, smart_wind)
+                decision = replace(
+                    decision,
+                    reason=f"{decision.reason} {choice.reason}",
+                )
+                if choice.scheduled_at > evaluation_now:
+                    await self._async_schedule_smart_start(
+                        program,
+                        original_scheduled_at,
+                        evaluation_now,
+                        choice,
+                        run_key,
+                    )
+                    return
+            elif uses_wind_guard and (allow_wind_delay or apply_weather):
                 try:
                     forecast = await self._async_idokep_forecast()
                     wind_assessment = find_wind_delay(
                         forecast,
                         scheduled_at,
-                        sum(
-                            int(result["planned_minutes"])
-                            for result in zone_results
-                        ),
+                        total_minutes,
                         self._program_head_types(program),
                         self.store.settings,
                     )
@@ -1440,12 +2007,30 @@ class SmartYardianManager:
                             wind_assessment.windy_hours,
                         )
                     decision = self._decision_with_wind(decision, wind_assessment)
+            if smart_automatic and window_end_at is not None:
+                projected_end = dt_util.utcnow() + timedelta(
+                    minutes=(total_minutes + self._program_transition_buffer_minutes(program))
+                )
+                if projected_end > window_end_at.astimezone(UTC):
+                    await self._async_record_skip(
+                        program,
+                        scheduled_at,
+                        (
+                            f"A {total_minutes} perces program a várakozás után "
+                            f"már nem fér bele a {window_end_at.strftime('%H:%M')}-kor "
+                            "záródó időablakba."
+                        ),
+                        decision,
+                        zones=zone_results,
+                    )
+                    return
             await self._async_execute_program(
                 run_id,
                 program,
                 scheduled_at,
                 decision,
                 zone_results,
+                run_key=run_key,
             )
         except WeatherUnavailableError as err:
             await self._async_record_skip(
@@ -1466,10 +2051,7 @@ class SmartYardianManager:
 
     def _program_head_types(self, program: IrrigationProgram) -> list[str]:
         """Return the configured head type of every zone in a program."""
-        return [
-            self.zone_profile(zone.entity_id).head_type
-            for zone in program.zones
-        ]
+        return [self.zone_profile(zone.entity_id).head_type for zone in program.zones]
 
     @staticmethod
     def _decision_with_wind(
@@ -1487,6 +2069,132 @@ class SmartYardianManager:
             delayed_until=assessment.delayed_until,
         )
 
+    def _smart_blocked_intervals(
+        self,
+        run_key: str | None,
+        window_start_at: datetime,
+        window_end_at: datetime,
+    ) -> list[tuple[datetime, datetime]]:
+        """Return fixed, delayed and active irrigation intervals to avoid."""
+        blocked: list[tuple[datetime, datetime]] = []
+        for item in self.store.runtime.get("delayed_runs") or []:
+            if run_key and str(item.get("run_key") or "") == run_key:
+                continue
+            starts_at = _parse_runtime_datetime(item.get("scheduled_at"), None)
+            ends_at = _parse_runtime_datetime(item.get("planned_end_at"), None)
+            if starts_at is None:
+                continue
+            if ends_at is None:
+                try:
+                    delayed_program = self.get_program(str(item["program_id"]))
+                    duration = self._estimated_program_minutes(delayed_program)
+                except (KeyError, ValueError):
+                    duration = 30
+                ends_at = starts_at + timedelta(minutes=duration)
+            if starts_at < window_end_at and ends_at > window_start_at:
+                blocked.append((starts_at, ends_at))
+
+        for occurrence in upcoming_occurrences(
+            self.store.programs,
+            window_start_at - timedelta(minutes=1),
+            days=2,
+        ):
+            if occurrence.program.schedule_mode != "fixed":
+                continue
+            starts_at = occurrence.scheduled_at
+            ends_at = starts_at + timedelta(
+                minutes=self._estimated_program_minutes(occurrence.program)
+            )
+            if starts_at < window_end_at and ends_at > window_start_at:
+                blocked.append((starts_at, ends_at))
+
+        if self.active_run:
+            now = dt_util.as_local(dt_util.now())
+            remaining = max(
+                1,
+                int(self.active_run.get("total_minutes") or 0)
+                - int(self.active_run.get("completed_minutes") or 0),
+            )
+            active_end = now + timedelta(minutes=remaining)
+            if now < window_end_at and active_end > window_start_at:
+                blocked.append((now, active_end))
+        return blocked
+
+    def _estimated_program_minutes(self, program: IrrigationProgram) -> int:
+        """Return a conservative conflict estimate before weather calculation."""
+        weather_factor = (
+            max(1.0, float(self.store.settings.get("factor_max", 1.5)))
+            if program.weather_adjustment
+            else 1.0
+        )
+        moisture_factor = (
+            max(
+                1.0,
+                float(self.store.settings.get("soil_moisture_max_factor", 1.2)),
+            )
+            if program.soil_moisture_enabled
+            else 1.0
+        )
+        zone_minutes = 0
+        for zone in program.zones:
+            if zone.duration_mode == "reference":
+                zone_minutes += 180
+            else:
+                zone_minutes += min(
+                    180,
+                    ceil(zone.duration_minutes * weather_factor * moisture_factor),
+                )
+        transition_minutes = self._program_transition_buffer_minutes(program)
+        return max(1, zone_minutes + transition_minutes)
+
+    @staticmethod
+    def _program_transition_buffer_minutes(program: IrrigationProgram) -> int:
+        """Reserve worst-case state-confirmation time at the hard window edge."""
+        return ceil(len(program.zones) * (START_CONFIRM_SECONDS + STOP_CONFIRM_SECONDS) / 60)
+
+    async def _async_schedule_smart_start(
+        self,
+        program: IrrigationProgram,
+        original_scheduled_at: datetime,
+        evaluated_at: datetime,
+        choice: SmartSlotChoice,
+        run_key: str | None,
+    ) -> None:
+        """Persist the chosen start so restart and replanning cannot duplicate it."""
+        if choice.scheduled_at is None or choice.planned_end_at is None:
+            return
+        key = run_key or (
+            f"{program.program_id}:{original_scheduled_at.date().isoformat()}:smart_window"
+        )
+        delayed_runs = [
+            item
+            for item in list(self.store.runtime.get("delayed_runs") or [])
+            if item.get("run_key") != key
+        ]
+        delayed_runs.append(
+            {
+                "kind": "smart_window",
+                "run_key": key,
+                "program_id": program.program_id,
+                "program_name": program.name,
+                "original_scheduled_at": original_scheduled_at.isoformat(),
+                "scheduled_at": choice.scheduled_at.isoformat(),
+                "planned_end_at": choice.planned_end_at.isoformat(),
+                "window_end_at": choice.window_end_at.isoformat(),
+                "previous_scheduled_at": evaluated_at.isoformat(),
+                "planned_minutes": choice.duration_minutes,
+                "planning_status": "smart_planned",
+                "selection_reason": choice.reason,
+                "created_at": dt_util.utcnow().isoformat(),
+            }
+        )
+        self.store.runtime["delayed_runs"] = sorted(
+            delayed_runs,
+            key=lambda item: str(item.get("scheduled_at") or ""),
+        )
+        await self.store.async_save()
+        self._notify_listeners()
+
     async def _async_schedule_wind_delay(
         self,
         program: IrrigationProgram,
@@ -1499,8 +2207,7 @@ class SmartYardianManager:
         if assessment.delayed_until is None:
             return
         key = run_key or (
-            f"{program.program_id}:{original_scheduled_at.date().isoformat()}:"
-            f"{program.start_time}"
+            f"{program.program_id}:{original_scheduled_at.date().isoformat()}:{program.start_time}"
         )
         delayed_runs = [
             item
@@ -1541,6 +2248,8 @@ class SmartYardianManager:
         scheduled_at: datetime,
         decision: WeatherDecision,
         zone_results: list[dict[str, Any]] | None = None,
+        *,
+        run_key: str | None = None,
     ) -> None:
         """Execute the program while holding the run lock."""
         self._stop_event.clear()
@@ -1554,15 +2263,14 @@ class SmartYardianManager:
             )
             for zone in program.zones
         ]
-        total_minutes = sum(
-            int(item["planned_minutes"]) for item in zone_results
-        )
+        total_minutes = sum(int(item["planned_minutes"]) for item in zone_results)
         self.status = "running"
         self.last_error = None
         self.active_run = {
             "run_id": run_id,
             "program_id": program.program_id,
             "program_name": program.name,
+            "run_key": run_key,
             "scheduled_at": scheduled_at.isoformat(),
             "started_at": started.isoformat(),
             "factor": decision.factor,
@@ -1579,9 +2287,7 @@ class SmartYardianManager:
         outcome = "completed"
         reason = decision.reason
         try:
-            for index, (zone, result) in enumerate(
-                zip(program.zones, zone_results, strict=True)
-            ):
+            for index, (zone, result) in enumerate(zip(program.zones, zone_results, strict=True)):
                 if self._stop_event.is_set():
                     outcome = "stopped"
                     reason = "A futást a felhasználó leállította."
@@ -1615,15 +2321,10 @@ class SmartYardianManager:
                 await self.store.async_save()
                 self._notify_listeners()
             moisture_skips = sum(
-                1
-                for result in zone_results
-                if result.get("moisture_action") == "skip"
+                1 for result in zone_results if result.get("moisture_action") == "skip"
             )
             if outcome == "completed" and moisture_skips:
-                reason = (
-                    f"{decision.reason} "
-                    f"Talajnedvesség alapján {moisture_skips} zóna kimaradt."
-                )
+                reason = f"{decision.reason} Talajnedvesség alapján {moisture_skips} zóna kimaradt."
         except Exception as err:  # noqa: BLE001 - device failures must become audit records
             _LOGGER.exception("Smart Yardian run failed")
             outcome = "failed"
@@ -1697,9 +2398,7 @@ class SmartYardianManager:
                 "rain_factor": decision.rain_factor,
             }
         else:
-            duration = max(
-                1, min(180, round(zone.duration_minutes * decision.factor))
-            )
+            duration = max(1, min(180, round(zone.duration_minutes * decision.factor)))
             base_minutes = zone.duration_minutes
             calculation = {"duration_mode": "manual"}
         pre_moisture_minutes = duration
@@ -1823,8 +2522,7 @@ class SmartYardianManager:
     async def _async_wait_for_external_irrigation(self) -> None:
         deadline = asyncio.get_running_loop().time() + MAX_QUEUE_DELAY_SECONDS
         while any(
-            (state := self.hass.states.get(entity_id)) is not None
-            and state.state == STATE_ON
+            (state := self.hass.states.get(entity_id)) is not None and state.state == STATE_ON
             for entity_id in self.zone_entities
         ):
             if asyncio.get_running_loop().time() >= deadline:
@@ -1837,8 +2535,7 @@ class SmartYardianManager:
         active = {
             entity_id
             for entity_id in self.zone_entities
-            if (state := self.hass.states.get(entity_id)) is not None
-            and state.state == STATE_ON
+            if (state := self.hass.states.get(entity_id)) is not None and state.state == STATE_ON
         }
         if self.active_run and self.active_run.get("current_zone"):
             active.add(str(self.active_run["current_zone"]))
@@ -1911,30 +2608,116 @@ class SmartYardianManager:
             except Exception:  # noqa: BLE001
                 _LOGGER.warning("Could not send mobile irrigation notification")
 
-    def next_run(self, now: datetime | None = None) -> datetime | None:
-        """Return the next enabled program occurrence."""
+    def next_run_plan(self, now: datetime | None = None) -> dict[str, Any] | None:
+        """Return the next fixed start or persisted/intelligent opportunity."""
         now = dt_util.as_local(now or dt_util.now())
-        candidates: list[datetime] = []
+        candidates: list[tuple[datetime, dict[str, Any]]] = []
+        active_key = str((self.active_run or {}).get("run_key") or "")
         for item in self.store.runtime.get("delayed_runs") or []:
+            if active_key and str(item.get("run_key") or "") == active_key:
+                continue
             delayed_at = _parse_runtime_datetime(item.get("scheduled_at"), None)
-            if delayed_at is not None:
-                delayed_at = delayed_at.astimezone(now.tzinfo)
-                if delayed_at > now:
-                    candidates.append(delayed_at)
-        for offset in range(8):
-            date = (now + timedelta(days=offset)).date()
-            for program in self.store.programs:
-                if not program.enabled or date.weekday() not in program.weekdays:
-                    continue
-                hour, minute = (int(part) for part in program.start_time.split(":"))
-                candidate = datetime.combine(date, datetime.min.time()).replace(
-                    hour=hour,
-                    minute=minute,
-                    tzinfo=now.tzinfo,
+            if delayed_at is None:
+                continue
+            delayed_at = delayed_at.astimezone(now.tzinfo)
+            try:
+                program = self.get_program(str(item["program_id"]))
+            except (KeyError, ValueError):
+                continue
+            display_at = delayed_at
+            if delayed_at <= now:
+                window_end_at = _parse_runtime_datetime(
+                    item.get("window_end_at"),
+                    None,
                 )
-                if candidate > now:
-                    candidates.append(candidate)
-        return min(candidates) if candidates else None
+                if window_end_at is not None:
+                    window_end_at = window_end_at.astimezone(now.tzinfo)
+                still_actionable = (
+                    program.schedule_mode == "smart_window"
+                    and window_end_at is not None
+                    and now < window_end_at
+                ) or (program.schedule_mode == "fixed" and delayed_at.date() == now.date())
+                if not still_actionable:
+                    continue
+                display_at = now
+            candidates.append(
+                (
+                    display_at,
+                    {
+                        "program_id": program.program_id,
+                        "program_name": program.name,
+                        "schedule_mode": program.schedule_mode,
+                        "scheduled_at": display_at.isoformat(),
+                        "planned_end_at": item.get("planned_end_at"),
+                        "window_start_at": item.get("original_scheduled_at"),
+                        "window_end_at": item.get("window_end_at"),
+                        "planning_status": item.get("planning_status")
+                        or (
+                            "smart_planned" if program.schedule_mode == "smart_window" else "fixed"
+                        ),
+                        "selection_reason": (
+                            "A tervezett időpont esedékes; a rendszer indításra vár."
+                            if delayed_at <= now
+                            else item.get("selection_reason") or item.get("reason")
+                        ),
+                    },
+                )
+            )
+
+        executed = set(self.store.runtime.get("executed") or [])
+        delayed_keys = {
+            str(item.get("run_key") or "") for item in self.store.runtime.get("delayed_runs") or []
+        }
+        for occurrence in upcoming_occurrences(self.store.programs, now, days=8):
+            run_key = self._program_run_key(occurrence)
+            if run_key in executed or run_key in delayed_keys:
+                continue
+            scheduled_at = occurrence.scheduled_at
+            if (
+                occurrence.window_start_at is not None
+                and occurrence.window_end_at is not None
+                and occurrence.window_start_at <= now < occurrence.window_end_at
+            ):
+                scheduled_at = now
+            planning_status = (
+                "smart_waiting_forecast"
+                if occurrence.program.schedule_mode == "smart_window"
+                else "fixed"
+            )
+            candidates.append(
+                (
+                    scheduled_at,
+                    {
+                        "program_id": occurrence.program.program_id,
+                        "program_name": occurrence.program.name,
+                        "schedule_mode": occurrence.program.schedule_mode,
+                        "scheduled_at": scheduled_at.isoformat(),
+                        "planned_end_at": None,
+                        "window_start_at": (
+                            occurrence.window_start_at.isoformat()
+                            if occurrence.window_start_at
+                            else None
+                        ),
+                        "window_end_at": (
+                            occurrence.window_end_at.isoformat()
+                            if occurrence.window_end_at
+                            else None
+                        ),
+                        "planning_status": planning_status,
+                        "selection_reason": (
+                            "A pontos kezdést az időablak nyitásakor választja ki."
+                            if occurrence.program.schedule_mode == "smart_window"
+                            else None
+                        ),
+                    },
+                )
+            )
+        return min(candidates, key=lambda item: item[0])[1] if candidates else None
+
+    def next_run(self, now: datetime | None = None) -> datetime | None:
+        """Return the timestamp of the next planned irrigation opportunity."""
+        plan = self.next_run_plan(now)
+        return _parse_runtime_datetime(plan.get("scheduled_at"), None) if plan else None
 
     def summary(self) -> dict[str, Any]:
         """Build one frontend-safe snapshot."""
@@ -1951,11 +2734,7 @@ class SmartYardianManager:
                 controller_key,
                 {
                     "id": controller_key,
-                    "name": (
-                        (device.name_by_user or device.name)
-                        if device
-                        else "Yardian vezérlő"
-                    ),
+                    "name": ((device.name_by_user or device.name) if device else "Yardian vezérlő"),
                     "model": device.model if device else "Yardian",
                     "available": False,
                     "available_zone_count": 0,
@@ -1968,25 +2747,19 @@ class SmartYardianManager:
             profile = self.zone_profile(entity_id)
             profile_data = profile.as_dict()
             if profile.moisture_sensor_entity_id:
-                moisture_state = self.hass.states.get(
-                    profile.moisture_sensor_entity_id
-                )
+                moisture_state = self.hass.states.get(profile.moisture_sensor_entity_id)
                 profile_data["moisture_sensor_state"] = (
                     moisture_state.state if moisture_state else "unavailable"
                 )
                 profile_data["moisture_sensor_unit"] = (
-                    moisture_state.attributes.get("unit_of_measurement")
-                    if moisture_state
-                    else None
+                    moisture_state.attributes.get("unit_of_measurement") if moisture_state else None
                 )
             zone = {
                 "entity_id": entity_id,
                 "name": state.name if state else entity_id,
                 "state": state_value,
                 "available": available,
-                "availability_issue": self._zone_availability_issue(
-                    entity_id, state_value
-                ),
+                "availability_issue": self._zone_availability_issue(entity_id, state_value),
                 "profile": profile_data,
             }
             controller["zones"].append(zone)
@@ -1997,11 +2770,14 @@ class SmartYardianManager:
         for controller in controllers.values():
             controller["available"] = controller["available_zone_count"] > 0
 
-        next_run = self.next_run()
+        next_run_plan = self.next_run_plan()
+        next_run = (
+            _parse_runtime_datetime(next_run_plan.get("scheduled_at"), None)
+            if next_run_plan
+            else None
+        )
         weather_decision = self.last_decision
-        if weather_decision and not is_plausible_celsius(
-            weather_decision.max_temperature
-        ):
+        if weather_decision and not is_plausible_celsius(weather_decision.max_temperature):
             weather_decision = None
         target = (
             seasonal_target(weather_decision.max_temperature).as_dict()
@@ -2025,6 +2801,7 @@ class SmartYardianManager:
             "rain_observation_error": self.last_rain_error,
             "last_error": self.last_error,
             "next_run": next_run.isoformat() if next_run else None,
+            "next_run_plan": next_run_plan,
             "seasonal_target": target,
         }
 

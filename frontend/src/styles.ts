@@ -1077,7 +1077,7 @@ export const panelStyles = css`
 
   .schedule-program-head {
     display: grid;
-    grid-template-columns: 44px minmax(0, 1fr) auto;
+    grid-template-columns: 76px minmax(0, 1fr) auto;
     align-items: baseline;
     gap: 8px;
   }
@@ -1103,24 +1103,44 @@ export const panelStyles = css`
   }
 
   .schedule-status.wind_skip,
-  .schedule-status.wind_unavailable {
+  .schedule-status.wind_unavailable,
+  .schedule-status.smart_no_fit {
     color: var(--sy-red);
   }
 
   .schedule-reason {
-    margin: 7px 0 8px 52px;
+    margin: 7px 0 8px 84px;
     color: var(--sy-muted);
     font-size: 12px;
     line-height: 1.4;
   }
 
   .schedule-weather {
-    margin: 0 0 9px 52px;
+    margin: 0 0 9px 84px;
     display: flex;
     flex-wrap: wrap;
     gap: 5px 12px;
     color: var(--sy-muted);
     font-size: 11px;
+  }
+
+  .schedule-plan,
+  .schedule-selection-reason {
+    margin: 0 0 8px 84px;
+    color: var(--sy-muted);
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  .schedule-plan {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .schedule-plan ha-icon {
+    flex: 0 0 auto;
+    --mdc-icon-size: 16px;
   }
 
   .schedule-zones {
@@ -1216,6 +1236,110 @@ export const panelStyles = css`
 
   .editor {
     padding: 22px 24px 28px;
+  }
+
+  .schedule-mode-field {
+    margin: 0 0 18px;
+    padding: 0;
+    border: 0;
+  }
+
+  .schedule-mode-field legend {
+    margin-bottom: 7px;
+    padding: 0;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .schedule-mode-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .schedule-mode-option {
+    min-height: 66px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    color: var(--sy-text);
+    background: var(--sy-control);
+    border: 1px solid var(--sy-border);
+    border-radius: 7px;
+    cursor: pointer;
+  }
+
+  .schedule-mode-option[selected] {
+    background: var(--sy-blue-soft);
+    border-color: var(--sy-blue);
+  }
+
+  .schedule-mode-option input {
+    margin: 2px 0 0;
+    flex: 0 0 auto;
+  }
+
+  .schedule-mode-option span {
+    display: grid;
+    gap: 3px;
+  }
+
+  .schedule-mode-option strong {
+    font-size: 13px;
+  }
+
+  .schedule-mode-option small,
+  .field-help,
+  .window-help,
+  .window-capacity {
+    color: var(--sy-muted);
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .watering-window {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .watering-window .field {
+    margin-bottom: 8px;
+  }
+
+  .window-help {
+    max-width: 70ch;
+    margin: 0 0 10px;
+  }
+
+  .field-help {
+    margin-top: 6px;
+  }
+
+  .window-capacity {
+    margin: 0 0 18px;
+  }
+
+  .window-fit-warning {
+    margin: 0 0 18px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    color: var(--sy-text);
+    background: var(--sy-amber-soft);
+    border: 1px solid color-mix(in srgb, var(--sy-amber) 48%, var(--sy-border));
+    border-radius: 7px;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .window-fit-warning ha-icon {
+    margin-top: 1px;
+    flex: 0 0 auto;
+    color: var(--sy-amber);
+    --mdc-icon-size: 18px;
   }
 
   .field {
@@ -2013,7 +2137,7 @@ export const panelStyles = css`
     }
 
     .schedule-program-head {
-      grid-template-columns: 42px minmax(0, 1fr);
+      grid-template-columns: 76px minmax(0, 1fr);
     }
 
     .schedule-status {
@@ -2022,8 +2146,15 @@ export const panelStyles = css`
     }
 
     .schedule-reason,
-    .schedule-weather {
-      margin-left: 50px;
+    .schedule-weather,
+    .schedule-plan,
+    .schedule-selection-reason {
+      margin-left: 84px;
+    }
+
+    .schedule-mode-options,
+    .watering-window {
+      grid-template-columns: 1fr;
     }
 
     .temperature-condition {

@@ -141,7 +141,10 @@ let programs: Program[] = [
     name: "Reggeli kert",
     enabled: true,
     weekdays: [0, 1, 2, 3, 4],
+    schedule_mode: "smart_window",
     start_time: "05:30",
+    window_start_time: "02:00",
+    window_end_time: "07:00",
     weather_adjustment: true,
     temperature_condition_enabled: true,
     temperature_condition_operator: "above",
@@ -159,7 +162,10 @@ let programs: Program[] = [
     name: "Esti csepegtetés",
     enabled: true,
     weekdays: [0, 1, 2, 3, 4, 5, 6],
+    schedule_mode: "fixed",
     start_time: "20:00",
+    window_start_time: "18:00",
+    window_end_time: "22:00",
     weather_adjustment: true,
     temperature_condition_enabled: false,
     temperature_condition_operator: "above",
@@ -228,12 +234,14 @@ let runningEntity: string =
 const runningIndex = (): number =>
   Math.max(0, zones.findIndex(([entityId]) => entityId === runningEntity));
 
-const nextRun = (): string => {
+const tomorrowAt = (hour: number, minute: number): string => {
   const next = new Date();
   next.setDate(next.getDate() + 1);
-  next.setHours(5, 30, 0, 0);
+  next.setHours(hour, minute, 0, 0);
   return next.toISOString();
 };
+
+const nextRun = (): string => tomorrowAt(4, 30);
 
 const summary = (): Summary => ({
   status: runningEntity ? "running" : "idle",
@@ -390,6 +398,18 @@ const summary = (): Summary => ({
   rain_observation_error: null,
   last_error: null,
   next_run: nextRun(),
+  next_run_plan: {
+    program_id: "morning",
+    program_name: "Reggeli kert",
+    schedule_mode: "smart_window",
+    scheduled_at: nextRun(),
+    planned_end_at: tomorrowAt(5, 41),
+    window_start_at: tomorrowAt(2, 0),
+    window_end_at: tomorrowAt(7, 0),
+    planning_status: "smart_planned",
+    selection_reason:
+      "04:30-kor gyengébb a szél, és a teljes program belefér az időablakba.",
+  },
   seasonal_target: {
     depth_mm: 5.5,
     cadence: "kétnaponta",
@@ -467,7 +487,14 @@ const schedulePreview = (): SchedulePreview => {
           {
             program_id: morning.program_id,
             program_name: morning.name,
-            scheduled_at: occurrence(0, 5, 30),
+            scheduled_at: occurrence(0, 4, 30),
+            schedule_mode: "smart_window",
+            planned_end_at: occurrence(0, 5, 41),
+            window_start_at: occurrence(0, 2, 0),
+            window_end_at: occurrence(0, 7, 0),
+            planning_status: "smart_planned",
+            selection_reason:
+              "04:30-kor gyengébb a szél, és a teljes program belefér az időablakba.",
             status: "will_run",
             reason: "Talajnedvesség alapján 1 zóna kimarad; a többi zóna lefut.",
             total_minutes: 71,
@@ -478,6 +505,9 @@ const schedulePreview = (): SchedulePreview => {
             program_id: evening.program_id,
             program_name: evening.name,
             scheduled_at: occurrence(0, 20, 0),
+            schedule_mode: "fixed",
+            planned_end_at: occurrence(0, 21, 40),
+            planning_status: "fixed",
             status: "will_run",
             reason: "A jelenlegi számítás szerint a program lefut.",
             total_minutes: 100,
@@ -492,7 +522,14 @@ const schedulePreview = (): SchedulePreview => {
           {
             program_id: morning.program_id,
             program_name: morning.name,
-            scheduled_at: occurrence(1, 5, 30),
+            scheduled_at: occurrence(1, 4, 45),
+            schedule_mode: "smart_window",
+            planned_end_at: occurrence(1, 5, 56),
+            window_start_at: occurrence(1, 2, 0),
+            window_end_at: occurrence(1, 7, 0),
+            planning_status: "smart_planned",
+            selection_reason:
+              "A hőmérsékleti feltétel teljesülése esetén 04:45 lenne a legjobb időpont.",
             status: "condition_skip",
             reason:
               "A program napjának maximuma 24 °C, ami nem magasabb 26 °C-nál.",
@@ -506,9 +543,29 @@ const schedulePreview = (): SchedulePreview => {
         date: dateKey(2),
         programs: [
           {
+            program_id: morning.program_id,
+            program_name: morning.name,
+            scheduled_at: occurrence(2, 2, 0),
+            schedule_mode: "smart_window",
+            planned_end_at: null,
+            window_start_at: occurrence(2, 2, 0),
+            window_end_at: occurrence(2, 3, 0),
+            planning_status: "smart_no_fit",
+            selection_reason:
+              "A számított 71 perces program nem fér bele a 60 perces időablakba.",
+            status: "smart_no_fit",
+            reason: "A rendszer nem indít részleges öntözést.",
+            total_minutes: 71,
+            zones: plannedZones(morning),
+            weather,
+          },
+          {
             program_id: evening.program_id,
             program_name: evening.name,
             scheduled_at: occurrence(2, 20, 0),
+            schedule_mode: "fixed",
+            planned_end_at: occurrence(2, 21, 40),
+            planning_status: "fixed",
             status: "wind_delayed",
             reason:
               "Erős szél várható az öntözési ablakban; a következő nyugodtabb ablak 21:00-kor kezdődik.",

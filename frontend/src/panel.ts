@@ -48,6 +48,10 @@ type Tab =
 
 const DAY_NAMES = ["H", "K", "Sze", "Cs", "P", "Szo", "V"];
 const DAY_LONG = ["Hé", "Ke", "Sze", "Csü", "Pén", "Szo", "Vas"];
+const DEFAULT_WINDOW_START = "02:00";
+const DEFAULT_WINDOW_END = "07:00";
+const MIN_WINDOW_MINUTES = 30;
+const MAX_WINDOW_MINUTES = 18 * 60;
 const HEAD_TYPES: Array<{
   value: ZoneProfile["head_type"];
   label: string;
@@ -65,7 +69,10 @@ const emptyProgram = (): Program => ({
   name: "Új program",
   enabled: true,
   weekdays: [0, 2, 4],
+  schedule_mode: "smart_window",
   start_time: "05:30",
+  window_start_time: DEFAULT_WINDOW_START,
+  window_end_time: DEFAULT_WINDOW_END,
   weather_adjustment: true,
   temperature_condition_enabled: false,
   temperature_condition_operator: "above",
@@ -75,8 +82,16 @@ const emptyProgram = (): Program => ({
   skip_next: false,
 });
 
+const normalizeProgram = (program: Program): Program => ({
+  ...program,
+  schedule_mode: program.schedule_mode ?? "fixed",
+  start_time: program.start_time ?? "05:30",
+  window_start_time: program.window_start_time ?? DEFAULT_WINDOW_START,
+  window_end_time: program.window_end_time ?? DEFAULT_WINDOW_END,
+});
+
 const cloneProgram = (program: Program): Program =>
-  JSON.parse(JSON.stringify(program)) as Program;
+  normalizeProgram(JSON.parse(JSON.stringify(program)) as Program);
 
 const emptyManualProgram = (): Program => {
   const now = new Date();
@@ -87,6 +102,7 @@ const emptyManualProgram = (): Program => {
     start_time: `${String(now.getHours()).padStart(2, "0")}:${String(
       now.getMinutes(),
     ).padStart(2, "0")}`,
+    schedule_mode: "fixed",
     enabled: false,
     weather_adjustment: false,
   };
@@ -244,6 +260,7 @@ export class SmartYardianPanel extends LitElement {
     const summary = this._summary!;
     const weather = summary.weather;
     const enabled = summary.automation_enabled;
+    const nextRunAt = summary.next_run_plan?.scheduled_at ?? summary.next_run;
     return html`
       <section class="automation">
         <div class="automation-icon" ?off=${!enabled}>
@@ -271,11 +288,15 @@ export class SmartYardianPanel extends LitElement {
 
       <div class="next-run">
         <ha-icon icon="mdi:clock-outline"></ha-icon>
-        ${summary.next_run
+        ${nextRunAt
           ? html`
               <span>Következő:</span>
               <span class="linklike">${this._nextProgramName()}</span>
-              <span>· ${this._formatRelative(summary.next_run)}</span>
+              <span>
+                · ${this._formatRelative(nextRunAt)}${summary.next_run_plan?.planned_end_at
+                  ? `–${this._formatTime(summary.next_run_plan.planned_end_at)}`
+                  : ""}
+              </span>
             `
           : html`<span>Nincs következő engedélyezett program</span>`}
       </div>
@@ -584,10 +605,17 @@ export class SmartYardianPanel extends LitElement {
 
   private _renderRailProgram(program: Program): TemplateResult {
     const total = this._programMinutes(program);
+    const smart = this._isSmartProgram(program);
     return html`
       <div class="program-rail-item">
         <div class="program-line">
-          <ha-icon icon=${program.start_time < "12:00" ? "mdi:weather-sunset-up" : "mdi:weather-night"}></ha-icon>
+          <ha-icon
+            icon=${smart
+              ? "mdi:calendar-clock"
+              : program.start_time < "12:00"
+                ? "mdi:weather-sunset-up"
+                : "mdi:weather-night"}
+          ></ha-icon>
           <strong>${program.name}</strong>
           <button
             class="toggle"
@@ -598,11 +626,15 @@ export class SmartYardianPanel extends LitElement {
         </div>
         <div class="program-details">
           <div>Napok: ${this._formatDays(program.weekdays)}</div>
-          <div>Kezdés: ${program.start_time}</div>
+          <div>
+            ${smart
+              ? `Időablak: ${this._programWindowLabel(program)}`
+              : `Kezdés: ${program.start_time}`}
+          </div>
           ${program.temperature_condition_enabled
             ? html`<div>${this._temperatureConditionText(program)}</div>`
             : nothing}
-          <div>Számított öntözési idő: ${total} perc</div>
+          <div>${smart ? "Jelenlegi becslés" : "Számított öntözési idő"}: ${total} perc</div>
         </div>
       </div>
     `;
@@ -715,9 +747,9 @@ export class SmartYardianPanel extends LitElement {
         <div>
           <h2>Következő 3 nap</h2>
           <div class="subtle">
-            Egy napon belül minden program ugyanazt a napi előrejelzést
-            használja. A számítás kizárólag az adott naptári naphoz tartozó
-            Időkép-órákat veszi figyelembe.
+            A rögzített programok a megadott időben, az automatikus programok
+            az időablak legkedvezőbb részében futnak. A terv az előrejelzéssel
+            változhat.
           </div>
         </div>
         <button
@@ -761,17 +793,45 @@ export class SmartYardianPanel extends LitElement {
   }
 
   private _renderScheduleProgram(program: ScheduleProgram): TemplateResult {
-    const runnable = program.status === "will_run";
+    const runnable =
+      program.status === "will_run" &&
+      program.planning_status !== "smart_waiting_forecast" &&
+      program.planning_status !== "smart_no_fit";
+    const smart = this._isSmartScheduleProgram(program);
+    const selectionReason = program.selection_reason?.trim();
+    const visualStatus =
+      program.planning_status === "smart_no_fit"
+        ? "smart_no_fit"
+        : program.planning_status === "smart_waiting_forecast"
+          ? "smart_waiting_forecast"
+          : program.status;
     return html`
       <article class="schedule-program" ?runnable=${runnable}>
         <div class="schedule-program-head">
-          <time>${this._formatTime(program.scheduled_at)}</time>
+          <time>${this._scheduleProgramTime(program)}</time>
           <strong>${program.program_name}</strong>
-          <span class="schedule-status ${program.status}">
+          <span class="schedule-status ${visualStatus}">
             ${this._scheduleStatusLabel(program)}
           </span>
         </div>
         <div class="schedule-reason">${program.reason}</div>
+        ${smart && program.window_start_at && program.window_end_at
+          ? html`
+              <div class="schedule-plan">
+                <ha-icon icon="mdi:calendar-clock"></ha-icon>
+                <span>
+                  Időablak:
+                  ${this._formatScheduleRange(
+                    program.window_start_at,
+                    program.window_end_at,
+                  )}
+                </span>
+              </div>
+            `
+          : nothing}
+        ${selectionReason && selectionReason !== program.reason
+          ? html`<div class="schedule-selection-reason">${selectionReason}</div>`
+          : nothing}
         ${program.weather
           ? html`
               <div class="schedule-weather">
@@ -931,8 +991,8 @@ export class SmartYardianPanel extends LitElement {
                         .value as ProgramZone["duration_mode"],
                     })}
                 >
-                  <option value="manual">Manuális perc</option>
-                  <option value="reference">Referencia alapján</option>
+                  <option value="manual">Rögzített alapidő</option>
+                  <option value="reference">Automatikusan számított</option>
                 </select>
                 <label class="manual-duration">
                   <input
@@ -1052,7 +1112,12 @@ export class SmartYardianPanel extends LitElement {
                   >
                     <strong>${program.name}</strong>
                     <span>${program.enabled ? "Aktív" : "Kikapcsolva"}</span>
-                    <span>${this._formatDays(program.weekdays)} · ${program.start_time}</span>
+                    <span>
+                      ${this._formatDays(program.weekdays)} ·
+                      ${this._isSmartProgram(program)
+                        ? `Automatikus · ${this._programWindowLabel(program)}`
+                        : `Rögzített · ${program.start_time}`}
+                    </span>
                     <span>${this._programMinutes(program)} perc</span>
                   </button>
                 `,
@@ -1066,6 +1131,14 @@ export class SmartYardianPanel extends LitElement {
 
   private _renderProgramEditor(draft: Program): TemplateResult {
     const allZones = this._allZones();
+    const smart = this._isSmartProgram(draft);
+    const windowMinutes = this._windowDurationMinutes(draft);
+    const currentMinutes = this._programMinutes(draft);
+    const doesNotFit =
+      smart &&
+      draft.zones.length > 0 &&
+      windowMinutes > 0 &&
+      currentMinutes > windowMinutes;
     return html`
       <form class="editor" @submit=${this._saveDraft}>
         <div class="field">
@@ -1097,17 +1170,121 @@ export class SmartYardianPanel extends LitElement {
             )}
           </div>
         </div>
-        <div class="field">
-          <label for="program-start">Kezdés</label>
-          <input
-            id="program-start"
-            type="time"
-            required
-            .value=${draft.start_time}
-            @input=${(event: Event) =>
-              this._patchDraft({ start_time: (event.target as HTMLInputElement).value })}
-          />
-        </div>
+        <fieldset class="schedule-mode-field">
+          <legend>Indítás módja</legend>
+          <div class="schedule-mode-options">
+            <label class="schedule-mode-option" ?selected=${smart}>
+              <input
+                type="radio"
+                name="program-schedule-mode"
+                value="smart_window"
+                .checked=${smart}
+                @change=${(event: Event) => {
+                  if ((event.target as HTMLInputElement).checked) {
+                    this._patchDraft({ schedule_mode: "smart_window" });
+                  }
+                }}
+              />
+              <span>
+                <strong>Automatikus időablak</strong>
+                <small>A rendszer választja ki a megfelelő időpontot.</small>
+              </span>
+            </label>
+            <label class="schedule-mode-option" ?selected=${!smart}>
+              <input
+                type="radio"
+                name="program-schedule-mode"
+                value="fixed"
+                .checked=${!smart}
+                @change=${(event: Event) => {
+                  if ((event.target as HTMLInputElement).checked) {
+                    this._patchDraft({ schedule_mode: "fixed" });
+                  }
+                }}
+              />
+              <span>
+                <strong>Fix időpont</strong>
+                <small>A program mindig a megadott kezdési időben indul.</small>
+              </span>
+            </label>
+          </div>
+        </fieldset>
+        ${smart
+          ? html`
+              <div class="watering-window">
+                <div class="field">
+                  <label for="program-window-start">Öntözhet ettől</label>
+                  <input
+                    id="program-window-start"
+                    type="time"
+                    required
+                    aria-describedby="program-window-help"
+                    .value=${draft.window_start_time}
+                    @input=${(event: Event) =>
+                      this._patchDraft({
+                        window_start_time: (event.target as HTMLInputElement).value,
+                      })}
+                  />
+                </div>
+                <div class="field">
+                  <label for="program-window-end">Legkésőbb eddig fejezze be</label>
+                  <input
+                    id="program-window-end"
+                    type="time"
+                    required
+                    aria-describedby="program-window-help"
+                    .value=${draft.window_end_time}
+                    @input=${(event: Event) =>
+                      this._patchDraft({
+                        window_end_time: (event.target as HTMLInputElement).value,
+                      })}
+                  />
+                </div>
+              </div>
+              <p class="window-help" id="program-window-help">
+                A teljes program az időablakon belül fut le. Ha a zárási idő
+                korábbi, az ablak másnap ér véget. Az időpont az előrejelzés
+                változásával módosulhat.
+              </p>
+              ${doesNotFit
+                ? html`
+                    <div class="window-fit-warning" role="status">
+                      <ha-icon icon="mdi:alert-outline"></ha-icon>
+                      <span>
+                        A jelenlegi becslés ${currentMinutes} perc, az időablak
+                        ${windowMinutes} perc. Ha a tényleges program nem fér
+                        bele, a rendszer nem indít részleges öntözést.
+                      </span>
+                    </div>
+                  `
+                : draft.zones.length > 0 && windowMinutes > 0
+                  ? html`
+                      <div class="window-capacity">
+                        Jelenlegi becslés: ${currentMinutes} perc a
+                        ${windowMinutes} perces időablakban.
+                      </div>
+                    `
+                  : nothing}
+            `
+          : html`
+              <div class="field">
+                <label for="program-start">Kezdés</label>
+                <input
+                  id="program-start"
+                  type="time"
+                  required
+                  .value=${draft.start_time}
+                  @input=${(event: Event) =>
+                    this._patchDraft({
+                      start_time: (event.target as HTMLInputElement).value,
+                    })}
+                />
+                <div class="field-help">
+                  A szélvédelem szükség esetén ezt az indítást továbbra is
+                  halaszthatja.
+                </div>
+              </div>
+            `}
         <div class="checkline">
           <input
             id="program-enabled"
@@ -1229,8 +1406,8 @@ export class SmartYardianPanel extends LitElement {
                           | "reference",
                       })}
                   >
-                    <option value="manual">Manuális perc</option>
-                    <option value="reference">Referencia alapján</option>
+                    <option value="manual">Rögzített alapidő</option>
+                    <option value="reference">Automatikusan számított</option>
                   </select>
                   ${zone.duration_mode === "reference"
                     ? html`
@@ -1903,6 +2080,7 @@ export class SmartYardianPanel extends LitElement {
     }
     try {
       const summary = await getSummary(this.hass);
+      summary.programs = summary.programs.map(normalizeProgram);
       this._summary = summary;
       if (!this._expandedControllers.length && summary.controllers[0]) {
         this._expandedControllers = [summary.controllers[0].id];
@@ -1952,10 +2130,14 @@ export class SmartYardianPanel extends LitElement {
   }
 
   private _nextProgramName(): string {
+    if (this._summary?.next_run_plan?.program_name) {
+      return this._summary.next_run_plan.program_name;
+    }
     if (!this._summary?.next_run) return "";
     const target = new Date(this._summary.next_run);
     return (
       this._summary.programs.find((program) => {
+        if (this._isSmartProgram(program)) return false;
         const [hours, minutes] = program.start_time.split(":").map(Number);
         return hours === target.getHours() && minutes === target.getMinutes();
       })?.name ?? "Program"
@@ -2181,6 +2363,7 @@ export class SmartYardianPanel extends LitElement {
   private _saveDraft = async (event: Event): Promise<void> => {
     event.preventDefault();
     if (!this.hass || !this._draft) return;
+    this._draft = normalizeProgram(this._draft);
     if (!this._draft.weekdays.length) {
       this._error = "Legalább egy napot válassz ki.";
       return;
@@ -2188,6 +2371,25 @@ export class SmartYardianPanel extends LitElement {
     if (!this._draft.zones.length) {
       this._error = "Adj legalább egy zónát a programhoz.";
       return;
+    }
+    if (this._isSmartProgram(this._draft)) {
+      if (!this._draft.window_start_time || !this._draft.window_end_time) {
+        this._error = "Add meg az öntözési időablak elejét és végét.";
+        return;
+      }
+      const windowMinutes = this._windowDurationMinutes(this._draft);
+      if (windowMinutes === 0) {
+        this._error = "Az időablak kezdete és vége nem lehet azonos.";
+        return;
+      }
+      if (windowMinutes < MIN_WINDOW_MINUTES) {
+        this._error = `Az öntözési időablak legalább ${MIN_WINDOW_MINUTES} perces legyen.`;
+        return;
+      }
+      if (windowMinutes > MAX_WINDOW_MINUTES) {
+        this._error = "Az öntözési időablak legfeljebb 18 órás lehet.";
+        return;
+      }
     }
     this._saving = true;
     this._error = "";
@@ -2430,6 +2632,40 @@ export class SmartYardianPanel extends LitElement {
     return days.map((day) => DAY_LONG[day] ?? "").join(", ");
   }
 
+  private _isSmartProgram(program: Program): boolean {
+    return (program.schedule_mode ?? "fixed") === "smart_window";
+  }
+
+  private _timeToMinutes(value: string): number | null {
+    const match = /^(\d{2}):(\d{2})$/.exec(value);
+    if (!match) return null;
+    const hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    if (hours > 23 || minutes > 59) return null;
+    return hours * 60 + minutes;
+  }
+
+  private _windowDurationMinutes(program: Program): number {
+    const start = this._timeToMinutes(
+      program.window_start_time ?? DEFAULT_WINDOW_START,
+    );
+    const end = this._timeToMinutes(
+      program.window_end_time ?? DEFAULT_WINDOW_END,
+    );
+    if (start === null || end === null || start === end) return 0;
+    return (end - start + 24 * 60) % (24 * 60);
+  }
+
+  private _programWindowLabel(program: Program): string {
+    const start = program.window_start_time ?? DEFAULT_WINDOW_START;
+    const end = program.window_end_time ?? DEFAULT_WINDOW_END;
+    const startMinutes = this._timeToMinutes(start);
+    const endMinutes = this._timeToMinutes(end);
+    const overnight =
+      startMinutes !== null && endMinutes !== null && endMinutes < startMinutes;
+    return `${start}–${end}${overnight ? " (+1 nap)" : ""}`;
+  }
+
   private _historyMoistureText(record: RunRecord): string {
     return record.zones
       .filter((zone) => typeof zone.moisture_percent === "number")
@@ -2571,7 +2807,44 @@ export class SmartYardianPanel extends LitElement {
     return `${prefix} · ${formatted}`;
   }
 
+  private _isSmartScheduleProgram(program: ScheduleProgram): boolean {
+    return (
+      program.schedule_mode === "smart_window" ||
+      program.planning_status?.startsWith("smart_") === true
+    );
+  }
+
+  private _scheduleProgramTime(program: ScheduleProgram): string {
+    if (this._isSmartScheduleProgram(program) && !program.planned_end_at) {
+      return "Időablak";
+    }
+    return program.planned_end_at
+      ? this._formatScheduleRange(program.scheduled_at, program.planned_end_at)
+      : this._formatTime(program.scheduled_at);
+  }
+
+  private _formatScheduleRange(startValue: string, endValue: string): string {
+    const start = new Date(startValue);
+    const end = new Date(endValue);
+    const crossesDate = start.toDateString() !== end.toDateString();
+    return `${this._formatTime(startValue)}–${this._formatTime(endValue)}${
+      crossesDate ? " (+1 nap)" : ""
+    }`;
+  }
+
   private _scheduleStatusLabel(program: ScheduleProgram): string {
+    if (program.planning_status === "smart_no_fit") {
+      return "Nincs megfelelő időpont";
+    }
+    if (program.planning_status === "smart_waiting_forecast") {
+      return "Előrejelzésre vár";
+    }
+    if (
+      program.status === "will_run" &&
+      program.planning_status === "smart_planned"
+    ) {
+      return `Tervezve ${this._formatTime(program.scheduled_at)}-ra`;
+    }
     const labels: Record<ScheduleProgram["status"], string> = {
       will_run: "Lefut",
       automation_off: "Automatika kikapcsolva",
@@ -2586,6 +2859,7 @@ export class SmartYardianPanel extends LitElement {
         : "Szél miatt halasztva",
       wind_skip: "Szél miatt kimarad",
       wind_unavailable: "Széladat hiányzik",
+      smart_no_fit: "Nincs megfelelő időpont",
     };
     return labels[program.status];
   }

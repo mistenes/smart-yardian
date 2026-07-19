@@ -1,6 +1,6 @@
 [project]
 name = "smart-yardian"
-version = "0.15.3"
+version = "0.16.0"
 description = "Weather-aware Yardian irrigation scheduler for Home Assistant"
 requires-python = ">=3.13"
 dependencies = []

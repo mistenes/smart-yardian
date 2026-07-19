@@ -5,7 +5,8 @@ Időjárás-alapú, magyar nyelvű öntözésvezérlő Home Assistant 2026.6+ re
 ## Funkciók
 
 - több Yardian vezérlő és dinamikusan bővíthető zónalista;
-- Yardian-szerű heti programok, soros végrehajtással;
+- két választható ütemezés: pontos **Fix időpont** vagy automatikusan tervezett
+  **Okos időablak**, soros végrehajtással;
 - egységes, kizárólag Időkép-alapú napi előrejelzés;
 - a Smart Yardian beállításaiból módosítható Időkép-előrejelzési település;
 - település alapján kiválasztható közeli Időkép automata, amelynek elmúlt
@@ -47,6 +48,34 @@ Időjárás-alapú, magyar nyelvű öntözésvezérlő Home Assistant 2026.6+ re
 5. Válaszd ki az Időkép weather entitást és a Yardian zónákat.
 
 Az integráció ezután **Öntözés** néven megjelenik az oldalsávban.
+
+## Fix időpont és okos időablak
+
+A programszerkesztőben programonként választható az indítás módja:
+
+- **Fix időpont:** a program a kiválasztott napokon pontosan a megadott
+  kezdési időben indul. Ez a korábbi működés, ezért a frissítés előtt mentett
+  programok automatikusan ebben a módban maradnak.
+- **Okos időablak:** megadható, hogy az öntözés mettől meddig futhat. A Smart
+  Yardian 15 perces lépésekben megkeresi azt a kezdést, ahol a teljes program
+  befejezhető az ablak zárása előtt.
+
+Az okos tervező előnyben részesíti a szárazabb, ismert és kisebb szelű,
+sötétebb, hűvösebb, majd korábbi időpontot. A zónák időtartamát továbbra is az
+Időkép napi adatai, az ET0, a csapadék, a zónaprofil és – ahol be van állítva –
+a talajnedvesség számítja. Hiányzó széladat nem tiltja le a programot, csak
+hátrébb sorolja az adott időpontot. Túl erős szélben overhead zóna nem indul;
+a csepegtetőt a szél nem blokkolja.
+
+Az időablak kemény határ: a rendszer a Yardian start/stop visszaigazolásainak
+idejére is tartalékot hagy, és nem indít részprogramot, ha a teljes futás nem
+fér el. Az ablak átnyúlhat éjfélen; a kiválasztott hétköznap az ablak nyitási
+napját jelenti. Ha a kiválasztott kezdés már a következő naptári napra esik, az
+időtartamot és a napi feltételeket ahhoz a naphoz újraszámolja.
+
+A kézi **Futtatás most** és a **Kézi program** nem vár az időablakra. Új heti
+program alapból okos, 02:00–07:00 közötti ablakkal készül, de egy kattintással
+átállítható fix időpontra.
 
 ## Manuális és referencia idő
 
@@ -113,10 +142,12 @@ időjárásforrást, a maximum-hőmérsékletet, a csapadékot, a zónánkénti 
 a szüneteltetést, a `skip next` jelölést, az esőkorrekciót és a
 hőmérséklet-feltételt. A számítás csak előnézet, nem indít Yardian zónát.
 
-Egy naptári nap minden programja közös napi időjárási döntést használ. A
-számítás kizárólag az adott helyi naptári naphoz tartozó Időkép-órákat veszi
-figyelembe, a következő nap adatait nem. Ha az adott naphoz egyetlen használható
-órás rekord sincs, az időjárásfüggő program biztonsági okból nem indul el.
+Egy naptári nap minden programja közös napi időjárási döntést használ. Fix
+programnál ez a beállított indulás napja; éjfélen átnyúló okos időablaknál a
+végül kiválasztott kezdés naptári napja. A számítás kizárólag ehhez a helyi
+naptári naphoz tartozó Időkép-órákat veszi figyelembe. Ha a naphoz egyetlen
+használható órás rekord sincs, az időjárásfüggő program biztonsági okból nem
+indul el.
 
 Távolabbi napnál csak akkor jelenik meg konkrét futási idő, ha az Időkép
 ad használható órás előrejelzést az adott naptári naphoz.
