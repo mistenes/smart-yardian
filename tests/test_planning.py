@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 
 from custom_components.smart_yardian.models import ForecastHour, IrrigationProgram
 from custom_components.smart_yardian.planning import (
+    _agronomic_time_profile,
     select_smart_watering_slot,
     smart_window_bounds,
     upcoming_occurrences,
@@ -375,6 +376,148 @@ def test_smart_selector_prefers_more_humid_equivalent_slot() -> None:
     assert choice.scheduled_at == start + timedelta(hours=1)
     assert choice.average_humidity_percent == 85
     assert "85% páratartalommal" in choice.reason
+
+
+def test_overhead_selector_prefers_scientific_early_morning_window() -> None:
+    timezone = ZoneInfo("Europe/Budapest")
+    start = datetime(2026, 7, 1, 22, 0, tzinfo=timezone)
+    hours = [
+        forecast_hour(start + timedelta(hours=offset), temperature=18, humidity=80)
+        for offset in range(8)
+    ]
+
+    choice = select_smart_watering_slot(
+        hours,
+        start,
+        start + timedelta(hours=8),
+        45,
+        ["rotator"],
+    )
+
+    assert choice.status == "planned"
+    assert choice.scheduled_at == datetime(2026, 7, 2, 4, 0, tzinfo=timezone)
+    assert choice.agronomic_time_tier == 0
+    assert choice.agronomic_time_score == 0
+    assert choice.agronomic_time_label is not None
+    assert "04:00–08:00" in choice.agronomic_time_label
+    assert "ajánlott hajnali sávban" in choice.reason
+
+
+def test_overhead_time_score_weights_the_whole_program_across_a_boundary() -> None:
+    start = datetime(2026, 7, 1, 3, 30, tzinfo=UTC)
+    hours = [
+        forecast_hour(start + timedelta(hours=offset), temperature=18, humidity=80)
+        for offset in range(3)
+    ]
+
+    choice = select_smart_watering_slot(
+        hours,
+        start,
+        start + timedelta(hours=2),
+        120,
+        ["spray"],
+    )
+
+    assert choice.scheduled_at == start
+    assert choice.planned_end_at == start + timedelta(hours=2)
+    assert choice.agronomic_time_tier == 1
+    assert choice.agronomic_time_score == 0.25
+
+
+def test_agronomic_profile_uses_real_elapsed_time_across_dst_fallback() -> None:
+    timezone = ZoneInfo("Europe/Budapest")
+    start = datetime(2026, 10, 25, 1, 30, tzinfo=timezone)
+    end = (start.astimezone(UTC) + timedelta(hours=2)).astimezone(timezone)
+
+    assert end.isoformat() == "2026-10-25T02:30:00+01:00"
+    assert _agronomic_time_profile(start, end) == (2, 1.25)
+
+
+def test_minor_forecast_noise_does_not_override_healthy_overhead_time() -> None:
+    start = datetime(2026, 7, 1, 4, 0, tzinfo=UTC)
+    evening = start.replace(hour=18)
+    hours = [
+        forecast_hour(start, probability=1, wind_speed=10, wind_gust=15),
+        *[
+            forecast_hour(start + timedelta(hours=offset), probability=90)
+            for offset in range(1, 14)
+        ],
+        forecast_hour(evening, probability=0, wind_speed=9.9, wind_gust=14.9),
+    ]
+
+    choice = select_smart_watering_slot(
+        hours,
+        start,
+        evening + timedelta(hours=1),
+        45,
+        ["rotator"],
+    )
+
+    assert choice.scheduled_at == start
+    assert choice.agronomic_time_tier == 0
+
+
+def test_time_of_day_is_a_preference_not_an_overhead_block() -> None:
+    start = datetime(2026, 7, 1, 18, 0, tzinfo=UTC)
+    choice = select_smart_watering_slot(
+        [forecast_hour(start), forecast_hour(start + timedelta(hours=1))],
+        start,
+        start + timedelta(hours=2),
+        45,
+        ["rotor"],
+    )
+
+    assert choice.status == "planned"
+    assert choice.scheduled_at == start
+    assert choice.agronomic_time_tier == 5
+    assert "tartalék időpontban" in choice.reason
+
+
+def test_drip_only_program_has_no_leaf_wetness_time_penalty() -> None:
+    timezone = ZoneInfo("Europe/Budapest")
+    start = datetime(2026, 7, 1, 22, 0, tzinfo=timezone)
+    hours = [
+        forecast_hour(start + timedelta(hours=offset), temperature=18, humidity=80)
+        for offset in range(8)
+    ]
+
+    choice = select_smart_watering_slot(
+        hours,
+        start,
+        start + timedelta(hours=8),
+        45,
+        ["drip"],
+    )
+
+    assert choice.scheduled_at == start
+    assert choice.agronomic_time_tier is None
+    assert choice.agronomic_time_score is None
+    assert choice.agronomic_time_label is not None
+    assert "csepegtetőnél" in choice.agronomic_time_label
+
+
+def test_rain_safety_outranks_the_early_morning_preference() -> None:
+    start = datetime(2026, 7, 1, 4, 0, tzinfo=UTC)
+    hours = [
+        forecast_hour(
+            start + timedelta(hours=offset),
+            precipitation_mm=0.5 if offset < 4 else 0,
+            probability=80 if offset < 4 else 0,
+        )
+        for offset in range(6)
+    ]
+
+    choice = select_smart_watering_slot(
+        hours,
+        start,
+        start + timedelta(hours=6),
+        45,
+        ["rotator"],
+    )
+
+    assert choice.scheduled_at == start + timedelta(hours=4)
+    assert choice.precipitation_mm == 0
+    assert choice.agronomic_time_tier == 1
 
 
 def test_smart_selector_requires_whole_duration_to_fit() -> None:

@@ -1164,7 +1164,7 @@ class SmartYardianManager:
                 IDOKEP_RAIN_MAP_URL,
                 headers={
                     "User-Agent": (
-                        "HomeAssistant SmartYardian/0.17.0 "
+                        "HomeAssistant SmartYardian/0.18.0 "
                         "(https://github.com/mistenes/smart-yardian)"
                     )
                 },
@@ -1313,7 +1313,7 @@ class SmartYardianManager:
                 url,
                 headers={
                     "User-Agent": (
-                        "HomeAssistant SmartYardian/0.17.0 "
+                        "HomeAssistant SmartYardian/0.18.0 "
                         "(https://github.com/mistenes/smart-yardian)"
                     )
                 },
@@ -2906,7 +2906,7 @@ class SmartYardianManager:
                 url,
                 headers={
                     "User-Agent": (
-                        "HomeAssistant SmartYardian/0.17.0 "
+                        "HomeAssistant SmartYardian/0.18.0 "
                         "(https://github.com/mistenes/smart-yardian)"
                     )
                 },

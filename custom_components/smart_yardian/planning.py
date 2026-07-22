@@ -21,7 +21,20 @@ RAINY_SLOT_CONDITIONS = {
     "hail",
 }
 
-SmartScore = tuple[int, float, float, int, float, float, float, float]
+SmartScore = tuple[
+    int,
+    float,
+    int,
+    int,
+    int,
+    int,
+    float,
+    float,
+    float,
+    float,
+    float,
+    float,
+]
 BlockedInterval = tuple[datetime, datetime]
 
 
@@ -54,6 +67,9 @@ class SmartSlotChoice:
     average_temperature: float | None = None
     average_humidity_percent: float | None = None
     daylight_fraction: float | None = None
+    agronomic_time_tier: int | None = None
+    agronomic_time_score: float | None = None
+    agronomic_time_label: str | None = None
     wind_action: str | None = None
     wind_reason: str | None = None
     max_wind_speed_kmh: float | None = None
@@ -198,9 +214,12 @@ def select_smart_watering_slot(
     """Choose the most efficient safe 15-minute candidate in a hard window.
 
     Ranking is intentionally lexicographic and explainable: dry slots, known
-    and lower wind, darkness, lower temperature, then the earlier start win.
-    Missing wind is allowed with a penalty; wind above a configured head-type
-    threshold is rejected.
+    and categorically lower rain/wind risk, the agronomically preferred
+    early-morning turf window, then the precise forecast values. Risk buckets
+    stop insignificant 1% rain or 0.1 km/h wind differences from overriding a
+    much healthier time of day. Missing wind is allowed with a penalty; wind
+    above a configured head-type threshold is rejected. Drip-only programs do
+    not receive a turf leaf-wetness time penalty.
     """
     if duration_minutes <= 0:
         raise ValueError("A tervezett időtartam legyen pozitív.")
@@ -244,6 +263,9 @@ def select_smart_watering_slot(
 
     forecast_hours = sorted(forecast, key=_hour_timestamp)
     head_type_values = tuple(head_types)
+    has_overhead_zones = any(
+        str(head_type).casefold() != "drip" for head_type in head_type_values
+    )
     wind_thresholds = wind_thresholds_for_head_types(head_type_values, settings)
     blocked = tuple(blocked_intervals)
     earliest = max(window_start_at, now) if now is not None else window_start_at
@@ -326,6 +348,17 @@ def select_smart_watering_slot(
         average_humidity = (
             round(fmean(humidity_values), 1) if humidity_values else None
         )
+        agronomic_time_tier: int | None = None
+        agronomic_time_score: float | None = None
+        if has_overhead_zones:
+            agronomic_time_tier, agronomic_time_score = _agronomic_time_profile(
+                candidate,
+                irrigation_end,
+            )
+        agronomic_time_label = _agronomic_time_label(
+            agronomic_time_tier,
+            has_overhead_zones,
+        )
         # Unknown humidity is neutral (60%).  Among otherwise equivalent
         # candidates, more humid air reduces spray evaporation and wins.
         humidity_penalty = round(
@@ -335,8 +368,12 @@ def select_smart_watering_slot(
         score: SmartScore = (
             int(rainy),
             precipitation,
-            probability,
+            _probability_risk_tier(probability),
             wind_missing,
+            _wind_efficiency_tier(wind_utilization),
+            agronomic_time_tier or 0,
+            agronomic_time_score or 0.0,
+            probability,
             round(wind_utilization, 4),
             daylight_fraction,
             average_temperature,
@@ -355,6 +392,7 @@ def select_smart_watering_slot(
                 daylight_fraction,
                 average_temperature,
                 average_humidity,
+                agronomic_time_label,
                 transition_buffer_minutes,
             ),
             window_start_at=window_start_at,
@@ -369,6 +407,9 @@ def select_smart_watering_slot(
             average_temperature=average_temperature,
             average_humidity_percent=average_humidity,
             daylight_fraction=daylight_fraction,
+            agronomic_time_tier=agronomic_time_tier,
+            agronomic_time_score=agronomic_time_score,
+            agronomic_time_label=agronomic_time_label,
             wind_action=effective_wind_action,
             wind_reason=effective_wind_reason,
             max_wind_speed_kmh=wind.max_wind_speed_kmh,
@@ -512,6 +553,59 @@ def _daylight_value(hour: ForecastHour) -> float:
     return 0.0 if hour.condition.casefold() == "clear-night" else 1.0
 
 
+def _overhead_time_tier(value: datetime) -> int:
+    """Rank local clock time for overhead turf irrigation (lower is better).
+
+    The bands synthesize university turf guidance: 04:00-08:00 is the core
+    early-morning period, 02:00-10:00 is the wider acceptable morning/dew
+    period, midday loses more water, and late-afternoon irrigation can extend
+    leaf wetness into the night. These are preferences, never hard blocks.
+    """
+    minute = value.hour * 60 + value.minute
+    if 4 * 60 <= minute < 8 * 60:
+        return 0
+    if 2 * 60 <= minute < 4 * 60 or 8 * 60 <= minute < 10 * 60:
+        return 1
+    if minute < 2 * 60:
+        return 2
+    if minute >= 21 * 60:
+        return 3
+    if 10 * 60 <= minute < 17 * 60:
+        return 4
+    return 5
+
+
+def _agronomic_time_profile(
+    starts_at: datetime,
+    ends_at: datetime,
+) -> tuple[int, float]:
+    """Return worst and duration-weighted time tiers for the whole run."""
+    tiers: list[int] = []
+    cursor = starts_at
+    while _as_utc(cursor) < _as_utc(ends_at):
+        tiers.append(_overhead_time_tier(cursor))
+        cursor = _add_elapsed(cursor, timedelta(minutes=1))
+    if not tiers:
+        tier = _overhead_time_tier(starts_at)
+        return tier, float(tier)
+    return max(tiers), round(fmean(tiers), 3)
+
+
+def _agronomic_time_label(tier: int | None, has_overhead_zones: bool) -> str:
+    """Explain the scientific time-of-day preference without hard blocking."""
+    if not has_overhead_zones:
+        return "csepegtetőnél napszaki lombnedvesség-korlátozás nélkül"
+    labels = {
+        0: "a 04:00–08:00 közötti ajánlott hajnali sávban",
+        1: "a 02:00–10:00 közötti elfogadható hajnali-reggeli sávban",
+        2: "késő éjszakai tartalék időpontban",
+        3: "késő esti tartalék időpontban",
+        4: "nappali tartalék időpontban",
+        5: "késő délutáni tartalék időpontban",
+    }
+    return labels.get(tier, "a legjobb elérhető tartalék időpontban")
+
+
 def _wind_utilization(
     max_speed: float | None,
     max_gust: float | None,
@@ -528,6 +622,28 @@ def _wind_utilization(
     return max(ratios, default=0.0)
 
 
+def _probability_risk_tier(probability: float) -> int:
+    """Group rain chance so tiny forecast noise cannot dictate the clock time."""
+    if probability < 20:
+        return 0
+    if probability < 50:
+        return 1
+    if probability < 80:
+        return 2
+    return 3
+
+
+def _wind_efficiency_tier(utilization: float) -> int:
+    """Group safe wind by its share of the active head-specific hard limit."""
+    if utilization <= 0.25:
+        return 0
+    if utilization <= 0.5:
+        return 1
+    if utilization <= 0.75:
+        return 2
+    return 3
+
+
 def _selection_reason(
     scheduled_at: datetime,
     duration_minutes: int,
@@ -539,6 +655,7 @@ def _selection_reason(
     daylight_fraction: float,
     average_temperature: float,
     average_humidity_percent: float | None,
+    agronomic_time_label: str,
     transition_buffer_minutes: int,
 ) -> str:
     rain_text = (
@@ -565,7 +682,8 @@ def _selection_reason(
     )
     return (
         f"{scheduled_at.strftime('%H:%M')} lett kiválasztva: {rain_text}, "
-        f"{wind_text}, {light_text}, {average_temperature:g} °C{humidity_text}; "
+        f"{wind_text}, {agronomic_time_label}, {light_text}, "
+        f"{average_temperature:g} °C{humidity_text}; "
         f"a {duration_minutes} perces program{buffer_text} teljesen belefér "
         "az ablakba."
     )

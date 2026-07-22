@@ -62,11 +62,30 @@ A programszerkesztőben programonként választható az indítás módja:
   nem kötelező napi futások: a Smart Yardian csak akkor tervez öntözést, ha a
   felhalmozott vízhiány ezt indokolja.
 
-Az okos tervező 15 perces lépésekben a szárazabb, kisebb szelű, sötétebb,
-hűvösebb, magasabb páratartalmú, majd korábbi időpontot részesíti előnyben.
+Az okos tervező 15 perces lépésekben a szárazabb és kisebb szelű időpontokat
+keresi. Szórófejes gyepnél ezután a teljes program napszakát értékeli: a
+**04:00–08:00** közötti hajnali sáv az elsődleges, a **02:00–10:00** közötti
+időszak elfogadható tartalék. A déli órák a nagyobb párolgás és szél, a késő
+délutáni/esti órák pedig az elhúzódó levélnedvesség miatt kerülnek hátrébb.
+Ez rangsorolás, nem tiltás: ha a felhasználó csak más napszakot engedélyez, a
+legjobb beférő tartalék időpont továbbra is lefut. Csepegtetőnél nincs
+lombnedvességi napszakbüntetés; ott a száraz, kisebb párolgási veszteségű
+időpont nyer.
+
 Hiányzó szél- vagy páratartalom-adat nem tiltja le a programot; a hiányzó
 széladatú időpont hátrébb kerül. Túl erős szélben overhead zóna nem indul; a
-csepegtetőt a szél nem blokkolja.
+csepegtetőt a szél nem blokkolja. Az időpontválasztás indoklásában a panel
+kiírja, hogy ajánlott hajnali vagy korlátozott időablak miatti tartalék sávot
+választott-e.
+
+A hajnali alapérték több, egymástól független gyepfenntartási ajánlás közös
+része: a [University of California IPM](https://ipm.ucanr.edu/TOOLS/TURF/MAINTAIN/irrwhen.html)
+02:00–08:00, az [Iowa State University](https://yardandgarden.extension.iastate.edu/faq/when-best-time-water-lawn)
+05:00–09:00 közötti öntözést javasol, a
+[UF/IFAS növénykórtani útmutatója](https://ask.ifas.ufl.edu/publication/LH040)
+pedig a már meglévő hajnali harmat idejét emeli ki. A Smart Yardian
+04:00–08:00 elsődleges sávja ezekből képzett konzervatív mérnöki alapérték,
+nem egyetlen, percre pontos biológiai határ.
 
 Az időablak kemény határ: a rendszer a Yardian start/stop visszaigazolásainak
 idejére is tartalékot hagy. Ha a teljes célmennyiség nem fér be, 0,5 mm-es
