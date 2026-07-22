@@ -97,6 +97,13 @@ export const panelStyles = css`
   }
 
   .shell[dark] {
+    --sy-text: var(--primary-text-color, #e6e8eb);
+    --sy-muted: var(--secondary-text-color, #a8afb7);
+    --sy-disabled: var(--disabled-text-color, #737c86);
+    --sy-border: var(--divider-color, #3a4149);
+    --sy-surface: var(--card-background-color, #1b1f24);
+    --sy-background: var(--primary-background-color, #111418);
+    --sy-surface-muted: var(--secondary-background-color, #242a31);
     --sy-control: var(--input-fill-color, var(--sy-surface-muted));
     --sy-control-hover: color-mix(in srgb, var(--sy-blue) 15%, var(--sy-control));
     --sy-hover: color-mix(in srgb, var(--sy-text) 10%, transparent);
@@ -955,7 +962,8 @@ export const panelStyles = css`
   .forecast-table-head,
   .forecast-hour {
     display: grid;
-    grid-template-columns: 64px minmax(150px, 1fr) 110px 110px 90px 140px;
+    grid-template-columns:
+      64px minmax(150px, 1fr) 100px 112px 100px 80px 142px;
     align-items: center;
     gap: 12px;
   }
@@ -1098,13 +1106,19 @@ export const panelStyles = css`
     color: var(--sy-green);
   }
 
+  .schedule-status.water_need_deferred {
+    color: var(--sy-amber);
+  }
+
   .schedule-status.weather_unavailable {
     color: var(--sy-red);
   }
 
   .schedule-status.wind_skip,
   .schedule-status.wind_unavailable,
-  .schedule-status.smart_no_fit {
+  .schedule-status.smart_no_fit,
+  .schedule-status.smart_zone_conflict,
+  .schedule-status.water_balance_unavailable {
     color: var(--sy-red);
   }
 
@@ -1141,6 +1155,42 @@ export const panelStyles = css`
   .schedule-plan ha-icon {
     flex: 0 0 auto;
     --mdc-icon-size: 16px;
+  }
+
+  .schedule-water-balance {
+    margin: 0 12px 10px 84px;
+    padding: 8px 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+    border-top: 1px solid var(--sy-border);
+    border-bottom: 1px solid var(--sy-border);
+  }
+
+  .schedule-water-balance > div {
+    min-width: 0;
+  }
+
+  .schedule-water-balance dt {
+    margin-bottom: 2px;
+    color: var(--sy-muted);
+    font-size: 10px;
+  }
+
+  .schedule-water-balance dd {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .schedule-water-balance dd span {
+    display: block;
+    margin-top: 2px;
+    color: var(--sy-muted);
+    font-size: 10px;
+    font-weight: 400;
+    line-height: 1.35;
   }
 
   .schedule-zones {
@@ -1893,7 +1943,9 @@ export const panelStyles = css`
 
     .forecast-table-head,
     .forecast-hour {
-      grid-template-columns: 56px minmax(130px, 1fr) 100px 100px 80px;
+      grid-template-columns:
+        46px minmax(90px, 1fr) 70px 82px 76px 54px 105px;
+      gap: 6px;
     }
 
     .program-list {
@@ -1972,7 +2024,7 @@ export const panelStyles = css`
     }
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 720px) {
     .forecast-source {
       padding: 8px 0;
       align-items: flex-start;
@@ -1985,14 +2037,14 @@ export const panelStyles = css`
     }
 
     .forecast-hour {
-      min-height: 104px;
+      min-height: 128px;
       grid-template-columns: 48px minmax(0, 1fr) auto;
-      grid-template-rows: auto auto auto;
+      grid-template-rows: auto auto auto auto;
       gap: 7px 10px;
     }
 
     .forecast-hour time {
-      grid-row: 1 / 4;
+      grid-row: 1 / 5;
       align-self: start;
       padding-top: 3px;
     }
@@ -2009,18 +2061,23 @@ export const panelStyles = css`
 
     .forecast-metric.precipitation {
       grid-column: 2;
-      grid-row: 2;
+      grid-row: 3;
     }
 
     .forecast-metric.probability {
       grid-column: 3;
-      grid-row: 2;
+      grid-row: 3;
       text-align: right;
+    }
+
+    .forecast-metric.humidity {
+      grid-column: 2 / 4;
+      grid-row: 2;
     }
 
     .forecast-metric.wind {
       grid-column: 2 / 4;
-      grid-row: 3;
+      grid-row: 4;
     }
 
     .forecast-metric > span {
@@ -2030,6 +2087,9 @@ export const panelStyles = css`
       font-size: 10px;
       font-weight: 400;
     }
+  }
+
+  @media (max-width: 600px) {
 
     .active-run {
       width: auto;
@@ -2152,6 +2212,10 @@ export const panelStyles = css`
       margin-left: 84px;
     }
 
+    .schedule-water-balance {
+      margin-left: 12px;
+    }
+
     .schedule-mode-options,
     .watering-window {
       grid-template-columns: 1fr;
@@ -2184,10 +2248,6 @@ export const panelStyles = css`
 
     .editor {
       padding: 18px 14px;
-    }
-
-    .editor-zone {
-      grid-template-columns: minmax(110px, 1fr) 70px 32px;
     }
 
     .editor-actions {

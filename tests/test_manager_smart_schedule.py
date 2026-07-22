@@ -10,6 +10,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
+
 from custom_components.smart_yardian.models import IrrigationProgram
 from custom_components.smart_yardian.planning import (
     ProgramOccurrence,
@@ -265,7 +267,11 @@ def test_due_overnight_smart_start_is_claimed_and_uses_actual_tick_time() -> Non
         async def _async_record_skip(self, *args: Any, **_kwargs: Any) -> None:
             self.skip_calls.append(args)
 
-        async def _async_run_claimed_delayed(self, *args: Any) -> None:
+        async def _async_run_claimed_delayed(
+            self,
+            *args: Any,
+            **_kwargs: Any,
+        ) -> None:
             self.wrapper_calls.append(args)
 
         def _create_task(self, coro: Any, _name: str) -> None:
@@ -528,6 +534,167 @@ def test_setup_recovers_stale_claims_but_discards_interrupted_claim() -> None:
     setup_source = ast.unparse(_definition(MANAGER_PATH, "async_setup"))
     assert "recovered_claims = self._recover_delayed_claims" in setup_source
     assert "or recovered_claims" in setup_source
+
+
+def test_restart_accounts_elapsed_current_zone_without_losing_soil_credit() -> None:
+    """A persisted running zone is settled up to the restart stop instant."""
+    parse_runtime_datetime = _standalone_manager_method(
+        "_parse_runtime_datetime",
+        {"Any": Any, "datetime": datetime},
+    )
+    apply_elapsed = _standalone_manager_method(
+        "_apply_elapsed_zone_delivery",
+        {"Any": Any},
+    )
+    finalize = _standalone_manager_method(
+        "_finalize_interrupted_zone_progress",
+        {
+            "Any": Any,
+            "UTC": UTC,
+            "datetime": datetime,
+            "_parse_runtime_datetime": parse_runtime_datetime,
+        },
+    )
+    stopped_at = datetime(2026, 7, 20, 5, 5, tzinfo=UTC)
+    interrupted = {
+        "current_index": 0,
+        "current_zone": "switch.gyep",
+        "current_duration": 10,
+        "zone_confirmed_started_at": "2026-07-20T05:00:00+00:00",
+        "zones": [
+            {
+                "entity_id": "switch.gyep",
+                "planned_minutes": 10,
+                "adaptive_applied_mm": 4.0,
+                "adaptive_soil_satisfied_mm": 2.0,
+                "outcome": "running",
+            }
+        ],
+    }
+    manager = SimpleNamespace(_apply_elapsed_zone_delivery=apply_elapsed)
+
+    finalize(manager, interrupted, stopped_at)
+
+    zone = interrupted["zones"][0]
+    assert zone["outcome"] == "stopped"
+    assert zone["actual_duration_seconds"] == 300.0
+    assert zone["adaptive_applied_mm"] == 2.0
+    assert zone["adaptive_soil_satisfied_mm"] == 2.0
+    assert "_finalize_interrupted_zone_progress" in ast.unparse(
+        _definition(MANAGER_PATH, "async_setup")
+    )
+
+
+def test_stop_all_requires_off_confirmation_for_every_active_zone() -> None:
+    stop_all = _standalone_manager_method(
+        "async_stop_all",
+        {
+            "ATTR_ENTITY_ID": "entity_id",
+            "STATE_ON": "on",
+            "STOP_CONFIRM_SECONDS": 20,
+            "asyncio": asyncio,
+        },
+    )
+
+    class Services:
+        def __init__(self) -> None:
+            self.calls: list[dict[str, Any]] = []
+
+        async def async_call(
+            self,
+            _domain: str,
+            _service: str,
+            _data: dict[str, Any],
+            *,
+            target: dict[str, Any],
+            blocking: bool,
+        ) -> None:
+            assert blocking is True
+            self.calls.append(target)
+
+    class Manager:
+        def __init__(self) -> None:
+            self._stop_event = SimpleNamespace(set=lambda: None)
+            self.zone_entities = ["switch.a", "switch.b"]
+            self.hass = SimpleNamespace(
+                states=SimpleNamespace(
+                    get=lambda entity_id: SimpleNamespace(
+                        state="on" if entity_id in self.zone_entities else "off"
+                    )
+                ),
+                services=Services(),
+            )
+            self.active_run = None
+            self.confirmed: list[str] = []
+            self.notified = 0
+
+        async def _async_wait_state(
+            self,
+            entity_id: str,
+            _expected_on: bool,
+            _timeout: int,
+        ) -> bool:
+            self.confirmed.append(entity_id)
+            return entity_id != "switch.b"
+
+        def _notify_listeners(self) -> None:
+            self.notified += 1
+
+    manager = Manager()
+
+    with pytest.raises(RuntimeError, match="switch.b"):
+        asyncio.run(stop_all(manager))
+
+    assert manager.hass.services.calls == [
+        {"entity_id": ["switch.a", "switch.b"]}
+    ]
+    assert manager.confirmed == ["switch.a", "switch.b"]
+    assert manager.notified == 1
+
+
+def test_reenabling_smart_program_resets_disabled_period_ledger() -> None:
+    save_program = _standalone_manager_method(
+        "async_save_program",
+        {"Any": Any, "IrrigationProgram": IrrigationProgram},
+    )
+    disabled = _program(
+        "smart",
+        schedule_mode="smart_window",
+        start_time="02:00",
+        window_start_time="02:00",
+        window_end_time="07:00",
+    )
+    disabled.enabled = False
+
+    class Store:
+        def __init__(self) -> None:
+            self.programs = [disabled]
+            self.runtime = {"adaptive_balances": {"smart": {"balance_mm": 40.0}}}
+
+        async def async_save(self) -> None:
+            return None
+
+    removed: list[str] = []
+    store = Store()
+    manager = SimpleNamespace(
+        store=store,
+        zone_entities=["switch.gyep"],
+        _smart_program_conflicts=lambda _program: [],
+        _remove_delayed_program_runs=lambda _program_id: None,
+        _remove_adaptive_program_balance=lambda program_id: removed.append(program_id),
+        _notify_listeners=lambda: None,
+    )
+    enabled_raw = disabled.as_dict()
+    enabled_raw["enabled"] = True
+
+    saved = asyncio.run(save_program(manager, enabled_raw))
+
+    assert saved.enabled is True
+    assert removed == ["smart"]
+    account_source = ast.unparse(
+        _definition(MANAGER_PATH, "_async_account_adaptive_balances")
+    )
+    assert "program.enabled" in account_source
 
 
 def test_initial_smart_claim_is_saved_before_background_task_creation() -> None:

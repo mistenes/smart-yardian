@@ -45,6 +45,7 @@ def forecast_hour(
     daylight: bool = False,
     wind_speed: float | None = 10,
     wind_gust: float | None = 15,
+    humidity: float | None = None,
     condition: str = "clear-night",
 ) -> ForecastHour:
     return ForecastHour(
@@ -56,6 +57,7 @@ def forecast_hour(
         is_daylight=daylight,
         wind_speed_kmh=wind_speed,
         wind_gust_kmh=wind_gust,
+        humidity_percent=humidity,
     )
 
 
@@ -353,6 +355,26 @@ def test_smart_selector_ranks_dry_dark_cool_slot_before_earlier_candidate() -> N
     assert choice.precipitation_mm == 0
     assert choice.daylight_fraction == 0
     assert choice.average_temperature == 18
+
+
+def test_smart_selector_prefers_more_humid_equivalent_slot() -> None:
+    start = datetime(2026, 7, 1, 3, 0, tzinfo=UTC)
+    hours = [
+        forecast_hour(start, humidity=35),
+        forecast_hour(start + timedelta(hours=1), humidity=85),
+    ]
+
+    choice = select_smart_watering_slot(
+        hours,
+        start,
+        start + timedelta(hours=2),
+        45,
+        ["rotator"],
+    )
+
+    assert choice.scheduled_at == start + timedelta(hours=1)
+    assert choice.average_humidity_percent == 85
+    assert "85% páratartalommal" in choice.reason
 
 
 def test_smart_selector_requires_whole_duration_to_fit() -> None:

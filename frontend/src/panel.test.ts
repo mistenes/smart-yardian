@@ -106,4 +106,23 @@ describe("Smart Yardian intelligent schedule preview", () => {
     expect(preview.status).toBe("smart_no_fit");
     expect(preview.window_end_at).toContain("2026-07-22");
   });
+
+  it("represents a conflicting intelligent program explicitly", () => {
+    const preview: ScheduleProgram = {
+      program_id: "conflict",
+      program_name: "Átfedő gyep",
+      scheduled_at: "2026-07-21T02:00:00+02:00",
+      schedule_mode: "smart_window",
+      planned_end_at: null,
+      planning_status: "smart_zone_conflict",
+      status: "smart_zone_conflict",
+      reason: "Egy zónát másik vízigény-alapú program is használ.",
+      total_minutes: null,
+      zones: [],
+      weather: null,
+    };
+
+    expect(preview.planning_status).toBe("smart_zone_conflict");
+    expect(preview.status).toBe("smart_zone_conflict");
+  });
 });

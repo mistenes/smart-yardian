@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from math import acos, cos, pi, radians, sin, sqrt, tan
 from statistics import fmean
-from typing import Iterable
 
 from .models import ForecastHour
 
@@ -39,6 +39,8 @@ class EvapotranspirationEstimate:
     cloud_factor: float
     wind_factor: float
     average_wind_speed_kmh: float | None
+    humidity_factor: float
+    average_humidity_percent: float | None
 
 
 def extraterrestrial_radiation_mj_m2_day(
@@ -136,9 +138,24 @@ def estimate_daily_evapotranspiration(
         else 1.0 + min(0.15, max(0.0, average_wind - 5.0) / 100.0)
     )
 
+    humidities = [
+        max(0.0, min(100.0, float(hour.humidity_percent)))
+        for hour in hours
+        if hour.humidity_percent is not None
+    ]
+    average_humidity = fmean(humidities) if humidities else None
+    # Hargreaves-Samani does not require humidity.  When HA exposes it, a
+    # deliberately small bounded correction captures faster drying in dry air
+    # without letting one questionable sensor dominate the water budget.
+    humidity_factor = (
+        1.0
+        if average_humidity is None
+        else max(0.85, min(1.15, 1.0 + (60.0 - average_humidity) / 200.0))
+    )
+
     return EvapotranspirationEstimate(
         et0_mm=et0,
-        adjusted_et0_mm=et0 * cloud_factor * wind_factor,
+        adjusted_et0_mm=et0 * cloud_factor * wind_factor * humidity_factor,
         min_temperature=min_temperature,
         max_temperature=max_temperature,
         mean_temperature=mean_temperature,
@@ -146,6 +163,8 @@ def estimate_daily_evapotranspiration(
         cloud_factor=cloud_factor,
         wind_factor=wind_factor,
         average_wind_speed_kmh=average_wind,
+        humidity_factor=humidity_factor,
+        average_humidity_percent=average_humidity,
     )
 
 

@@ -54,7 +54,9 @@ export type PlanningStatus =
   | "fixed"
   | "smart_planned"
   | "smart_waiting_forecast"
-  | "smart_no_fit";
+  | "smart_no_fit"
+  | "smart_zone_conflict"
+  | "water_balance_unavailable";
 
 export type Program = {
   program_id: string;
@@ -92,6 +94,8 @@ export type WeatherDecision = {
   adjusted_et0_mm?: number | null;
   et_cloud_factor?: number;
   et_wind_factor?: number;
+  average_humidity_percent?: number | null;
+  et_humidity_factor?: number;
   et_reference_mm?: number;
   irrigation_target_mm?: number | null;
   max_wind_speed_kmh?: number | null;
@@ -110,6 +114,7 @@ export type HourlyForecastHour = {
   temperature: number;
   precipitation_mm: number;
   precipitation_probability: number;
+  humidity_percent?: number | null;
   condition: string;
   cloud_cover: number | null;
   is_daylight: boolean | null;
@@ -151,7 +156,10 @@ export type ScheduleStatus =
   | "wind_delayed"
   | "wind_skip"
   | "wind_unavailable"
-  | "smart_no_fit";
+  | "water_need_deferred"
+  | "water_balance_unavailable"
+  | "smart_no_fit"
+  | "smart_zone_conflict";
 
 export type ScheduleZone = {
   entity_id: string;
@@ -186,6 +194,19 @@ export type ScheduleProgram = {
   status: ScheduleStatus;
   reason: string;
   total_minutes: number | null;
+  water_balance_before_mm?: number | null;
+  daily_water_need_mm?: number | null;
+  daily_effective_rain_mm?: number | null;
+  daily_ledger_rain_mm?: number | null;
+  forecast_rain_mm?: number | null;
+  forecast_ledger_rain_mm?: number | null;
+  irrigation_target_mm?: number | null;
+  remaining_balance_mm?: number | null;
+  water_balance_gap_days?: number | null;
+  water_balance_backfilled_gap_days?: number | null;
+  water_balance_unaccounted_gap_days?: number | null;
+  water_balance_rebaselined_after_gap?: boolean | null;
+  water_balance_last_rebaseline_date?: string | null;
   zones: ScheduleZone[];
   weather: WeatherDecision | null;
 };
@@ -218,6 +239,11 @@ export type Settings = {
   soil_moisture_target_percent: number;
   soil_moisture_skip_percent: number;
   soil_moisture_max_factor: number;
+  water_balance_min_mm: number;
+  water_balance_max_event_mm: number;
+  water_balance_max_rain_credit_mm: number;
+  water_balance_max_defer_windows: number;
+  water_balance_rain_lookahead_hours: number;
   notify_mobile: boolean;
   ntfy_base_url: string;
   ntfy_topic: string;

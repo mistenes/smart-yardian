@@ -6,19 +6,19 @@ Időjárás-alapú, magyar nyelvű öntözésvezérlő Home Assistant 2026.6+ re
 
 - több Yardian vezérlő és dinamikusan bővíthető zónalista;
 - két választható ütemezés: pontos **Fix időpont** vagy automatikusan tervezett
-  **Okos időablak**, soros végrehajtással;
+  **Vízigény-alapú időablak**, soros végrehajtással;
 - egységes, kizárólag Időkép-alapú napi előrejelzés;
 - a Smart Yardian beállításaiból módosítható Időkép-előrejelzési település;
-- település alapján kiválasztható közeli Időkép automata, amelynek elmúlt
-  24 órás mért csapadéka beleszámít az öntözési döntésbe;
+- település alapján kiválasztható közeli Időkép automata; a mért csapadék a
+  tartós vízmérlegbe, az előrejelzett eső a halasztási döntésbe kerül;
 - átlátható, 0–150%-os időjárási korrekció;
 - Hargreaves–Samani napi ET0-becslés az Időkép hőmérsékleteiből, a HA
-  helyadataiból, naposság/felhőzet- és szélkorrekcióval;
+  helyadataiból, naposság/felhőzet-, szél- és páratartalom-korrekcióval;
 - zónánként választható manuális vagy szórófej-referencia alapján számolt idő;
 - programonként opcionális hőmérséklet-feltétel a program naptári napjának
   előrejelzett maximumára;
-- külön háromnapos előnézet a várható futásokkal, kihagyásokkal és
-  zónánként számolt időkkel;
+- külön háromnapos előnézet a várható futásokkal, halasztásokkal, a
+  többnapos vízmérleggel és zónánként számolt időkkel;
 - külön órás Időkép-előrejelzés hőmérséklettel, csapadékmennyiséggel és
   csapadékeséllyel;
 - rotátor, MP800, spray, rotoros és csepegtető zónaprofil, opcionális
@@ -49,33 +49,69 @@ Időjárás-alapú, magyar nyelvű öntözésvezérlő Home Assistant 2026.6+ re
 
 Az integráció ezután **Öntözés** néven megjelenik az oldalsávban.
 
-## Fix időpont és okos időablak
+## Fix időpont és vízigény-alapú időablak
 
 A programszerkesztőben programonként választható az indítás módja:
 
 - **Fix időpont:** a program a kiválasztott napokon pontosan a megadott
-  kezdési időben indul. Ez a korábbi működés, ezért a frissítés előtt mentett
-  programok automatikusan ebben a módban maradnak.
-- **Okos időablak:** megadható, hogy az öntözés mettől meddig futhat. A Smart
-  Yardian 15 perces lépésekben megkeresi azt a kezdést, ahol a teljes program
-  befejezhető az ablak zárása előtt.
+  kezdési időben indul. A működése változatlan és továbbra is bármikor
+  választható; a frissítés előtt mentett programok automatikusan ebben a módban
+  maradnak.
+- **Vízigény-alapú időablak:** megadható, hogy mely napokon és mettől meddig
+  öntözhet a rendszer. A kijelölt napok engedélyezett öntözési lehetőségek,
+  nem kötelező napi futások: a Smart Yardian csak akkor tervez öntözést, ha a
+  felhalmozott vízhiány ezt indokolja.
 
-Az okos tervező előnyben részesíti a szárazabb, ismert és kisebb szelű,
-sötétebb, hűvösebb, majd korábbi időpontot. A zónák időtartamát továbbra is az
-Időkép napi adatai, az ET0, a csapadék, a zónaprofil és – ahol be van állítva –
-a talajnedvesség számítja. Hiányzó széladat nem tiltja le a programot, csak
-hátrébb sorolja az adott időpontot. Túl erős szélben overhead zóna nem indul;
-a csepegtetőt a szél nem blokkolja.
+Az okos tervező 15 perces lépésekben a szárazabb, kisebb szelű, sötétebb,
+hűvösebb, magasabb páratartalmú, majd korábbi időpontot részesíti előnyben.
+Hiányzó szél- vagy páratartalom-adat nem tiltja le a programot; a hiányzó
+széladatú időpont hátrébb kerül. Túl erős szélben overhead zóna nem indul; a
+csepegtetőt a szél nem blokkolja.
 
 Az időablak kemény határ: a rendszer a Yardian start/stop visszaigazolásainak
-idejére is tartalékot hagy, és nem indít részprogramot, ha a teljes futás nem
-fér el. Az ablak átnyúlhat éjfélen; a kiválasztott hétköznap az ablak nyitási
-napját jelenti. Ha a kiválasztott kezdés már a következő naptári napra esik, az
-időtartamot és a napi feltételeket ahhoz a naphoz újraszámolja.
+idejére is tartalékot hagy. Ha a teljes célmennyiség nem fér be, 0,5 mm-es
+lépésekben kisebb, de minden zónát tartalmazó futást keres; a fennmaradó
+vízhiány megmarad a következő engedélyezett alkalomra. Ha még 0,5 mm sem fér
+el, nem indít részleges zónasort. Az ablak átnyúlhat éjfélen; a kiválasztott
+hétköznap az ablak nyitási napját jelenti.
 
 A kézi **Futtatás most** és a **Kézi program** nem vár az időablakra. Új heti
 program alapból okos, 02:00–07:00 közötti ablakkal készül, de egy kattintással
 átállítható fix időpontra.
+
+### Tartós többnapos vízmérleg
+
+Minden vízigény-alapú program saját, Home Assistant-újraindítást túlélő
+vízmérleget vezet. Naponta hozzáadja a gyep `ETc`-igényét, amelyet a
+hőmérséklet, felhőzet/naposság, szél és páratartalom alapján számol, majd
+levonja a kiválasztott Időkép automata újonnan mért csapadékát. Az elmúlt
+24 órás gördülő mérés változását tárolja, ezért ugyanazt az esőt nem számolja
+el minden frissítéskor újra.
+
+Alapból 5 mm felhalmozott vízhiánynál tervez futást, egy alkalommal legfeljebb
+10 mm-t juttat ki, és legfeljebb 15 mm esőkreditet visz tovább. A következő
+36 óra előrejelzett esője halasztást okozhat. Két kihagyott engedélyezett ablak
+után a kisebb maradék hiányt is pótolja, kivéve, ha a közelgő eső várhatóan a
+teljes hiányt lefedi. Ezek a határértékek a **Beállítások →
+Vízigény-alapú tervezés** részben módosíthatók. Az előrejelzett eső nem kerül
+levonásra a tartós vízmérlegből: csak a halasztási döntést befolyásolja, így nem
+számoljuk kétszer ugyanazt a csapadékot.
+
+A rendszer a befejezett zónák, valamint a leállításig vagy körkihagyásig
+ténylegesen eltelt öntözési idő becsült kijuttatását vonja le. A talajnedvesség
+miatt rövidített vagy kihagyott igényt a nedves talaj által már fedezett
+mennyiségként kezeli, ezért ez nem terhelődik át a szenzor nélküli zónákra. A
+kiválasztott optimális időpontot induláskor az aktuális előrejelzéssel
+újraértékeli; újraindítás után sem veszik el a vízmérleg vagy a halasztás, és
+nem keletkezik duplikált futás.
+
+Egy zóna egyszerre csak egy engedélyezett vízigény-alapú programhoz tartozhat,
+mert különben ugyanazt a területet két önálló vízmérleg számolná. Fix időpontú
+program továbbra is használhatja ugyanazt a zónát kézi, felhasználói
+felülbírálásként. Legfeljebb hét napos Home Assistant-kiesésnél a rendszer a
+legutóbbi ismert napi nettó igénnyel óvatosan visszatölti a hiányzó napokat;
+hosszabb bizonytalanságnál az aktuális nap adataival biztonságosan
+újraalapozza a mérleget, értesítést küld, majd tovább működik.
 
 ## Manuális és referencia idő
 
@@ -116,9 +152,9 @@ hőmérsékleti céltábla kikapcsolt ET-számításnál kompatibilitási tartal
 
 Az ET0 Hargreaves–Samani-becslésből készül a napi minimum, maximum és
 átlaghőmérséklettel. Az elméleti napsugárzást a dátum és a Home Assistantban
-beállított földrajzi szélesség adja; a végeredményt az Időkép felhőzet/naposság
-adata 0,75–1,10 között, a szél pedig legfeljebb +15%-kal módosítja. Ez még nem
-többnapos talaj-vízmérleg: minden program az adott nap előrejelzését használja.
+beállított földrajzi szélesség adja; a végeredményt az Időkép felhőzet/naposság,
+szél és páratartalom adatai korrigálják. Az ebből számolt `ETc` naponta kerül a
+többnapos vízmérlegbe, az engedélyezett öntözési napoktól függetlenül.
 
 Gyártói támpont:
 [Hunter MP Rotator zónázás](https://www.hunterirrigation.com/support/mp-rotator-zoning),
@@ -138,8 +174,11 @@ biztonsági szabály szerint szintén nem indul el.
 A felső **Következő 3 nap** fül a következő három naptári nap még hátralévő
 programjait számolja ki. Megjeleníti a várható futást vagy kihagyást, az
 időjárásforrást, a maximum-hőmérsékletet, a csapadékot, a zónánkénti perceket
-és a teljes futási időt. Az előnézet figyelembe veszi az automatika állapotát,
-a szüneteltetést, a `skip next` jelölést, az esőkorrekciót és a
+és a teljes futási időt. Vízigény-alapú programnál látszik a futás előtti
+vízmérleg, a napi `ETc`-igény, az elszámolt mért és a közelgő előrejelzett eső,
+a tervezett kijuttatási mélység, a maradó vízhiány, valamint a **Még nem
+szükséges** és **Esőre vár** állapot. Az előnézet figyelembe veszi az
+automatika állapotát, a szüneteltetést, a `skip next` jelölést és a
 hőmérséklet-feltételt. A számítás csak előnézet, nem indít Yardian zónát.
 
 Egy naptári nap minden programja közös napi időjárási döntést használ. Fix
@@ -161,10 +200,12 @@ majd mentsd a beállításokat. A Smart Yardian az Időkép nyilvános
 automata mért értékét, legfeljebb óránként egyszer.
 
 A panel külön mutatja az elmúlt 24 órában mért és a még várható csapadékot.
-Az eső miatti csökkentés és kihagyás a két érték összegét használja. A mért
-érték csak a mai nap döntéséhez kerül hozzá; a következő napok előnézetéhez
-nem vetítjük előre. A radaros becslés ellenőrzésként látható, de a számítás a
-kiválasztott automata mérését használja. Ez közeli állomásadat, ezért nem
+Vízigény-alapú programnál az újonnan mért mennyiség a tartós vízmérleget
+csökkenti; a rendszer eltárolja a gördülő mérés állapotát, ezért nem számolja
+el ugyanazt a csapadékot több napon át. Az előrejelzett eső kizárólag a
+legfeljebb 36 órás halasztási döntéshez kell, és csak a tényleges mérés után
+kerülhet a vízmérlegbe. A radaros becslés ellenőrzésként látható, de a számítás
+a kiválasztott automata mérését használja. Ez közeli állomásadat, ezért nem
 azonos pontosságú egy saját, kertben elhelyezett esőmérővel.
 
 ## Előrejelzési település

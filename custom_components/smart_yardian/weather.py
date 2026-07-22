@@ -148,6 +148,14 @@ def normalize_ha_forecast(items: Iterable[dict[str, Any]]) -> list[ForecastHour]
                             "wind_bearing_deg",
                         )
                     ),
+                    humidity_percent=_bounded_percentage_optional(
+                        _first_present(
+                            item,
+                            "humidity",
+                            "relative_humidity",
+                            "native_humidity",
+                        )
+                    ),
                 )
             )
         except (KeyError, TypeError, ValueError):
@@ -168,6 +176,13 @@ def _non_negative_optional(value: Any) -> float | None:
     if parsed is None:
         return None
     return max(0.0, parsed)
+
+
+def _bounded_percentage_optional(value: Any) -> float | None:
+    parsed = _optional_float(value)
+    if parsed is None:
+        return None
+    return max(0.0, min(100.0, parsed))
 
 
 def _wind_bearing(value: Any) -> float | None:
@@ -285,6 +300,11 @@ def merge_hourly_forecast_snapshots(
                     hour.wind_bearing_deg
                     if hour.wind_bearing_deg is not None
                     else cached.wind_bearing_deg
+                ),
+                humidity_percent=(
+                    hour.humidity_percent
+                    if hour.humidity_percent is not None
+                    else cached.humidity_percent
                 ),
             )
         merged[hour_key] = hour
@@ -766,6 +786,12 @@ def evaluate_green_lawn(
         adjusted_et0_mm=round(et_estimate.adjusted_et0_mm, 2),
         et_cloud_factor=round(et_estimate.cloud_factor, 3),
         et_wind_factor=round(et_estimate.wind_factor, 3),
+        average_humidity_percent=(
+            round(et_estimate.average_humidity_percent, 1)
+            if et_estimate.average_humidity_percent is not None
+            else None
+        ),
+        et_humidity_factor=round(et_estimate.humidity_factor, 3),
         et_reference_mm=round(et_reference_mm, 2),
         irrigation_target_mm=(
             round(irrigation_target_mm, 2)

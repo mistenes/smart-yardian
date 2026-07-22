@@ -625,7 +625,10 @@ export class SmartYardianPanel extends LitElement {
           ></button>
         </div>
         <div class="program-details">
-          <div>Napok: ${this._formatDays(program.weekdays)}</div>
+          <div>
+            ${smart ? "Engedélyezett napok" : "Futási napok"}:
+            ${this._formatDays(program.weekdays)}
+          </div>
           <div>
             ${smart
               ? `Időablak: ${this._programWindowLabel(program)}`
@@ -634,7 +637,10 @@ export class SmartYardianPanel extends LitElement {
           ${program.temperature_condition_enabled
             ? html`<div>${this._temperatureConditionText(program)}</div>`
             : nothing}
-          <div>${smart ? "Jelenlegi becslés" : "Számított öntözési idő"}: ${total} perc</div>
+          <div>
+            ${smart ? "Becsült idő, ha öntöz" : "Számított öntözési idő"}:
+            ${total} perc
+          </div>
         </div>
       </div>
     `;
@@ -693,6 +699,7 @@ export class SmartYardianPanel extends LitElement {
                         <span>Idő</span>
                         <span>Időjárás</span>
                         <span>Hőmérséklet</span>
+                        <span>Páratartalom</span>
                         <span>Csapadék</span>
                         <span>Esély</span>
                         <span>Szél</span>
@@ -724,6 +731,14 @@ export class SmartYardianPanel extends LitElement {
           <span>Hőmérséklet</span>
           <strong>${this._formatForecastNumber(hour.temperature)} °C</strong>
         </div>
+        <div class="forecast-metric humidity">
+          <span>Páratartalom</span>
+          <strong>
+            ${hour.humidity_percent === null || hour.humidity_percent === undefined
+              ? "nincs adat"
+              : `${this._formatForecastNumber(hour.humidity_percent)}%`}
+          </strong>
+        </div>
         <div class="forecast-metric precipitation">
           <span>Csapadék</span>
           <strong>${this._formatForecastNumber(hour.precipitation_mm)} mm</strong>
@@ -747,9 +762,9 @@ export class SmartYardianPanel extends LitElement {
         <div>
           <h2>Következő 3 nap</h2>
           <div class="subtle">
-            A rögzített programok a megadott időben, az automatikus programok
-            az időablak legkedvezőbb részében futnak. A terv az előrejelzéssel
-            változhat.
+            A fix programok a megadott időben futnak. A vízigény-alapú
+            program csak szükség esetén öntöz, az engedélyezett időablak
+            legkedvezőbb részében. A terv az előrejelzéssel változhat.
           </div>
         </div>
         <button
@@ -832,6 +847,7 @@ export class SmartYardianPanel extends LitElement {
         ${selectionReason && selectionReason !== program.reason
           ? html`<div class="schedule-selection-reason">${selectionReason}</div>`
           : nothing}
+        ${this._renderScheduleWaterBalance(program)}
         ${program.weather
           ? html`
               <div class="schedule-weather">
@@ -858,6 +874,17 @@ export class SmartYardianPanel extends LitElement {
                       <span>
                         Párolgás:
                         ${this._formatForecastNumber(program.weather.adjusted_et0_mm)} mm
+                      </span>
+                    `
+                  : nothing}
+                ${program.weather.average_humidity_percent !== null &&
+                program.weather.average_humidity_percent !== undefined
+                  ? html`
+                      <span>
+                        Páratartalom:
+                        ${this._formatForecastNumber(
+                          program.weather.average_humidity_percent,
+                        )}%
                       </span>
                     `
                   : nothing}
@@ -905,6 +932,127 @@ export class SmartYardianPanel extends LitElement {
           </strong>
         </div>
       </article>
+    `;
+  }
+
+  private _renderScheduleWaterBalance(
+    program: ScheduleProgram,
+  ): TemplateResult | typeof nothing {
+    const values = [
+      program.water_balance_before_mm,
+      program.daily_water_need_mm,
+      program.daily_effective_rain_mm,
+      program.daily_ledger_rain_mm,
+      program.forecast_rain_mm,
+      program.forecast_ledger_rain_mm,
+      program.irrigation_target_mm,
+      program.remaining_balance_mm,
+      program.water_balance_gap_days,
+    ];
+    if (!values.some((value) => value !== null && value !== undefined)) {
+      return nothing;
+    }
+
+    const dailyNeed = program.daily_water_need_mm;
+    const measuredRain = program.daily_effective_rain_mm;
+    const ledgerRain = program.daily_ledger_rain_mm ?? measuredRain;
+    const dailyNet =
+      dailyNeed === null ||
+      dailyNeed === undefined ||
+      ledgerRain === null ||
+      ledgerRain === undefined
+        ? null
+        : dailyNeed - ledgerRain;
+    return html`
+      <dl class="schedule-water-balance" aria-label="Vízmérleg">
+        <div>
+          <dt>Felhalmozott hiány</dt>
+          <dd>${this._formatOptionalMillimeters(program.water_balance_before_mm)}</dd>
+        </div>
+        <div>
+          <dt>Mai nettó változás</dt>
+          <dd>
+            ${dailyNet === null
+              ? "nincs adat"
+              : `${dailyNet > 0 ? "+" : ""}${this._formatForecastNumber(dailyNet)} mm`}
+            ${dailyNeed !== null &&
+            dailyNeed !== undefined &&
+            ledgerRain !== null &&
+            ledgerRain !== undefined
+              ? html`
+                  <span>
+                    ${this._formatForecastNumber(dailyNeed)} mm igény,
+                    ${this._formatForecastNumber(ledgerRain)} mm elszámolt eső
+                    ${measuredRain !== null &&
+                    measuredRain !== undefined &&
+                    Math.abs(measuredRain - ledgerRain) >= 0.05
+                      ? html`
+                          (${this._formatForecastNumber(measuredRain)} mm mért)
+                        `
+                      : nothing}
+                  </span>
+                `
+              : nothing}
+          </dd>
+        </div>
+        ${program.forecast_rain_mm !== null &&
+        program.forecast_rain_mm !== undefined &&
+        program.forecast_rain_mm > 0
+          ? html`
+              <div>
+                <dt>Közelgő eső</dt>
+                <dd>
+                  ${this._formatOptionalMillimeters(program.forecast_rain_mm)}
+                  <span>
+                    A halasztási időtávon
+                    ${program.forecast_ledger_rain_mm !== null &&
+                    program.forecast_ledger_rain_mm !== undefined &&
+                    Math.abs(
+                      program.forecast_ledger_rain_mm - program.forecast_rain_mm,
+                    ) >= 0.05
+                      ? html`
+                          · ${this._formatForecastNumber(
+                            program.forecast_ledger_rain_mm,
+                          )} mm vízmérlegre vetítve
+                        `
+                      : nothing}
+                  </span>
+                </dd>
+              </div>
+            `
+          : nothing}
+        ${(program.water_balance_gap_days ?? 0) > 0
+          ? html`
+              <div>
+                <dt>HA-kiesés</dt>
+                <dd>
+                  ${program.water_balance_gap_days} nap
+                  <span>
+                    ${program.water_balance_rebaselined_after_gap
+                      ? `biztonságosan újraalapozva${
+                          program.water_balance_last_rebaseline_date
+                            ? ` · ${this._formatCalendarDate(
+                                program.water_balance_last_rebaseline_date,
+                              )}`
+                            : ""
+                        }`
+                      : program.water_balance_unaccounted_gap_days
+                      ? `${program.water_balance_unaccounted_gap_days} nap nem rekonstruálható`
+                      : `${program.water_balance_backfilled_gap_days ?? 0} nap helyreállítva`}
+                  </span>
+                </dd>
+              </div>
+            `
+          : nothing}
+        <div>
+          <dt>Kijuttatandó</dt>
+          <dd>${this._formatOptionalMillimeters(program.irrigation_target_mm)}</dd>
+        </div>
+        <div>
+          <dt>Megmaradó hiány</dt>
+          <dd>${this._formatOptionalMillimeters(program.remaining_balance_mm)}</dd>
+        </div>
+      </dl>
     `;
   }
 
@@ -1115,7 +1263,7 @@ export class SmartYardianPanel extends LitElement {
                     <span>
                       ${this._formatDays(program.weekdays)} ·
                       ${this._isSmartProgram(program)
-                        ? `Automatikus · ${this._programWindowLabel(program)}`
+                        ? `Vízigény-alapú · ${this._programWindowLabel(program)}`
                         : `Rögzített · ${program.start_time}`}
                     </span>
                     <span>${this._programMinutes(program)} perc</span>
@@ -1153,7 +1301,9 @@ export class SmartYardianPanel extends LitElement {
           />
         </div>
         <div class="field">
-          <span class="field-label">Napok</span>
+          <span class="field-label">
+            ${smart ? "Engedélyezett öntözési napok" : "Futási napok"}
+          </span>
           <div class="days">
             ${DAY_NAMES.map(
               (day, index) => html`
@@ -1169,6 +1319,15 @@ export class SmartYardianPanel extends LitElement {
               `,
             )}
           </div>
+          ${smart
+            ? html`
+                <div class="field-help">
+                  A rendszer nem feltétlenül öntöz minden kijelölt napon. A
+                  vízigényt gyűjti, és az időablakon belül a legjobb időpontot
+                  választja.
+                </div>
+              `
+            : nothing}
         </div>
         <fieldset class="schedule-mode-field">
           <legend>Indítás módja</legend>
@@ -1186,8 +1345,11 @@ export class SmartYardianPanel extends LitElement {
                 }}
               />
               <span>
-                <strong>Automatikus időablak</strong>
-                <small>A rendszer választja ki a megfelelő időpontot.</small>
+                <strong>Vízigény-alapú időablak</strong>
+                <small>
+                  Csak szükség esetén indul, a legkisebb párolgási veszteségű
+                  időpontban.
+                </small>
               </span>
             </label>
             <label class="schedule-mode-option" ?selected=${!smart}>
@@ -1204,7 +1366,10 @@ export class SmartYardianPanel extends LitElement {
               />
               <span>
                 <strong>Fix időpont</strong>
-                <small>A program mindig a megadott kezdési időben indul.</small>
+                <small>
+                  A megadott időpontban indul; az aktív szélvédelem
+                  szükség esetén halaszthatja.
+                </small>
               </span>
             </label>
           </div>
@@ -1242,9 +1407,10 @@ export class SmartYardianPanel extends LitElement {
                 </div>
               </div>
               <p class="window-help" id="program-window-help">
-                A teljes program az időablakon belül fut le. Ha a zárási idő
-                korábbi, az ablak másnap ér véget. Az időpont az előrejelzés
-                változásával módosulhat.
+                A teljes program az időablakon belül fut le. A kijelölt nap
+                öntözési lehetőség, nem kötelező futás. Ha a zárási idő korábbi,
+                az ablak másnap ér véget. A szárazabb, kevésbé szeles,
+                sötétebb, hűvösebb és párásabb időpont előnyt kap.
               </p>
               ${doesNotFit
                 ? html`
@@ -1252,15 +1418,15 @@ export class SmartYardianPanel extends LitElement {
                       <ha-icon icon="mdi:alert-outline"></ha-icon>
                       <span>
                         A jelenlegi becslés ${currentMinutes} perc, az időablak
-                        ${windowMinutes} perc. Ha a tényleges program nem fér
-                        bele, a rendszer nem indít részleges öntözést.
+                        ${windowMinutes} perc. A rendszer szükség esetén kisebb
+                        kijuttatási mélységet keres, de zónasort nem vág félbe.
                       </span>
                     </div>
                   `
                 : draft.zones.length > 0 && windowMinutes > 0
                   ? html`
                       <div class="window-capacity">
-                        Jelenlegi becslés: ${currentMinutes} perc a
+                        Becsült futási idő: ${currentMinutes} perc a
                         ${windowMinutes} perces időablakban.
                       </div>
                     `
@@ -1630,12 +1796,64 @@ export class SmartYardianPanel extends LitElement {
           </div>
           <p class="settings-help">
             Az Időkép napi hőmérsékleteiből és a Home Assistant helyének
-            szélességi fokából számított ET0 értéket a felhőzet, a naposság és a szél
-            finomítja. Az eső miatti kihagyás és a szélhalasztás ettől függetlenül
-            továbbra is érvényes.
+            szélességi fokából számított ET0 értéket a felhőzet, a naposság, a
+            páratartalom és a szél finomítja. Az eső miatti kihagyás és a
+            szélhalasztás ettől függetlenül továbbra is érvényes.
           </p>
           ${this._settingNumber("Referencia ET0 (mm/nap)", "et_reference_mm", settings)}
           ${this._settingNumber("Gyep növényi együttható (Kc)", "et_crop_coefficient", settings)}
+        </section>
+        <section class="settings-section">
+          <h3>Vízigény-alapú tervezés</h3>
+          <p class="settings-help">
+            A rendszer a napi vízhiányt gyűjti. Csak a beállított küszöbnél
+            indít, majd az engedélyezett időablak legjobb időpontját választja.
+          </p>
+          ${this._settingNumber(
+            "Minimum indítási vízhiány (mm)",
+            "water_balance_min_mm",
+            settings,
+            0.1,
+            0,
+            50,
+            true,
+          )}
+          ${this._settingNumber(
+            "Egy alkalom maximuma (mm)",
+            "water_balance_max_event_mm",
+            settings,
+            0.5,
+            0.5,
+            50,
+            true,
+          )}
+          ${this._settingNumber(
+            "Esőkredit maximuma (mm)",
+            "water_balance_max_rain_credit_mm",
+            settings,
+            0.1,
+            0,
+            100,
+            true,
+          )}
+          ${this._settingNumber(
+            "Max. halasztott engedélyezett alkalom",
+            "water_balance_max_defer_windows",
+            settings,
+            1,
+            0,
+            30,
+            true,
+          )}
+          ${this._settingNumber(
+            "Eső-előretekintés (óra)",
+            "water_balance_rain_lookahead_hours",
+            settings,
+            1,
+            1,
+            168,
+            true,
+          )}
         </section>
         <section class="settings-section">
           <h3>Talajnedvesség-korrekció</h3>
@@ -2056,18 +2274,32 @@ export class SmartYardianPanel extends LitElement {
     label: string,
     key: keyof Settings,
     settings: Settings,
+    step = 0.1,
+    min?: number,
+    max?: number,
+    required = false,
   ): TemplateResult {
     return html`
       <label class="setting-row">
         <span>${label}</span>
         <input
           type="number"
-          step="0.1"
+          step=${step}
+          min=${min ?? nothing}
+          max=${max ?? nothing}
+          ?required=${required}
           .value=${String(settings[key])}
-          @change=${(event: Event) =>
+          @change=${(event: Event) => {
+            const input = event.target as HTMLInputElement;
+            if (!Number.isFinite(input.valueAsNumber) || !input.checkValidity()) {
+              input.reportValidity();
+              input.value = String(settings[key]);
+              return;
+            }
             this._patchSettings({
-              [key]: (event.target as HTMLInputElement).valueAsNumber,
-            } as Partial<Settings>)}
+              [key]: input.valueAsNumber,
+            } as Partial<Settings>);
+          }}
         />
       </label>
     `;
@@ -2717,6 +2949,14 @@ export class SmartYardianPanel extends LitElement {
     }).format(new Date(value));
   }
 
+  private _formatCalendarDate(value: string): string {
+    return new Intl.DateTimeFormat("hu-HU", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    }).format(new Date(`${value}T12:00:00`));
+  }
+
   private _formatTime(value: string): string {
     return new Intl.DateTimeFormat("hu-HU", {
       hour: "2-digit",
@@ -2755,6 +2995,12 @@ export class SmartYardianPanel extends LitElement {
 
   private _formatForecastNumber(value: number): string {
     return Number.isInteger(value) ? String(value) : value.toFixed(1);
+  }
+
+  private _formatOptionalMillimeters(value?: number | null): string {
+    return value === null || value === undefined
+      ? "nincs adat"
+      : `${this._formatForecastNumber(value)} mm`;
   }
 
   private _forecastConditionLabel(condition: string): string {
@@ -2859,7 +3105,10 @@ export class SmartYardianPanel extends LitElement {
         : "Szél miatt halasztva",
       wind_skip: "Szél miatt kimarad",
       wind_unavailable: "Széladat hiányzik",
+      water_need_deferred: "Halasztva",
+      water_balance_unavailable: "Vízmérleg helyreállítása szükséges",
       smart_no_fit: "Nincs megfelelő időpont",
+      smart_zone_conflict: "Zónaütközés",
     };
     return labels[program.status];
   }

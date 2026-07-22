@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+import re
+import unicodedata
 from dataclasses import asdict, dataclass
 from difflib import SequenceMatcher
 from html import unescape
-import re
-import unicodedata
 from typing import Any
 
 IDOKEP_RAIN_MAP_URL = "https://www.idokep.hu/csapadek"

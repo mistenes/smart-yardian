@@ -21,7 +21,7 @@ RAINY_SLOT_CONDITIONS = {
     "hail",
 }
 
-SmartScore = tuple[int, float, float, int, float, float, float]
+SmartScore = tuple[int, float, float, int, float, float, float, float]
 BlockedInterval = tuple[datetime, datetime]
 
 
@@ -52,6 +52,7 @@ class SmartSlotChoice:
     precipitation_mm: float | None = None
     precipitation_probability: float | None = None
     average_temperature: float | None = None
+    average_humidity_percent: float | None = None
     daylight_fraction: float | None = None
     wind_action: str | None = None
     wind_reason: str | None = None
@@ -317,6 +318,20 @@ def select_smart_watering_slot(
             fmean(float(hour.temperature) for hour in hours),
             2,
         )
+        humidity_values = [
+            float(hour.humidity_percent)
+            for hour in hours
+            if hour.humidity_percent is not None
+        ]
+        average_humidity = (
+            round(fmean(humidity_values), 1) if humidity_values else None
+        )
+        # Unknown humidity is neutral (60%).  Among otherwise equivalent
+        # candidates, more humid air reduces spray evaporation and wins.
+        humidity_penalty = round(
+            100.0 - (average_humidity if average_humidity is not None else 60.0),
+            1,
+        )
         score: SmartScore = (
             int(rainy),
             precipitation,
@@ -325,6 +340,7 @@ def select_smart_watering_slot(
             round(wind_utilization, 4),
             daylight_fraction,
             average_temperature,
+            humidity_penalty,
         )
         choice = SmartSlotChoice(
             status="planned",
@@ -338,6 +354,7 @@ def select_smart_watering_slot(
                 wind.max_wind_speed_kmh,
                 daylight_fraction,
                 average_temperature,
+                average_humidity,
                 transition_buffer_minutes,
             ),
             window_start_at=window_start_at,
@@ -350,6 +367,7 @@ def select_smart_watering_slot(
             precipitation_mm=precipitation,
             precipitation_probability=probability,
             average_temperature=average_temperature,
+            average_humidity_percent=average_humidity,
             daylight_fraction=daylight_fraction,
             wind_action=effective_wind_action,
             wind_reason=effective_wind_reason,
@@ -520,6 +538,7 @@ def _selection_reason(
     max_wind_speed_kmh: float | None,
     daylight_fraction: float,
     average_temperature: float,
+    average_humidity_percent: float | None,
     transition_buffer_minutes: int,
 ) -> str:
     rain_text = (
@@ -534,6 +553,11 @@ def _selection_reason(
     else:
         wind_text = f"legfeljebb {max_wind_speed_kmh:g} km/h széllel"
     light_text = "sötétben" if daylight_fraction == 0 else "világos időszakban"
+    humidity_text = (
+        f", {average_humidity_percent:g}% páratartalommal"
+        if average_humidity_percent is not None
+        else ""
+    )
     buffer_text = (
         f" és {transition_buffer_minutes} perc műveleti tartalék"
         if transition_buffer_minutes
@@ -541,7 +565,7 @@ def _selection_reason(
     )
     return (
         f"{scheduled_at.strftime('%H:%M')} lett kiválasztva: {rain_text}, "
-        f"{wind_text}, {light_text}, {average_temperature:g} °C; "
+        f"{wind_text}, {light_text}, {average_temperature:g} °C{humidity_text}; "
         f"a {duration_minutes} perces program{buffer_text} teljesen belefér "
         "az ablakba."
     )

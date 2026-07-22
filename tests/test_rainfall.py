@@ -12,7 +12,8 @@ SAMPLE = """
 <area shape='rect' coords='439,209,449,219' href='/automata/csomor1'
  onmouseover='this.T_WIDTH=349;Tip("2.40 mm (radar 1.90 mm) Csömör (csomor1)<br><img src=x>")'>
 <area shape='rect' coords='414,199,424,209' href='/automata/tom'
- onmouseover='this.T_WIDTH=349;Tip("0.00 mm (radar 0.02 mm) Budapest&nbsp;III.ker&nbsp;-&nbsp;Csillaghegy (tom)<br><img src=x>")'>
+ onmouseover='this.T_WIDTH=349;Tip("0.00 mm (radar 0.02 mm) \
+Budapest&nbsp;III.ker&nbsp;-&nbsp;Csillaghegy (tom)<br><img src=x>")'>
 </map>
 <map name="daily">
 <area shape='rect' coords='1,2,3,4' href='/automata/wrong'
