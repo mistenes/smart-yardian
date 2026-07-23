@@ -7,7 +7,7 @@ import logging
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
-from math import ceil
+from math import ceil, isfinite
 from typing import Any
 from urllib.parse import quote
 from uuid import uuid4
@@ -26,6 +26,7 @@ from .const import (
     CONF_WEATHER_ENTITY,
     CONF_ZONE_ENTITIES,
     DOMAIN,
+    IDOKEP_FORECAST_CACHE_MAX_HOURS,
     IDOKEP_FORECAST_LEAD_SECONDS,
     IDOKEP_FORECAST_PRIME_SECONDS,
     IDOKEP_FORECAST_RETRY_SECONDS,
@@ -83,7 +84,7 @@ from .weather import (
     evaluate_calendar_day,
     find_wind_delay,
     is_plausible_celsius,
-    merge_hourly_forecast_snapshots,
+    merge_hourly_forecast_cache,
     normalize_ha_forecast,
     rebase_idokep_timeline,
     validate_idokep_location,
@@ -93,6 +94,8 @@ _LOGGER = logging.getLogger(__name__)
 UNAVAILABLE_STATES = {"unavailable", "unknown"}
 MAX_PLAUSIBLE_DAILY_ETC_MM = 20.0
 SOIL_MOISTURE_MAX_AGE_SECONDS = 12 * 60 * 60
+IDOKEP_FORECAST_CACHE_RUNTIME_KEY = "idokep_forecast_cache"
+IDOKEP_FORECAST_CACHE_VERSION = 2
 
 
 class SmartYardianManager:
@@ -120,8 +123,11 @@ class SmartYardianManager:
         self._idokep_wind_attempted_at: datetime | None = None
         self._idokep_wind_error: str | None = None
         self._idokep_forecast_snapshot: list[ForecastHour] = []
+        self._idokep_forecast_last_seen: dict[datetime, datetime] = {}
         self._idokep_forecast_attempted_at: datetime | None = None
         self._idokep_forecast_refreshed_at: datetime | None = None
+        self._idokep_forecast_cache_saved_at: datetime | None = None
+        self._idokep_forecast_cache_lock = asyncio.Lock()
         self._adaptive_account_attempted_at: datetime | None = None
         self._run_lock = asyncio.Lock()
         self._delayed_lock = asyncio.Lock()
@@ -139,6 +145,7 @@ class SmartYardianManager:
     async def async_setup(self) -> None:
         """Load storage, recover interrupted work and start scheduler."""
         await self.store.async_load()
+        forecast_cache_changed = self._hydrate_idokep_forecast_cache()
         generated_settings = self.store.ensure_generated_settings()
         recovered_claims = self._recover_delayed_claims(self.store.runtime.get("active_run"))
         added_profiles = False
@@ -146,7 +153,12 @@ class SmartYardianManager:
             if entity_id not in self.store.zone_profiles:
                 self.store.zone_profiles[entity_id] = ZoneProfile.default(entity_id)
                 added_profiles = True
-        if added_profiles or generated_settings or recovered_claims:
+        if (
+            added_profiles
+            or generated_settings
+            or recovered_claims
+            or forecast_cache_changed
+        ):
             await self.store.async_save()
         self._remove_time_listener = async_track_time_change(
             self.hass,
@@ -897,6 +909,11 @@ class SmartYardianManager:
                 ),
                 latitude=float(self.hass.config.latitude),
             )
+            # ``evaluate_calendar_day`` anchors the daily calculation to the
+            # first available forecast hour.  That anchor is useful for the
+            # calculation, but it is not the time at which this decision was
+            # made and therefore must not be shown as such in run history.
+            decision = replace(decision, evaluated_at=dt_util.utcnow())
             self.last_decision = decision
             self.last_error = None
             self._notify_listeners()
@@ -1164,7 +1181,7 @@ class SmartYardianManager:
                 IDOKEP_RAIN_MAP_URL,
                 headers={
                     "User-Agent": (
-                        "HomeAssistant SmartYardian/0.18.0 "
+                        "HomeAssistant SmartYardian/0.18.1 "
                         "(https://github.com/mistenes/smart-yardian)"
                     )
                 },
@@ -1233,7 +1250,239 @@ class SmartYardianManager:
         self.last_rain_error = None
         return observation
 
+    @staticmethod
+    def _forecast_hour_from_runtime(
+        raw: dict[str, Any],
+    ) -> tuple[ForecastHour, datetime] | None:
+        """Deserialize one validated, timezone-aware persisted forecast hour."""
+        timestamp = _parse_runtime_datetime(raw.get("timestamp"), None)
+        last_seen_at = _parse_runtime_datetime(raw.get("last_seen_at"), None)
+        if timestamp is None or last_seen_at is None:
+            return None
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=UTC)
+        if last_seen_at.tzinfo is None:
+            last_seen_at = last_seen_at.replace(tzinfo=UTC)
+
+        def finite_number(
+            key: str,
+            *,
+            minimum: float | None = None,
+            maximum: float | None = None,
+        ) -> float | None:
+            value = raw.get(key)
+            if value is None:
+                return None
+            try:
+                parsed = float(value)
+            except (TypeError, ValueError):
+                return None
+            if not isfinite(parsed):
+                return None
+            if minimum is not None:
+                parsed = max(minimum, parsed)
+            if maximum is not None:
+                parsed = min(maximum, parsed)
+            return parsed
+
+        temperature = finite_number("temperature")
+        if temperature is None or not is_plausible_celsius(temperature):
+            return None
+        precipitation = finite_number("precipitation_mm", minimum=0.0)
+        probability = finite_number(
+            "precipitation_probability",
+            minimum=0.0,
+            maximum=100.0,
+        )
+        if precipitation is None or probability is None:
+            return None
+        daylight = raw.get("is_daylight")
+        if not isinstance(daylight, bool):
+            daylight = None
+        bearing = finite_number("wind_bearing_deg")
+        return (
+            ForecastHour(
+                timestamp=timestamp,
+                temperature=temperature,
+                precipitation_mm=precipitation,
+                precipitation_probability=probability,
+                condition=str(raw.get("condition") or "unknown"),
+                cloud_cover=finite_number(
+                    "cloud_cover",
+                    minimum=0.0,
+                    maximum=100.0,
+                ),
+                is_daylight=daylight,
+                wind_speed_kmh=finite_number(
+                    "wind_speed_kmh",
+                    minimum=0.0,
+                ),
+                wind_gust_kmh=finite_number(
+                    "wind_gust_kmh",
+                    minimum=0.0,
+                ),
+                wind_bearing_deg=bearing % 360 if bearing is not None else None,
+                humidity_percent=finite_number(
+                    "humidity_percent",
+                    minimum=0.0,
+                    maximum=100.0,
+                ),
+            ),
+            last_seen_at.astimezone(UTC),
+        )
+
+    @staticmethod
+    def _forecast_hour_to_runtime(
+        hour: ForecastHour,
+        last_seen_at: datetime,
+    ) -> dict[str, Any]:
+        """Serialize one forecast hour without provider-specific internals."""
+        timestamp = hour.timestamp
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=UTC)
+        if last_seen_at.tzinfo is None:
+            last_seen_at = last_seen_at.replace(tzinfo=UTC)
+        return {
+            "timestamp": timestamp.astimezone(UTC).isoformat(),
+            "last_seen_at": last_seen_at.astimezone(UTC).isoformat(),
+            "temperature": hour.temperature,
+            "precipitation_mm": hour.precipitation_mm,
+            "precipitation_probability": hour.precipitation_probability,
+            "condition": hour.condition,
+            "cloud_cover": hour.cloud_cover,
+            "is_daylight": hour.is_daylight,
+            "wind_speed_kmh": hour.wind_speed_kmh,
+            "wind_gust_kmh": hour.wind_gust_kmh,
+            "wind_bearing_deg": hour.wind_bearing_deg,
+            "humidity_percent": hour.humidity_percent,
+        }
+
+    def _serialized_idokep_forecast_cache(
+        self,
+        fetched_at: datetime,
+    ) -> dict[str, Any]:
+        """Return the bounded runtime payload for the normalized snapshot."""
+        if fetched_at.tzinfo is None:
+            fetched_at = fetched_at.replace(tzinfo=UTC)
+        hours: list[dict[str, Any]] = []
+        for hour in self._idokep_forecast_snapshot[:IDOKEP_FORECAST_CACHE_MAX_HOURS]:
+            timestamp = hour.timestamp
+            if timestamp.tzinfo is None:
+                timestamp = timestamp.replace(tzinfo=UTC)
+            hour_key = timestamp.astimezone(UTC).replace(second=0, microsecond=0)
+            last_seen_at = self._idokep_forecast_last_seen.get(hour_key)
+            if last_seen_at is None:
+                continue
+            hours.append(self._forecast_hour_to_runtime(hour, last_seen_at))
+        return {
+            "version": IDOKEP_FORECAST_CACHE_VERSION,
+            "source": self._idokep_forecast_source_identity(),
+            "fetched_at": fetched_at.astimezone(UTC).isoformat(),
+            "hours": hours,
+        }
+
+    def _idokep_forecast_source_identity(self) -> dict[str, str]:
+        """Identify the exact provider whose cached hours may be reused."""
+        return {
+            "weather_entity": str(self.config.get(CONF_WEATHER_ENTITY) or "")
+            .strip()
+            .casefold(),
+            "location": " ".join(self._idokep_location().split()).casefold(),
+        }
+
+    def _clear_idokep_forecast_cache(self) -> None:
+        """Discard every persisted and in-memory forecast-cache value."""
+        self.store.runtime.pop(IDOKEP_FORECAST_CACHE_RUNTIME_KEY, None)
+        self._idokep_forecast_snapshot = []
+        self._idokep_forecast_last_seen = {}
+        self._idokep_forecast_refreshed_at = None
+        self._idokep_forecast_cache_saved_at = None
+
+    def _hydrate_idokep_forecast_cache(self) -> bool:
+        """Load, validate and prune the durable Időkép forecast snapshot."""
+        raw = self.store.runtime.get(IDOKEP_FORECAST_CACHE_RUNTIME_KEY)
+        if raw is None:
+            return False
+        if (
+            not isinstance(raw, dict)
+            or raw.get("version") != IDOKEP_FORECAST_CACHE_VERSION
+            or raw.get("source") != self._idokep_forecast_source_identity()
+        ):
+            self._clear_idokep_forecast_cache()
+            return True
+
+        fetched_at = _parse_runtime_datetime(raw.get("fetched_at"), None)
+        if fetched_at is None:
+            self._clear_idokep_forecast_cache()
+            return True
+        if fetched_at.tzinfo is None:
+            fetched_at = fetched_at.replace(tzinfo=UTC)
+        fetched_at = fetched_at.astimezone(UTC)
+
+        hours: list[ForecastHour] = []
+        last_seen: dict[datetime, datetime] = {}
+        raw_hours = raw.get("hours")
+        if isinstance(raw_hours, list):
+            # A damaged or hand-edited Store cannot make hydration unbounded.
+            for item in raw_hours[: IDOKEP_FORECAST_CACHE_MAX_HOURS * 2]:
+                if not isinstance(item, dict):
+                    continue
+                parsed = self._forecast_hour_from_runtime(item)
+                if parsed is None:
+                    continue
+                hour, seen_at = parsed
+                hour_key = hour.timestamp.astimezone(UTC).replace(
+                    second=0,
+                    microsecond=0,
+                )
+                hours.append(hour)
+                last_seen[hour_key] = seen_at
+
+        now = dt_util.utcnow()
+        if fetched_at > now:
+            fetched_at = now
+        self._idokep_forecast_snapshot, self._idokep_forecast_last_seen = (
+            merge_hourly_forecast_cache(
+                hours,
+                [],
+                now,
+                previous_last_seen=last_seen,
+                fetched_at=now,
+            )
+        )
+        if self._idokep_forecast_snapshot:
+            self._idokep_forecast_refreshed_at = fetched_at
+            self._idokep_forecast_cache_saved_at = fetched_at
+            normalized = self._serialized_idokep_forecast_cache(fetched_at)
+            changed = normalized != raw
+            self.store.runtime[IDOKEP_FORECAST_CACHE_RUNTIME_KEY] = normalized
+            return changed
+
+        self._clear_idokep_forecast_cache()
+        return True
+
+    async def _async_persist_idokep_forecast_cache(
+        self,
+        fetched_at: datetime,
+    ) -> None:
+        """Update runtime state and periodically flush the cache to HA Store."""
+        self.store.runtime[IDOKEP_FORECAST_CACHE_RUNTIME_KEY] = (
+            self._serialized_idokep_forecast_cache(fetched_at)
+        )
+        saved_at = self._idokep_forecast_cache_saved_at
+        if saved_at is not None:
+            elapsed = (fetched_at - saved_at).total_seconds()
+            if 0 <= elapsed < IDOKEP_FORECAST_PRIME_SECONDS:
+                return
+        await self.store.async_save()
+        self._idokep_forecast_cache_saved_at = fetched_at
+
     async def _async_idokep_forecast(self) -> list[ForecastHour]:
+        """Serialize Időkép fetches so an older response cannot win a race."""
+        async with self._idokep_forecast_cache_lock:
+            return await self._async_fetch_idokep_forecast()
+
+    async def _async_fetch_idokep_forecast(self) -> list[ForecastHour]:
         """Fetch normalized hourly data from the configured Időkép entity."""
         weather_entity = self.config[CONF_WEATHER_ENTITY]
         state = self.hass.states.get(weather_entity)
@@ -1260,13 +1509,18 @@ class SmartYardianManager:
             raise WeatherUnavailableError("Az Időkép nem adott használható órás előrejelzést.")
         if any(hour.wind_speed_kmh is None for hour in forecast):
             forecast = await self._async_enrich_idokep_wind(forecast)
-        forecast = merge_hourly_forecast_snapshots(
+        fetched_at = dt_util.utcnow()
+        forecast, last_seen = merge_hourly_forecast_cache(
             self._idokep_forecast_snapshot,
             forecast,
             now,
+            previous_last_seen=self._idokep_forecast_last_seen,
+            fetched_at=fetched_at,
         )
         self._idokep_forecast_snapshot = forecast
-        self._idokep_forecast_refreshed_at = dt_util.utcnow()
+        self._idokep_forecast_last_seen = last_seen
+        self._idokep_forecast_refreshed_at = fetched_at
+        await self._async_persist_idokep_forecast_cache(fetched_at)
         return forecast
 
     async def _async_enrich_idokep_wind(
@@ -1313,7 +1567,7 @@ class SmartYardianManager:
                 url,
                 headers={
                     "User-Agent": (
-                        "HomeAssistant SmartYardian/0.18.0 "
+                        "HomeAssistant SmartYardian/0.18.1 "
                         "(https://github.com/mistenes/smart-yardian)"
                     )
                 },
@@ -2870,7 +3124,13 @@ class SmartYardianManager:
             requested_idokep_location is not None
             and requested_idokep_location.casefold() != current_location.casefold()
         ):
-            await self._async_update_idokep_location(requested_idokep_location)
+            async with self._idokep_forecast_cache_lock:
+                await self._async_update_idokep_location(requested_idokep_location)
+                self._clear_idokep_forecast_cache()
+                self._idokep_forecast_attempted_at = None
+                self._idokep_wind_hours = []
+                self._idokep_wind_attempted_at = None
+                self._idokep_wind_error = None
         self.store.settings = candidate
         await self.store.async_save()
         self._notify_listeners()
@@ -2906,7 +3166,7 @@ class SmartYardianManager:
                 url,
                 headers={
                     "User-Agent": (
-                        "HomeAssistant SmartYardian/0.18.0 "
+                        "HomeAssistant SmartYardian/0.18.1 "
                         "(https://github.com/mistenes/smart-yardian)"
                     )
                 },

@@ -85,10 +85,16 @@ def test_scheduler_primes_and_retains_forecast_before_program_start() -> None:
 
     minute_tick = _function_body(source, "_async_minute_tick")
     prime_forecast = _function_body(source, "_async_prime_idokep_forecast")
-    idokep_forecast = _function_body(source, "_async_idokep_forecast")
+    serialized_fetch = _function_body(source, "_async_idokep_forecast")
+    idokep_forecast = _function_body(source, "_async_fetch_idokep_forecast")
+    update_settings = _function_body(source, "async_update_settings")
 
     assert "self._async_prime_idokep_forecast(local_now)" in minute_tick
     assert "await self._async_prime_idokep_forecast(local_now)" not in minute_tick
     assert "_idokep_forecast_attempted_at" in prime_forecast
     assert "except Exception" in prime_forecast
-    assert "merge_hourly_forecast_snapshots" in idokep_forecast
+    assert "async with self._idokep_forecast_cache_lock" in serialized_fetch
+    assert "await self._async_fetch_idokep_forecast()" in serialized_fetch
+    assert "merge_hourly_forecast_cache" in idokep_forecast
+    assert "async with self._idokep_forecast_cache_lock" in update_settings
+    assert "self._clear_idokep_forecast_cache()" in update_settings

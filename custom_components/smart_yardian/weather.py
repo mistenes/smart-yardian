@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, time, timedelta
 from typing import Any
 
-from .const import FORECAST_HORIZON_HOURS, MIN_FORECAST_HOURS
+from .const import (
+    FORECAST_HORIZON_HOURS,
+    IDOKEP_FORECAST_CACHE_FUTURE_HOURS,
+    IDOKEP_FORECAST_CACHE_FUTURE_MAX_AGE_SECONDS,
+    IDOKEP_FORECAST_CACHE_MAX_HOURS,
+    MIN_FORECAST_HOURS,
+)
 from .evapotranspiration import estimate_daily_evapotranspiration
 from .models import ForecastHour, WeatherDecision
 
@@ -243,7 +249,7 @@ def rebase_idokep_timeline(
             current_date += timedelta(days=1)
         timestamp = datetime.combine(
             current_date,
-            time(local.hour, local.minute),
+            time(local.hour, local.minute, fold=local.fold),
             tzinfo=timezone,
         )
         rebased.append(replace(hour, timestamp=timestamp))
@@ -310,6 +316,128 @@ def merge_hourly_forecast_snapshots(
         merged[hour_key] = hour
 
     return sorted(merged.values(), key=key)
+
+
+def merge_hourly_forecast_cache(
+    previous: Iterable[ForecastHour],
+    current: Iterable[ForecastHour],
+    now: datetime,
+    *,
+    previous_last_seen: Mapping[datetime, datetime] | None = None,
+    fetched_at: datetime | None = None,
+) -> tuple[list[ForecastHour], dict[datetime, datetime]]:
+    """Merge one durable, bounded Időkép hourly snapshot.
+
+    A rolling provider can temporarily omit a future hour that was present
+    when a smart-window start was committed.  Such an hour remains usable for
+    a short, bounded period based on when that exact hour was last observed.
+    Completed hours are never returned: otherwise daily weather evaluation
+    could count forecast rain from an already elapsed hour as future rain.
+
+    The newly fetched sample is authoritative for all core fields.  Optional
+    values which disappear from the new response (notably Időkép wind) are
+    backfilled from the same cached UTC hour.  UTC keys distinguish the two
+    repeated local hours at the autumn daylight-saving transition.
+    """
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=UTC)
+    now_utc = now.astimezone(UTC)
+    if fetched_at is None:
+        fetched_at = now_utc
+    elif fetched_at.tzinfo is None:
+        fetched_at = fetched_at.replace(tzinfo=UTC)
+    fetched_at_utc = fetched_at.astimezone(UTC)
+
+    def timestamp_utc(hour: ForecastHour) -> datetime:
+        timestamp = hour.timestamp
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=UTC)
+        return timestamp.astimezone(UTC)
+
+    def key(hour: ForecastHour) -> datetime:
+        return timestamp_utc(hour).replace(second=0, microsecond=0)
+
+    normalized_last_seen: dict[datetime, datetime] = {}
+    for raw_key, raw_seen in (previous_last_seen or {}).items():
+        cache_key = raw_key
+        seen = raw_seen
+        if cache_key.tzinfo is None:
+            cache_key = cache_key.replace(tzinfo=UTC)
+        if seen.tzinfo is None:
+            seen = seen.replace(tzinfo=UTC)
+        normalized_last_seen[cache_key.astimezone(UTC)] = seen.astimezone(UTC)
+
+    current_hours = list(current)
+    current_keys = {key(hour) for hour in current_hours}
+    merged: dict[datetime, ForecastHour] = {}
+    seen_by_hour: dict[datetime, datetime] = {}
+    max_age = timedelta(seconds=IDOKEP_FORECAST_CACHE_FUTURE_MAX_AGE_SECONDS)
+    horizon = now_utc + timedelta(hours=IDOKEP_FORECAST_CACHE_FUTURE_HOURS)
+
+    for hour in previous:
+        hour_key = key(hour)
+        hour_end = timestamp_utc(hour) + timedelta(hours=1)
+        seen = normalized_last_seen.get(hour_key)
+        if hour_key in current_keys:
+            # Retain it briefly only so missing optional values in the fresh
+            # sample can be filled from the same forecast hour below.
+            merged[hour_key] = hour
+            if seen is not None:
+                seen_by_hour[hour_key] = seen
+            continue
+        if (
+            seen is None
+            or hour_end <= now_utc
+            or timestamp_utc(hour) > horizon
+            or fetched_at_utc < seen
+            or fetched_at_utc - seen > max_age
+        ):
+            continue
+        merged[hour_key] = hour
+        seen_by_hour[hour_key] = seen
+
+    for hour in current_hours:
+        hour_key = key(hour)
+        cached = merged.get(hour_key)
+        if cached is not None:
+            hour = replace(
+                hour,
+                wind_speed_kmh=(
+                    hour.wind_speed_kmh
+                    if hour.wind_speed_kmh is not None
+                    else cached.wind_speed_kmh
+                ),
+                wind_gust_kmh=(
+                    hour.wind_gust_kmh
+                    if hour.wind_gust_kmh is not None
+                    else cached.wind_gust_kmh
+                ),
+                wind_bearing_deg=(
+                    hour.wind_bearing_deg
+                    if hour.wind_bearing_deg is not None
+                    else cached.wind_bearing_deg
+                ),
+                humidity_percent=(
+                    hour.humidity_percent
+                    if hour.humidity_percent is not None
+                    else cached.humidity_percent
+                ),
+            )
+        merged[hour_key] = hour
+        seen_by_hour[hour_key] = fetched_at_utc
+
+    valid_keys = [
+        hour_key
+        for hour_key, hour in merged.items()
+        if timestamp_utc(hour) + timedelta(hours=1) > now_utc
+        and timestamp_utc(hour) <= horizon
+    ]
+    valid_keys.sort()
+    valid_keys = valid_keys[:IDOKEP_FORECAST_CACHE_MAX_HOURS]
+    return (
+        [merged[hour_key] for hour_key in valid_keys],
+        {hour_key: seen_by_hour[hour_key] for hour_key in valid_keys},
+    )
 
 
 def _is_rainy(hour: ForecastHour) -> bool:

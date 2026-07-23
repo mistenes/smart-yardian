@@ -5,18 +5,29 @@ from __future__ import annotations
 import ast
 import asyncio
 import copy
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from math import isfinite
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
-from custom_components.smart_yardian.models import IrrigationProgram
+from custom_components.smart_yardian.models import (
+    ForecastHour,
+    IrrigationProgram,
+    WeatherDecision,
+)
 from custom_components.smart_yardian.planning import (
     ProgramOccurrence,
     SmartSlotChoice,
     upcoming_occurrences,
+)
+from custom_components.smart_yardian.weather import (
+    WeatherUnavailableError,
+    is_plausible_celsius,
+    merge_hourly_forecast_cache,
 )
 
 PACKAGE_PATH = Path(__file__).parents[1] / "custom_components" / "smart_yardian"
@@ -534,6 +545,226 @@ def test_setup_recovers_stale_claims_but_discards_interrupted_claim() -> None:
     setup_source = ast.unparse(_definition(MANAGER_PATH, "async_setup"))
     assert "recovered_claims = self._recover_delayed_claims" in setup_source
     assert "or recovered_claims" in setup_source
+
+
+def test_restart_hydrates_the_persisted_forecast_needed_by_the_open_window() -> None:
+    """A HA restart at 02:45 must not discard the cached 02:00-05:00 cards."""
+    now = datetime(2026, 7, 23, 2, 45, tzinfo=UTC)
+    fetched_at = datetime(2026, 7, 23, 2, 30, tzinfo=UTC)
+    parse_runtime_datetime = _standalone_manager_method(
+        "_parse_runtime_datetime",
+        {"Any": Any, "datetime": datetime},
+    )
+    hour_from_runtime = _standalone_manager_method(
+        "_forecast_hour_from_runtime",
+        {
+            "Any": Any,
+            "ForecastHour": ForecastHour,
+            "UTC": UTC,
+            "_parse_runtime_datetime": parse_runtime_datetime,
+            "isfinite": isfinite,
+            "is_plausible_celsius": is_plausible_celsius,
+        },
+    )
+    hour_to_runtime = _standalone_manager_method(
+        "_forecast_hour_to_runtime",
+        {"ForecastHour": ForecastHour, "UTC": UTC},
+    )
+    serialize_cache = _standalone_manager_method(
+        "_serialized_idokep_forecast_cache",
+        {
+            "Any": Any,
+            "UTC": UTC,
+            "IDOKEP_FORECAST_CACHE_MAX_HOURS": 120,
+            "IDOKEP_FORECAST_CACHE_VERSION": 2,
+        },
+    )
+    hydrate_cache = _standalone_manager_method(
+        "_hydrate_idokep_forecast_cache",
+        {
+            "Any": Any,
+            "ForecastHour": ForecastHour,
+            "UTC": UTC,
+            "IDOKEP_FORECAST_CACHE_RUNTIME_KEY": "idokep_forecast_cache",
+            "IDOKEP_FORECAST_CACHE_VERSION": 2,
+            "IDOKEP_FORECAST_CACHE_MAX_HOURS": 120,
+            "_parse_runtime_datetime": parse_runtime_datetime,
+            "dt_util": SimpleNamespace(utcnow=lambda: now),
+            "merge_hourly_forecast_cache": merge_hourly_forecast_cache,
+        },
+    )
+    clear_cache = _standalone_manager_method(
+        "_clear_idokep_forecast_cache",
+        {"IDOKEP_FORECAST_CACHE_RUNTIME_KEY": "idokep_forecast_cache"},
+    )
+    hours = [
+        ForecastHour(
+            timestamp=datetime(2026, 7, 23, hour, 0, tzinfo=UTC),
+            temperature=18,
+            precipitation_mm=0,
+            precipitation_probability=0,
+            condition="clear-night",
+            wind_speed_kmh=10,
+            wind_gust_kmh=15,
+            humidity_percent=75,
+        )
+        for hour in range(2, 6)
+    ]
+    raw_cache = {
+        "version": 2,
+        "source": {
+            "weather_entity": "weather.idokep",
+            "location": "budapest",
+        },
+        "fetched_at": fetched_at.isoformat(),
+        "hours": [hour_to_runtime(hour, fetched_at) for hour in hours],
+    }
+
+    class RestartedManager:
+        _forecast_hour_from_runtime = staticmethod(hour_from_runtime)
+        _forecast_hour_to_runtime = staticmethod(hour_to_runtime)
+        _serialized_idokep_forecast_cache = serialize_cache
+        _hydrate_idokep_forecast_cache = hydrate_cache
+        _clear_idokep_forecast_cache = clear_cache
+
+        def _idokep_forecast_source_identity(self) -> dict[str, str]:
+            return {
+                "weather_entity": "weather.idokep",
+                "location": "budapest",
+            }
+
+        def __init__(self) -> None:
+            self.store = SimpleNamespace(
+                runtime={"idokep_forecast_cache": copy.deepcopy(raw_cache)}
+            )
+            self._idokep_forecast_snapshot: list[ForecastHour] = []
+            self._idokep_forecast_last_seen: dict[datetime, datetime] = {}
+            self._idokep_forecast_refreshed_at: datetime | None = None
+            self._idokep_forecast_cache_saved_at: datetime | None = None
+
+    manager = RestartedManager()
+
+    changed = manager._hydrate_idokep_forecast_cache()
+
+    assert changed is False
+    assert manager._idokep_forecast_snapshot == hours
+    assert set(manager._idokep_forecast_last_seen) == {
+        hour.timestamp for hour in hours
+    }
+    assert manager._idokep_forecast_refreshed_at == fetched_at
+    assert manager._idokep_forecast_cache_saved_at == fetched_at
+    assert manager.store.runtime["idokep_forecast_cache"] == raw_cache
+
+    wrong_location = RestartedManager()
+    wrong_location.store.runtime["idokep_forecast_cache"]["source"]["location"] = (
+        "szeged"
+    )
+
+    assert wrong_location._hydrate_idokep_forecast_cache() is True
+    assert wrong_location._idokep_forecast_snapshot == []
+    assert "idokep_forecast_cache" not in wrong_location.store.runtime
+
+
+def test_weather_history_uses_the_actual_decision_time_not_first_forecast_hour() -> None:
+    """The history timestamp must describe the decision, not the day anchor."""
+    scheduled_at = datetime(2026, 7, 23, 2, 45, tzinfo=UTC)
+    first_forecast_hour = datetime(2026, 7, 23, 6, 0, tzinfo=UTC)
+    decided_at = datetime(2026, 7, 23, 2, 45, 12, tzinfo=UTC)
+    calculated = WeatherDecision(
+        factor=0.82,
+        source="Időkép",
+        precipitation_mm=0,
+        max_probability=30,
+        max_temperature=24,
+        sunny_hours=0,
+        rainy_hours=3,
+        reason="Teszt.",
+        evaluated_at=first_forecast_hour,
+    )
+
+    async_weather_decision = _standalone_manager_method(
+        "async_weather_decision",
+        {
+            "WeatherDecision": WeatherDecision,
+            "WeatherUnavailableError": WeatherUnavailableError,
+            "evaluate_calendar_day": lambda *_args, **_kwargs: calculated,
+            "replace": replace,
+            "dt_util": SimpleNamespace(utcnow=lambda: decided_at),
+        },
+    )
+
+    class Manager:
+        def __init__(self) -> None:
+            self.store = SimpleNamespace(settings={})
+            self.hass = SimpleNamespace(config=SimpleNamespace(latitude=47.5))
+            self.last_decision = None
+            self.last_error = None
+
+        async def _async_idokep_forecast(self) -> list[ForecastHour]:
+            return []
+
+        async def _async_selected_rain_observation(self) -> None:
+            return None
+
+        def _notify_listeners(self) -> None:
+            return None
+
+    Manager.async_weather_decision = async_weather_decision
+    result = asyncio.run(Manager().async_weather_decision(scheduled_at))
+
+    assert result.evaluated_at == decided_at
+    assert result.evaluated_at != first_forecast_hour
+
+
+def test_forecast_cache_flush_is_throttled_but_runtime_stays_current() -> None:
+    """Frequent readers update memory without writing the Store every time."""
+    persist_cache = _standalone_manager_method(
+        "_async_persist_idokep_forecast_cache",
+        {
+            "datetime": datetime,
+            "IDOKEP_FORECAST_CACHE_RUNTIME_KEY": "idokep_forecast_cache",
+            "IDOKEP_FORECAST_PRIME_SECONDS": 15 * 60,
+        },
+    )
+
+    class Store:
+        def __init__(self) -> None:
+            self.runtime: dict[str, Any] = {}
+            self.save_count = 0
+
+        async def async_save(self) -> None:
+            self.save_count += 1
+
+    class Manager:
+        _async_persist_idokep_forecast_cache = persist_cache
+
+        def __init__(self) -> None:
+            self.store = Store()
+            self._idokep_forecast_cache_saved_at: datetime | None = None
+
+        def _serialized_idokep_forecast_cache(
+            self,
+            fetched_at: datetime,
+        ) -> dict[str, str]:
+            return {"fetched_at": fetched_at.isoformat()}
+
+    manager = Manager()
+    first = datetime(2026, 7, 23, 2, 0, tzinfo=UTC)
+
+    asyncio.run(manager._async_persist_idokep_forecast_cache(first))
+    asyncio.run(
+        manager._async_persist_idokep_forecast_cache(first + timedelta(minutes=5))
+    )
+
+    assert manager.store.save_count == 1
+    assert manager.store.runtime["idokep_forecast_cache"]["fetched_at"] == (
+        first + timedelta(minutes=5)
+    ).isoformat()
+
+    asyncio.run(
+        manager._async_persist_idokep_forecast_cache(first + timedelta(minutes=15))
+    )
+    assert manager.store.save_count == 2
 
 
 def test_restart_accounts_elapsed_current_zone_without_losing_soil_credit() -> None:
