@@ -137,6 +137,24 @@ async def websocket_settings_update(
 
 
 @websocket_api.websocket_command(
+    {vol.Required("type"): f"{WS_PREFIX}/notifications/test"}
+)
+@websocket_api.async_response
+async def websocket_notification_test(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Publish one direct ntfy test notification."""
+    try:
+        status = await _manager(hass).async_test_ntfy()
+    except ValueError as err:
+        connection.send_error(msg["id"], "ntfy_failed", str(err))
+        return
+    connection.send_result(msg["id"], status)
+
+
+@websocket_api.websocket_command(
     {
         vol.Required("type"): f"{WS_PREFIX}/rain/stations",
         vol.Required("city"): str,
@@ -352,6 +370,7 @@ COMMANDS = (
     websocket_program_save,
     websocket_program_delete,
     websocket_settings_update,
+    websocket_notification_test,
     websocket_rain_stations,
     websocket_zone_profiles_update,
     websocket_automation_set,

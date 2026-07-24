@@ -9,6 +9,7 @@ import {
   searchRainStations,
   setAutomation,
   skipCurrentZone,
+  testNtfy,
   updateSettings,
   updateZoneProfiles,
 } from "./api";
@@ -203,5 +204,13 @@ describe("Smart Yardian WebSocket client", () => {
       "smart_yardian/automation/set",
       "smart_yardian/settings/update",
     ]);
+  });
+
+  it("requests one direct ntfy test notification", async () => {
+    const { hass, messages } = recordingHass();
+    await testNtfy(hass);
+    expect(messages[0]).toEqual({
+      type: "smart_yardian/notifications/test",
+    });
   });
 });

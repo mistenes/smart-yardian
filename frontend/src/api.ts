@@ -46,6 +46,11 @@ export const updateSettings = (hass: Hass, settings: Partial<Settings>) =>
     settings,
   });
 
+export const testNtfy = (hass: Hass) =>
+  hass.connection.sendMessagePromise<Partial<Settings["ntfy_status"]>>({
+    type: "smart_yardian/notifications/test",
+  });
+
 export const searchRainStations = (hass: Hass, city: string) =>
   hass.connection.sendMessagePromise<{ stations: RainStation[] }>({
     type: "smart_yardian/rain/stations",

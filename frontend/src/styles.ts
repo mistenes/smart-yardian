@@ -1647,7 +1647,7 @@ export const panelStyles = css`
 
   .ntfy-link-row > div {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     align-items: center;
     gap: 8px;
   }
@@ -1665,6 +1665,23 @@ export const panelStyles = css`
 
   .ntfy-help {
     margin: 9px 0 14px;
+  }
+
+  .ntfy-status {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    padding-top: 9px;
+    color: var(--sy-muted);
+    font-size: 12px;
+  }
+
+  .ntfy-status.accepted strong {
+    color: var(--sy-green);
+  }
+
+  .ntfy-status.failed {
+    color: var(--sy-red);
   }
 
   .forecast-settings,
@@ -1964,6 +1981,14 @@ export const panelStyles = css`
       align-items: stretch;
       gap: 8px;
       padding: 12px 0;
+    }
+
+    .ntfy-link-row > div {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .ntfy-link-row > div .button:last-child {
+      grid-column: 1 / -1;
     }
 
     .zone-profile-head {

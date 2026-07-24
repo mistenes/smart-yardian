@@ -248,6 +248,14 @@ export type Settings = {
   ntfy_base_url: string;
   ntfy_topic: string;
   ntfy_link: string;
+  ntfy_status: {
+    enabled: boolean;
+    configured: boolean;
+    ha_notify_service_configured: boolean;
+    last_attempt_at?: string | null;
+    last_accepted_at?: string | null;
+    last_error?: string | null;
+  };
   rain_station_city: string;
   rain_station_id: string;
   rain_station_name: string;

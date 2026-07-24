@@ -209,6 +209,8 @@ const history: RunRecord[] = [
 ];
 
 let automationEnabled = true;
+let ntfyLastAttemptAt: string | null = null;
+let ntfyLastAcceptedAt: string | null = null;
 const forceUnavailable =
   new URLSearchParams(window.location.search).get("yardian_state") === "unavailable";
 const forceIdle = new URLSearchParams(window.location.search).get("idle") === "1";
@@ -322,6 +324,14 @@ const summary = (): Summary => ({
     ntfy_base_url: "https://ntfy.sh",
     ntfy_topic: "smart-yardian-devtopic",
     ntfy_link: "https://ntfy.sh/smart-yardian-devtopic",
+    ntfy_status: {
+      enabled: true,
+      configured: true,
+      ha_notify_service_configured: false,
+      last_attempt_at: ntfyLastAttemptAt,
+      last_accepted_at: ntfyLastAcceptedAt,
+      last_error: null,
+    },
     rain_station_city: "Csömör",
     rain_station_id: "csomor1",
     rain_station_name: "Csömör",
@@ -705,6 +715,15 @@ const hass: Hass = {
       }
       if (type === "smart_yardian/automation/set") {
         automationEnabled = Boolean(message.enabled);
+      }
+      if (type === "smart_yardian/notifications/test") {
+        ntfyLastAttemptAt = new Date().toISOString();
+        ntfyLastAcceptedAt = ntfyLastAttemptAt;
+        return {
+          last_attempt_at: ntfyLastAttemptAt,
+          last_accepted_at: ntfyLastAcceptedAt,
+          last_error: null,
+        } as T;
       }
       if (type === "smart_yardian/program/save") {
         const program = message.program as Program;

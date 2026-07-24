@@ -49,7 +49,7 @@ from .irrigation import (
     seasonal_target,
 )
 from .models import ForecastHour, IrrigationProgram, ProgramZone, RunRecord, WeatherDecision
-from .ntfy import ntfy_link
+from .ntfy import ntfy_link, ntfy_publish_request
 from .planning import (
     ProgramOccurrence,
     SmartSlotChoice,
@@ -96,6 +96,7 @@ MAX_PLAUSIBLE_DAILY_ETC_MM = 20.0
 SOIL_MOISTURE_MAX_AGE_SECONDS = 12 * 60 * 60
 IDOKEP_FORECAST_CACHE_RUNTIME_KEY = "idokep_forecast_cache"
 IDOKEP_FORECAST_CACHE_VERSION = 2
+NTFY_REQUEST_TIMEOUT_SECONDS = 15
 
 
 class SmartYardianManager:
@@ -1181,7 +1182,7 @@ class SmartYardianManager:
                 IDOKEP_RAIN_MAP_URL,
                 headers={
                     "User-Agent": (
-                        "HomeAssistant SmartYardian/0.18.1 "
+                        "HomeAssistant SmartYardian/0.18.2 "
                         "(https://github.com/mistenes/smart-yardian)"
                     )
                 },
@@ -1567,7 +1568,7 @@ class SmartYardianManager:
                 url,
                 headers={
                     "User-Agent": (
-                        "HomeAssistant SmartYardian/0.18.1 "
+                        "HomeAssistant SmartYardian/0.18.2 "
                         "(https://github.com/mistenes/smart-yardian)"
                     )
                 },
@@ -3166,7 +3167,7 @@ class SmartYardianManager:
                 url,
                 headers={
                     "User-Agent": (
-                        "HomeAssistant SmartYardian/0.18.1 "
+                        "HomeAssistant SmartYardian/0.18.2 "
                         "(https://github.com/mistenes/smart-yardian)"
                     )
                 },
@@ -4394,12 +4395,19 @@ class SmartYardianManager:
             title=title,
             notification_id=f"{DOMAIN}_{self.entry_id}",
         )
+        if not self.store.settings.get("notify_mobile", True):
+            return
+
+        try:
+            await self._async_publish_ntfy(message, title)
+        except ValueError as err:
+            # A notification transport must never interrupt irrigation or
+            # history persistence. The exact, non-secret reason is available
+            # in the panel's ntfy status block.
+            _LOGGER.warning("Could not publish Smart Yardian ntfy notification: %s", err)
+
         notify_service = str(self.config.get(CONF_NOTIFY_SERVICE) or "").strip()
-        if (
-            notify_service
-            and self.store.settings.get("notify_mobile", True)
-            and "." in notify_service
-        ):
+        if notify_service and "." in notify_service:
             domain, service = notify_service.split(".", 1)
             try:
                 await self.hass.services.async_call(
@@ -4408,8 +4416,80 @@ class SmartYardianManager:
                     {"title": title, "message": message},
                     blocking=False,
                 )
-            except Exception:  # noqa: BLE001
-                _LOGGER.warning("Could not send mobile irrigation notification")
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.warning(
+                    "Could not call Home Assistant mobile notification service: %s",
+                    err,
+                )
+
+    async def _async_publish_ntfy(self, message: str, title: str) -> None:
+        """Publish directly to the stable ntfy topic and record acceptance."""
+        attempted_at = dt_util.utcnow().isoformat()
+        try:
+            base_url, payload = ntfy_publish_request(
+                self.store.settings,
+                title,
+                message,
+            )
+            session = async_get_clientsession(self.hass)
+            async with session.post(
+                base_url,
+                json=payload,
+                timeout=NTFY_REQUEST_TIMEOUT_SECONDS,
+            ) as response:
+                await response.read()
+                if not 200 <= response.status < 300:
+                    raise ValueError(f"Az ntfy kiszolgáló HTTP {response.status} hibát adott.")
+        except ValueError as err:
+            await self._async_record_ntfy_status(
+                attempted_at,
+                error=str(err),
+            )
+            raise
+        except Exception as err:  # noqa: BLE001
+            public_error = f"Az ntfy nem érhető el: {type(err).__name__}: {err}"
+            await self._async_record_ntfy_status(
+                attempted_at,
+                error=public_error,
+            )
+            raise ValueError(public_error) from err
+
+        await self._async_record_ntfy_status(
+            attempted_at,
+            accepted_at=dt_util.utcnow().isoformat(),
+        )
+
+    async def _async_record_ntfy_status(
+        self,
+        attempted_at: str,
+        *,
+        accepted_at: str | None = None,
+        error: str | None = None,
+    ) -> None:
+        """Store the latest ntfy server result without exposing the topic."""
+        previous = self.store.runtime.get("ntfy_status")
+        status = dict(previous) if isinstance(previous, dict) else {}
+        status["last_attempt_at"] = attempted_at
+        if accepted_at is not None:
+            status["last_accepted_at"] = accepted_at
+            status["last_error"] = None
+        elif error is not None:
+            status["last_error"] = str(error)[:500]
+        self.store.runtime["ntfy_status"] = status
+        try:
+            await self.store.async_save()
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.warning("Could not persist Smart Yardian ntfy status: %s", err)
+        self._notify_listeners()
+
+    async def async_test_ntfy(self) -> dict[str, Any]:
+        """Send one direct ntfy test message, even while automatic alerts are off."""
+        await self._async_publish_ntfy(
+            "Ha ezt látod, a Smart Yardian ntfy értesítései működnek.",
+            "Smart Yardian tesztértesítés",
+        )
+        status = self.store.runtime.get("ntfy_status")
+        return dict(status) if isinstance(status, dict) else {}
 
     def next_run_plan(self, now: datetime | None = None) -> dict[str, Any] | None:
         """Return the next fixed start or persisted/intelligent opportunity."""
@@ -4590,6 +4670,18 @@ class SmartYardianManager:
         settings = dict(self.store.settings)
         settings["idokep_location"] = self._idokep_location()
         settings["ntfy_link"] = ntfy_link(settings)
+        raw_ntfy_status = self.store.runtime.get("ntfy_status")
+        ntfy_status = dict(raw_ntfy_status) if isinstance(raw_ntfy_status, dict) else {}
+        ntfy_status.update(
+            {
+                "enabled": bool(self.store.settings.get("notify_mobile", True)),
+                "configured": bool(settings["ntfy_link"]),
+                "ha_notify_service_configured": bool(
+                    str(self.config.get(CONF_NOTIFY_SERVICE) or "").strip()
+                ),
+            }
+        )
+        settings["ntfy_status"] = ntfy_status
         return {
             "status": self.status,
             "automation_enabled": self.store.settings.get("automation_enabled", True),

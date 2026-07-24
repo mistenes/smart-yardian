@@ -14,6 +14,7 @@ import {
   setAutomation,
   skipCurrentZone,
   stopAll,
+  testNtfy,
   updateSettings,
   updateZoneProfiles,
 } from "./api";
@@ -129,6 +130,7 @@ export class SmartYardianPanel extends LitElement {
     _settingsSaving: { state: true },
     _settingsSaved: { state: true },
     _ntfyCopied: { state: true },
+    _ntfyTesting: { state: true },
     _rainStationSearching: { state: true },
     _rainStationMatches: { state: true },
     _runExpanded: { state: true },
@@ -158,6 +160,7 @@ export class SmartYardianPanel extends LitElement {
   private _settingsSaving = false;
   private _settingsSaved = false;
   private _ntfyCopied = false;
+  private _ntfyTesting = false;
   private _rainStationSearching = false;
   private _rainStationMatches: RainStation[] = [];
   private _runExpanded = false;
@@ -1740,6 +1743,7 @@ export class SmartYardianPanel extends LitElement {
 
   private _renderSettings(): TemplateResult {
     const settings = this._summary!.settings;
+    const ntfyStatus = settings.ntfy_status;
     return html`
       <div class="page-head">
         <div>
@@ -1906,11 +1910,42 @@ export class SmartYardianPanel extends LitElement {
               >
                 ${this._ntfyCopied ? "Másolva" : "Másolás"}
               </button>
+              <button
+                class="button quiet"
+                ?disabled=${!settings.ntfy_link || this._ntfyTesting}
+                @click=${this._testNtfy}
+              >
+                ${this._ntfyTesting ? "Küldés…" : "Teszt küldése"}
+              </button>
             </div>
+          </div>
+          <div
+            class="ntfy-status ${ntfyStatus?.last_error
+              ? "failed"
+              : ntfyStatus?.last_accepted_at
+                ? "accepted"
+                : ""}"
+          >
+            ${ntfyStatus?.last_error
+              ? html`
+                  <strong>Az utolsó küldés sikertelen.</strong>
+                  <span>${ntfyStatus.last_error}</span>
+                `
+              : ntfyStatus?.last_accepted_at
+                ? html`
+                    <strong>Az ntfy szerver elfogadta az utolsó üzenetet.</strong>
+                    <span>${this._formatDateTime(ntfyStatus.last_accepted_at)}</span>
+                  `
+                : html`
+                    <span>Még nem történt ellenőrzött ntfy-küldés.</span>
+                  `}
           </div>
           <p class="settings-help ntfy-help">
             Ez a topic a Home Assistant tárolójában marad, ezért HACS/frissítés
-            után sem változik. Az ntfy appban erre a linkre iratkozz fel.
+            után sem változik. Az ntfy appban erre a linkre iratkozz fel, majd
+            használd a tesztgombot. A szerver általi elfogadás még nem igazolja,
+            hogy a telefon is feliratkozott. Automatikus értesítés hibánál,
+            kihagyásnál és megszakításnál érkezik.
           </p>
           <div class="setting-row">
             <span>Automatika szüneteltetése 24 órára</span>
@@ -2746,6 +2781,45 @@ export class SmartYardianPanel extends LitElement {
     } catch {
       this._error =
         "Nem sikerült automatikusan másolni. Jelöld ki a linket a mezőben.";
+    }
+  };
+
+  private _testNtfy = async (): Promise<void> => {
+    if (!this.hass || this._ntfyTesting) return;
+    this._ntfyTesting = true;
+    try {
+      const ntfyStatus = await testNtfy(this.hass);
+      if (this._summary) {
+        this._summary = {
+          ...this._summary,
+          settings: {
+            ...this._summary.settings,
+            ntfy_status: {
+              ...this._summary.settings.ntfy_status,
+              ...ntfyStatus,
+            },
+          },
+        };
+      }
+      this._error = "";
+    } catch (error) {
+      const message = this._errorMessage(error);
+      if (this._summary) {
+        this._summary = {
+          ...this._summary,
+          settings: {
+            ...this._summary.settings,
+            ntfy_status: {
+              ...this._summary.settings.ntfy_status,
+              last_attempt_at: new Date().toISOString(),
+              last_error: message,
+            },
+          },
+        };
+      }
+      this._error = message;
+    } finally {
+      this._ntfyTesting = false;
     }
   };
 
